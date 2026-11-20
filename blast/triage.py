@@ -78,9 +78,10 @@ def _maps(ctx: Context):
 
 # ----------------------------------------------------------------- patch application
 
-def apply_hunks(old_text: str, change: FileChange) -> str:
+def apply_hunks(old_text: str, change: FileChange, touched: set[int] | None = None) -> str:
     """Rebuild the post-patch file from the pinned text; raise PatchMismatch if the
-    patch does not apply exactly."""
+    patch does not apply exactly. `touched` collects the old line numbers each edit
+    sits on (removed lines, or both neighbours of an insertion)."""
     old = old_text.splitlines()
     out: list[str] = []
     pos = 0  # index into old (0-based) of the next unconsumed line
@@ -93,12 +94,16 @@ def apply_hunks(old_text: str, change: FileChange) -> str:
         removed = dict(hunk.removed)
         added = dict(hunk.added)
         for number, text in hunk.removed:
+            if touched is not None:
+                touched.add(number)
             if number - 1 >= len(old) or old[number - 1].rstrip("\r") != text.rstrip("\r"):
                 raise PatchMismatch(f"removed line {number}")
         end = start + hunk.old_count
         for new_no in range(hunk.new_start, hunk.new_start + hunk.new_count):
             if new_no in added:
                 out.append(added[new_no])
+                if touched is not None:
+                    touched.update((pos, pos + 1))  # old lines around the insertion
                 continue
             while pos < end and (pos + 1) in removed:
                 pos += 1
@@ -112,13 +117,6 @@ def apply_hunks(old_text: str, change: FileChange) -> str:
             raise PatchMismatch("context underrun")
     out.extend(old[pos:])
     return "\n".join(out) + "\n"
-
-
-def touched_old_lines(change: FileChange) -> set[int]:
-    lines: set[int] = set()
-    for hunk in change.hunks:
-        lines |= hunk.old_lines_touched()
-    return lines
 
 
 def _read_src(maps, path: str) -> str | None:
@@ -249,15 +247,16 @@ def _test_module_change(maps, change: FileChange, ctx: Context) -> Decision:
     old_text = _read_src(maps, path)
     if old_text is None:
         return Decision.select(_whole(maps, path, ctx), "test module: no pinned copy")
+    touched: set[int] = set()
     try:
-        new_text = apply_hunks(old_text, change)
+        new_text = apply_hunks(old_text, change, touched)
     except PatchMismatch as error:
         return Decision.select(_whole(maps, path, ctx), f"test module: patch mismatch ({error})")
     old_tree, new_tree = _parse(old_text), _parse(new_text)
     if old_tree is None or new_tree is None:
         return Decision.select(_whole(maps, path, ctx), "test module: does not parse")
     if path.endswith(("__init__.py", "conftest.py")):
-        if _dump(old_tree) == _dump(new_tree) and min(touched_old_lines(change), default=99) > 2:
+        if _dump(old_tree) == _dump(new_tree) and min(touched, default=99) > 2:
             return Decision.skip("package/conftest: same AST")
         return Decision.select(_whole(maps, path, ctx), "package/conftest changed")
 
@@ -289,7 +288,6 @@ def _test_module_change(maps, change: FileChange, ctx: Context) -> Decision:
 
     # Same AST: comments or layout only. Line numbers of the touched functions moved
     # at most; run those tests anyway, since that is cheap.
-    touched = touched_old_lines(change)
     if min(touched, default=99) <= 2:
         return Decision.select(_whole(maps, path, ctx), "test module: encoding line touched")
     for qualname, start, end in _spans(old_tree):
@@ -331,15 +329,16 @@ def _fixture_change(maps, change: FileChange, ctx: Context) -> Decision:
 def _source_noop(maps, change: FileChange) -> bool:
     if change.old_path != change.new_path or not change.old_path.endswith(".py") or change.binary:
         return False
-    if min(touched_old_lines(change), default=99) <= 2:
-        return False  # could change the encoding declaration
     old_text = _read_src(maps, change.old_path)
     if old_text is None:
         return False
+    touched: set[int] = set()
     try:
-        new_text = apply_hunks(old_text, change)
+        new_text = apply_hunks(old_text, change, touched)
     except PatchMismatch:
         return False
+    if min(touched, default=99) <= 2:
+        return False  # could change the encoding declaration
     old_tree, new_tree = _parse(old_text), _parse(new_text)
     return old_tree is not None and new_tree is not None and _dump(old_tree) == _dump(new_tree)
 
