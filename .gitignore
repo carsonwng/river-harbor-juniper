@@ -1,0 +1,7 @@
+# Harness: strategy worktrees and the shared sqlglot checkout live here.
+.worktrees/
+.cache/
+output.jsonl
+__pycache__/
+*.pyc
+.venv/

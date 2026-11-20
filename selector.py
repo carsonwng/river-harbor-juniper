@@ -5,10 +5,12 @@ is deciding which tests a change cannot break.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
-DATA = Path("/data")
+# BR_DATA lets the harness run this on the host; the scorer always mounts /data.
+DATA = Path(os.environ.get("BR_DATA", "/data"))
 WORKERS = 3
 
 
