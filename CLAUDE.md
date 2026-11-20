@@ -5,6 +5,9 @@ We submit a Docker image that reads sqlglot patches (`/data/commits/*.patch`) an
 and how to split them over at most 8 workers. Lower score wins. `README.md` has the
 track brief and `SCORING.md` has the exact rules. Read both before changing anything.
 
+**Track page** (hackathon info, practice board, and where we submit the repo + commit hash):
+https://www.joinbuilders.org/buildathon/tracks/blast-radius
+
 ## The score in one screen
 
 - Each commit costs the load of its busiest worker plus **2 s per worker**. `[]` costs 0.
