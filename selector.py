@@ -1,36 +1,52 @@
-"""The starter selector: run every test on every commit, spread over 3 workers.
+"""Entry point: one JSON line per patch on stdout, logs on stderr.
 
-It never misses a failing test and it is slow. Everything you do from here
-is deciding which tests a change cannot break.
+The pipeline is patch.parse -> triage.classify -> impact.select -> pack.split
+(see blast/). Any layer that raises falls back to running every test for that
+commit, because a crash rejects the run and a miss costs 300 s.
 """
 
 import json
 import os
 import sys
+import traceback
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from blast import context, impact, pack, patch, triage  # noqa: E402
 
 # BR_DATA lets the harness run this on the host; the scorer always mounts /data.
 DATA = Path(os.environ.get("BR_DATA", "/data"))
-WORKERS = 3
+VERBOSE = os.environ.get("BR_VERBOSE") == "1"
 
 
-def split(tests: list[dict], worker_count: int) -> list[list[int]]:
-    """Longest test first, each onto the worker with the least to do so far."""
-    workers: list[list[int]] = [[] for _ in range(worker_count)]
-    loads = [0.0] * worker_count
-    for test in sorted(tests, key=lambda test: test["seconds"], reverse=True):
-        lightest = loads.index(min(loads))
-        workers[lightest].append(test["number"])
-        loads[lightest] += test["seconds"]
-    return workers
+def choose(commit: str, text: str, ctx: context.Context) -> set[int]:
+    parsed = patch.parse(commit, text)
+    selected: set[int] = set()
+    deferred = []
+    for change in parsed.files:
+        decision = triage.classify(change, ctx)
+        if VERBOSE:
+            print(f"{commit} {change.path}: {decision.kind} {decision.reason}", file=sys.stderr)
+        if decision.kind == "tests":
+            selected |= decision.tests
+        elif decision.kind == "defer":
+            deferred.append(change)
+    selected |= impact.select(deferred, ctx)
+    return selected
 
 
 def main() -> None:
-    tests = json.loads((DATA / "tests.json").read_text())["tests"]
-    workers = split(tests, WORKERS)
-    for patch in sorted((DATA / "commits").glob("*.patch")):
-        print(json.dumps({"commit": patch.stem, "workers": workers}))
-    print(f"selected {len(tests)} tests on every commit", file=sys.stderr)
+    ctx = context.load(DATA)
+    for patch_path in sorted((DATA / "commits").glob("*.patch")):
+        commit = patch_path.stem
+        try:
+            selected = choose(commit, patch_path.read_text("utf-8", "replace"), ctx)
+            workers = pack.split(selected, ctx)
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            workers = pack.split(ctx.all_tests, ctx)
+        print(json.dumps({"commit": commit, "workers": workers}), flush=True)
 
 
 if __name__ == "__main__":

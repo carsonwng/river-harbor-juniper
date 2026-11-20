@@ -50,6 +50,7 @@ python harness/br.py list                     # branches, worktrees, best score 
 python harness/br.py eval -v -m "note"        # fast: host python, wall time as the CPU stand-in
 python harness/br.py eval --docker -m "note"  # real: scorer's flags, cgroup CPU (needs Docker running)
 python harness/br.py board [--all]            # shared leaderboard across all worktrees
+python harness/br.py maps [--only LAYER]      # run build/ steps locally into .maps/
 python harness/br.py oracle                   # lower bound on sample (yardstick only)
 python harness/br.py sqlglot                  # shared pinned sqlglot clone at .cache/sqlglot
 ```
@@ -72,7 +73,30 @@ python harness/br.py sqlglot                  # shared pinned sqlglot clone at .
 4. Never edit `main`, another agent's worktree, or the shared sqlglot cache.
 5. Report the branch, sha, docker total, misses, and what to steal from it.
 
-## Strategy backlog (claim one by creating its branch)
+## Layers (each owned by one branch, optimized independently)
+
+`selector.py` runs `blast/patch.parse -> blast/triage.classify (per file) -> blast/impact.select
+(deferred files) -> blast/pack.split`. Any exception falls back to every test for that commit.
+Every layer's default is the safe one, so improving one layer never needs another.
+
+| Layer | Module | Build step | Maps | Owner branch | Job |
+| --- | --- | --- | --- | --- | --- |
+| parse + triage | `blast/patch.py`, `blast/triage.py` | `build/triage.py` | `maps/triage/` | `strat/triage` | per changed file: skip, exact tests (edited tests/fixtures), or defer |
+| impact | `blast/impact.py` | `build/impact.py` | `maps/impact/` | `strat/impact` | deferred sqlglot source changes to candidate tests (coverage/imports) |
+| pack | `blast/pack.py` | none | none | `strat/pack` | selected tests to at most 8 workers at minimum cost |
+| validation | `validation/` | none | `.cache/mutants/` | `strat/mutants` | synthetic held-out data sets for `eval --data` |
+
+- Edit only your layer's files. Interface changes (function signatures, `Context`, `Patch`
+  fields) go to `main` first, through the lead, so siblings can rebase onto them.
+- A build step is `build/<layer>.py --sqlglot DIR --out DIR`. In the image it runs with
+  sqlglot at `/opt/sqlglot` and `requirements.lock` installed. Locally,
+  `python harness/br.py maps [--only LAYER]` writes `<worktree>/.maps/`.
+- A layer must work without its maps (fall back to safe) so local runs never break.
+- Integration: the lead merges the `strat/*` layer branches into an `int/<date>` branch,
+  scores it, and promotes it to `main`. Because each layer only touches its own files,
+  these merges stay clean.
+
+## Strategy backlog (ideas per layer; extra explorations get their own `strat/<name>`)
 
 - `coverage`: per-test line coverage of sqlglot at build time, mapping changed lines to tests.
 - `imports`/`files`: map each module to the test files that reach it, as a coarse safe fallback.

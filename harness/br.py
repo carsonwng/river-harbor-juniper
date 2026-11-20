@@ -8,6 +8,7 @@ one of its worktrees:
     python harness/br.py list                      branches, worktrees, best score each
     python harness/br.py eval [--docker] [-m MSG]  score the current worktree, log to board
     python harness/br.py board [--all]             leaderboard (best per branch, or every run)
+    python harness/br.py maps [--only LAYER]       run build/ steps locally into .maps/
     python harness/br.py oracle                    perfect-selection lower bound on sample
     python harness/br.py sqlglot                   clone sqlglot at the pinned commit (shared cache)
 
@@ -344,6 +345,23 @@ def cmd_oracle(options) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- maps
+
+
+def cmd_maps(options) -> int:
+    """Run build/run_all.py against the shared sqlglot into <worktree>/.maps."""
+    root = worktree_root()
+    sqlglot = main_root() / ".cache" / "sqlglot"
+    if not sqlglot.exists():
+        log("no shared sqlglot yet; run `python harness/br.py sqlglot` first")
+        return 1
+    command = [sys.executable, str(root / "build" / "run_all.py"),
+               "--sqlglot", str(sqlglot), "--out", str(root / ".maps")]
+    if options.only:
+        command += ["--only", options.only]
+    return subprocess.run(command, cwd=root).returncode
+
+
 # ---------------------------------------------------------------- sqlglot
 
 
@@ -389,6 +407,10 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("oracle", help="lower bound from the answers (yardstick only)")
     p.add_argument("--data", help="data dir with tests.json and answers.json")
     p.set_defaults(func=cmd_oracle)
+
+    p = sub.add_parser("maps", help="run build/ steps locally into <worktree>/.maps")
+    p.add_argument("--only", help="just this layer's build step")
+    p.set_defaults(func=cmd_maps)
 
     p = sub.add_parser("sqlglot", help="clone sqlglot at the pinned commit into .cache/")
     p.set_defaults(func=cmd_sqlglot)

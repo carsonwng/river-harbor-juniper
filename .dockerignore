@@ -1,0 +1,8 @@
+.git
+.worktrees
+.cache
+.maps
+output.jsonl
+**/__pycache__
+# Answers never enter the image.
+sample
