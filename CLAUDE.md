@@ -70,8 +70,11 @@ python harness/br.py sqlglot                  # shared pinned sqlglot clone at .
 1. `python harness/br.py new <name>`, then work only inside `.worktrees/<name>`.
 2. Write `STRATEGY.md` on the branch: the idea, what you measured, what failed. Keep it current.
 3. Loop: change, then `eval -v`, then commit. Run `eval --docker` before you claim a result.
-4. Never edit `main`, another agent's worktree, or the shared sqlglot cache.
-5. Report the branch, sha, docker total, misses, and what to steal from it.
+4. Share the machine: at most **4 concurrent test worker processes per agent** (`pytest -n 4`,
+   one test job at a time), at below-normal priority where you can. Some sqlglot tests start
+   their own process pools, so `-n 16` multiplies fast. Several agents run at once on 16 logical CPUs.
+5. Never edit `main`, another agent's worktree, or the shared sqlglot cache.
+6. Report the branch, sha, docker total, misses, and what to steal from it.
 
 ## Layers (each owned by one branch, optimized independently)
 
