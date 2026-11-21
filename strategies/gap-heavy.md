@@ -173,6 +173,21 @@ that is not provable without evaluating the loader on the new text (triage layer
   the 150 s budget at 4 jobs. Everything else is dropped first; tests past the deadline
   are only unprofiled.
 
+## Cost
+
+- **Build.** Each profiled test alone (whole suite collected) in docker on 1 CPU, loaded
+  host: max_nodes 85 s, tpcds 117 s, generator_memory 18, tpch 14, optimized_tpch 19,
+  scope 16, test_tpcds 26, annotate_funcs 15, qualify_columns 13, agg_order 10,
+  optimize_in_nulls 11, cache 8, merge_subqueries 11, canonicalize 8. That sums to **371
+  CPU-s** for 14 tests. Plain collection is 6 s of each. At 4 jobs, longest first, the
+  wall time is bounded by tpcds: about 120 s, inside the 150 s `BR_INSTR_BUDGET`. Impact
+  step estimate on a cold 4-core build: coverage about 60 s + relprof about 125 s + instr
+  about 120 s, about 305 s. `BR_IMPACT_DEADLINE` (450 s) cuts the pass off rather than
+  overrunning.
+- **Run.** Host wall, selector end to end, with vs without `instr.json`: sample 2.25 vs
+  2.03 s; syn 400: 33.6 vs 30.4 s (about 8 ms per commit). The cost is the 2.4 MB JSON
+  load plus compiling and walking the old file, only when a profiled test is in the bits.
+
 ## Dead ends
 
 - Global INSTRUCTION events (all code): about 45 s per test, mostly sqlglot module
