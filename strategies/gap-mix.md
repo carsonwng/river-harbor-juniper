@@ -135,7 +135,24 @@ Examples: `typing/__init__.py` Max/Min annotator lambda `is not` → `is` went f
 (36.8 s) to 18 (25.5 s, tpcds legitimately). `parsers/starrocks.py` went from 607 tests (27.5 s)
 to 20 (4.1 s). `generators/oracle.py` went from 118 tests (10.7 s) to 6 (2.5 s).
 
-**Verification.** See section 5.
+**Verification (full suite, docker labelling image, `-n 2`).** I took 8 synthetic commits the
+cut narrowed, applied each to a private scratch clone, ran the whole suite in `br-label`
+(`SKIP_INTEGRATION=0`), and compared the failing tests with the narrowed selection. The pinned
+baseline is 1620 passed. **Every dropped test passed, and 0 failing tests were missed:**
+
+| commit | edit | selected before → after | failing (all selected) |
+| --- | --- | --- | --- |
+| 1c08 | typing/__init__ Max/Min annotator `is not` → `is` | 1620 → 18 | 8 |
+| ghue | parsers/starrocks `"{"` → `"{_"` | 607 → 20 | 2 |
+| 333p | parsers/hive `":"` → `":s"` | 244 → 17 | 1 |
+| surq | typing/presto `"this"` → `"tis"` | 233 → 4 | 0 |
+| hkau | generators/mysql `0` → `1` | 317 → 180 | 3 |
+| ghjn | generators/oracle `"SYSTIMESTAMP"` → lower | 118 → 6 | 2 |
+| 6aq2 | parsers/spark2 `or` → `and` | 212 → 17 | 2 |
+| piab | parsers/snowflake `or` → `and` | 296 → 17 | 1 |
+
+The sample's one changed commit, 6ze8 (31 → 5 tests), still covers its labelled failure, and so
+do m1's `each` (296 → 17) and `h3rw` (1 → 0, no failures).
 
 ## 5. Second commit: import check (recall)
 
@@ -155,3 +172,10 @@ shared clone), so the child compiles only the edited files.
 | m1 (42) | 1044.649 s sim, 2 misses | **500.332 s, 0 misses** (8owm and doay → all tests, 36.8 s each) |
 | sample | 131.351 | 131.351 (no sample commit fails to import) |
 | CPU | | about 0.75 s per triggering commit in the Linux image (16 of 42 m1 commits trigger) |
+
+On the synthetic set (unlabelled), **16 of 640 commits (2.5%) leave some module unable to
+import.** Some are function-body edits that run at import: trie/tokens edits break duckdb's
+import-time `parse_one` with a ParseError. int/night-2120 under-selects 9 of the 16: fjz1 35
+tests, fpqj 33, k10s 60, 2u5m 566, tacd 771, 4yyt 1508, 56pg 1574, invg and yfjq 1564. With the
+check, all 16 select every test. That is about 1% of commits being a probable 300 s miss on the
+base, worth roughly 100 s per 30-commit final.
