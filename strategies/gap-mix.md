@@ -179,3 +179,44 @@ import-time `parse_one` with a ParseError. int/night-2120 under-selects 9 of the
 tests, fpqj 33, k10s 60, 2u5m 566, tacd 771, 4yyt 1508, 56pg 1574, invg and yfjq 1564. With the
 check, all 16 select every test. That is about 1% of commits being a probable 300 s miss on the
 base, worth roughly 100 s per 30-commit final.
+
+Follow-up (789e38d): the build writes `maps/impact/imports.json`, the modules each module loads
+after `import sqlglot`, taken from the import probe. A non-core edit then imports only the
+edited modules and their importers, while a core edit still imports everything. It catches the
+same 16/16 and 2/2 cases at about half the CPU. Assumption: import-time code does not read
+state that a different module's import left behind.
+
+## 6. Docker (local docker, scorer flags; the build ran with `BR_IMPACT_JOBS=2` added uncommitted to the Dockerfile for machine sharing, so runs are marked dirty)
+
+| commit | set | simulated | CPU | total | misses |
+| --- | --- | --- | --- | --- | --- |
+| int/night-2120 53eff6e (board) | sample | 131.728 | 1.955 | 133.683 | 0 |
+| gap-mix afb11f8 (lambda + full import check) | sample | 130.911 | 8.353 | 139.264 | 0 |
+| gap-mix 789e38d (+ importer restriction) | sample | 123.583 | 6.042 | 129.625 | 0 |
+| gap-mix 789e38d | m1 (42) | 500.306 | 20.640 | 520.946 | 0 |
+| int/night-2120 (local, same maps) | m1 (42) | 1055.483 | about 15 | about 1070 | 2 (8owm, doay) |
+
+The 7.3 s sample gap between the two gap-mix builds is all ktz3. It selected 31 tests including
+genmem in one build and 29 tests without genmem in the other: **coverage maps are not
+deterministic across builds**, independent of this branch. On the sample the import check
+costs about 4 s of CPU and buys nothing, because no sample commit breaks an import. On m1 it
+removes 600 s of misses.
+
+## 7. What did not work / not done
+
+- **Import-state diff narrowing (prototype, not committed).** Fingerprint every module global
+  and class attribute after importing all of sqlglot (deterministic after handling id-hashed
+  dict order, typing objects and loggers; 25k keys, about 2.5 s). Then narrow class-level edits
+  to `readers(changed attribute) ∩ class users`. Abandoned: it is unsound because of the
+  cross-test cache hole (section 3). `readers(TRANSFORMS)` misses tests that reuse a cached
+  dispatch.
+- No sound structural cut exists for the top class (tpcds under optimizer/executor function-body
+  coverage). It needs value-level evidence (relprof-style) or a run-time execution budget.
+
+## 8. For other strategies
+
+- Merge the **import check** (`blast/impact_import.py`, `_runs_at_import`, `_imports_cleanly`,
+  the build's `imports.json` + `lambdas.json` + compileall) into whatever is submitted. It is a
+  recall fix for about 1–5% of commits.
+- The **lambda-only rule** is independent and verified.
+- Fix the **cross-test cache hole** in the coverage build (section 3). It is a real miss class.
