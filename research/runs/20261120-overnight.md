@@ -152,3 +152,9 @@ Followed from now on, on top of RUNBOOK.md.
   oracle 93.4 s), and **2 misses on m1 (42 commits): `8owm` (hive.py) and `doay` (parsers/risingwave.py)**, both
   `* -> +` import-time edits. Sample 0 misses, 180.2 s. Batch B (16 more) is labelling, about 65 min.
   local-20261120 is copied untracked into main's `validation/sets/` next to m1, so verify now covers both.
+
+## Cycle 7 (23:33 EST)
+
+- **Orient:** slot OPEN. Still no `strat/impact-combo` on origin. m1 grew to **56** (local copy refreshed). PR #4
+  (`validation/local-20261120`) is open as a draft.
+- **Submission: slot unused** (no m1-safe candidate). `label-local` batch B is labelling.
