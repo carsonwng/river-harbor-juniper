@@ -113,7 +113,7 @@ Docker, cgroup CPU, compared with the base runcpu2 f89594d:
 | m1-extra (22) | 205.320 | 205.029 | -0.3 |
 | local-20261120 (32) | 327.910 | 280.407 | **-47.5** |
 | gap-tests-tpc (20) | 361.065 | 360.990 | -0.1 |
-| syn-import16 (16) | about 592 | 591.923 | 0 |
+| syn-import16 (16) | 592.072 | 591.923 | -0.1 |
 
 Selection cost, local docker selector on the runcpu2 image's maps plus this branch's replay
 map (unlabelled sets):
