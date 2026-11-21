@@ -434,8 +434,9 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
-    if bits and _diffable(change, old_tree, new_tree):
-        alt = _diff_bits(maps, path, new_text)
+    kind = _import_kind(change, old_tree, new_tree) if bits and bits != maps.ALL else None
+    if kind:
+        alt = _diff_bits(maps, path, new_text, use_profile=kind == "assign")
         if alt is not None:
             _log(f"{path}: import-time state diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
@@ -456,47 +457,51 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
 # cannot vouch for falls back to the base selection.
 
 
-def _line_ok(tree, line: int) -> bool:
+def _line_kind(tree, line: int) -> str | None:
+    """"assign": the line is in a class-level assignment (or blank/comment);
+    "import": it is in other code that runs at import (module level, class-level
+    statements of other kinds); None: in a function, a lambda, or a class header."""
     chain = _chain(tree, line)
     if not chain:
-        return True  # blank or comment at module level
+        return "assign"  # blank or comment at module level
     if any(isinstance(n, FUNC) for n in chain):
-        return False
+        return None
     stmt = chain[-1]
     if isinstance(stmt, ast.ClassDef):
         first = _first_body_line(stmt)
-        return first is not None and line >= first  # a comment inside a class body
-    outer = chain[:-1]
-    if not outer or not all(isinstance(n, ast.ClassDef) for n in outer):
-        return False  # module level, or under if/for/try in a class body
-    if not isinstance(stmt, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-        return False
+        return "assign" if first is not None and line >= first else None  # header: bases
     for node in ast.walk(stmt):
         if isinstance(node, ast.Lambda) and node.lineno <= line <= node.end_lineno:
-            return False  # lambda bodies: the base's lambda coverage is exact
-    return True
+            return None  # lambda bodies: the base's lambda coverage is exact
+    outer = chain[:-1]
+    if outer and all(isinstance(n, ast.ClassDef) for n in outer) \
+            and isinstance(stmt, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return "assign"
+    return "import"
 
 
-def _diffable(change: FileChange, old_tree, new_tree) -> bool:
+def _import_kind(change: FileChange, old_tree, new_tree) -> str | None:
+    """"assign" when every edited line is in a class-level assignment, "import"
+    when every one runs at import time, else None."""
     if os.environ.get("BR_IMPACT_DIFF", "1") != "1":
-        return False
-    lines = 0
+        return None
+    kinds = set()
     for hunk in change.hunks:
         for number, _ in hunk.removed:
-            lines += 1
-            if not _line_ok(old_tree, number):
-                return False
+            kinds.add(_line_kind(old_tree, number))
         for number, _ in hunk.added:
-            lines += 1
-            if not _line_ok(new_tree, number):
-                return False
-    return lines > 0
+            kinds.add(_line_kind(new_tree, number))
+    if not kinds or None in kinds:
+        return None
+    return "assign" if kinds == {"assign"} else "import"
 
 
-def _diff_bits(maps: Maps, rel: str, new_text: str) -> int | None:
+def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) -> int | None:
+    """Run the edited sqlglot's import. Every test when some module no longer
+    imports; with use_profile, the readers of what changed; else None (base)."""
     profile = maps.attrs()
     opaque = maps.opaque()
-    if profile is None or opaque is None:
+    if use_profile and (profile is None or opaque is None):
         return None
     adir = (maps.root / "attrs").resolve()
     script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
@@ -523,6 +528,8 @@ def _diff_bits(maps: Maps, rel: str, new_text: str) -> int | None:
         # the edited sqlglot no longer imports some module: whatever imports it fails
         _log(f"{rel}: {result.get('error')}: every test")
         return maps.ALL
+    if not use_profile:
+        return None
     if "changes" not in result or result.get("volatile"):
         _log(f"{rel}: state diff unusable: {result.get('error') or result.get('volatile')}")
         return None
