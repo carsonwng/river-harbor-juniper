@@ -171,3 +171,9 @@ Followed from now on, on top of RUNBOOK.md.
 - **Lead reply (00:0x):** submit `int/night-2354` as is (combo's 510 default, no ENV line), only with 0 misses on sample, m1 (70)
   and local-20261120. No d555 variant yet: it's unclear whether combo's 75 s reserve sits inside the deadline or on top. The lead will
   send corrected ladder values in `BR_BUILD_DEADLINE` units. On any miss: don't submit; send the lead the commits and failing tests.
+- **Deadline semantics (lead, confirmed by combine):** in `760d8bd`, `BR_BUILD_DEADLINE=510` is the **total build target** from the
+  first-RUN stamp. Optional passes are cut at 510 - 50. The tail after the cut is 40-41 s quiet, up to 98 s under load, so the worst case is
+  about 575 s (under the 600 s limit, over our 570 cap). Decisions: (1) submitting `int/night-2354` at the 510 default is fine with 0 misses on all
+  three sets; (2) **the ladder is paused**, with no 555/570 variants of 760d8bd; (3) combine's next version commits pinned maps
+  (`maps-pinned/`, so the normal build runs no expensive pass) and adds `ENV BR_BUILD_DEADLINE_S`. When it lands and verifies, submit it at
+  its default. Revisit the ladder only if its build is still near the limit.
