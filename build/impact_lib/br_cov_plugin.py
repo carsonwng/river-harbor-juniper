@@ -55,17 +55,28 @@ def _on_line(code, line):
     return M.DISABLE
 
 
+_track: dict = {}
+
+
 def _on_start(code, offset):
-    if code.co_name == "__init__" and code.co_argcount and _relpath(code.co_filename) is not None \
-            and code.co_filename.find(os.sep + "tests" + os.sep) < 0:
-        try:
-            frame = sys._getframe(1)
-            obj = frame.f_locals.get(code.co_varnames[0])
-            _types.add(type(obj))
-        except Exception:
-            pass
-        return None
-    return M.DISABLE
+    """Record the class behind `self` in __init__ and `cls` in classmethods."""
+    mode = _track.get(code)
+    if mode is None:
+        mode = 0
+        if code.co_argcount and _relpath(code.co_filename) is not None                 and (os.sep + "tests" + os.sep) not in code.co_filename:
+            if code.co_name == "__init__":
+                mode = 1
+            elif code.co_varnames[0] == "cls":
+                mode = 2
+        _track[code] = mode
+    if not mode:
+        return M.DISABLE
+    try:
+        obj = sys._getframe(1).f_locals.get(code.co_varnames[0])
+        _types.add(obj if mode == 2 and isinstance(obj, type) else type(obj))
+    except Exception:
+        pass
+    return None
 
 
 # ---------------------------------------------------------------- process pools

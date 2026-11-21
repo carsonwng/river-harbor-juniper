@@ -118,12 +118,25 @@ def iter_code(code):
             yield from iter_code(const)
 
 
-def code_loads(code) -> tuple[set[str], set[str]]:
-    loads, stores = set(), set()
+SKIP_OPS = {"NOP", "EXTENDED_ARG", "CACHE", "COPY_FREE_VARS", "RESUME"}
+
+
+def code_loads(code) -> tuple[set[str], set[str], set[str]]:
+    """Names a code object loads, stores, and loads only to access an attribute
+    of (`exp.Foo.bar`, `Snowflake.Tokenizer`): the last is how a class gets used
+    without an instance, unlike isinstance(x, exp.Foo)."""
+    loads, stores, attr = set(), set(), set()
+    pending = None
     for ins in dis.get_instructions(code):
+        if ins.opname in SKIP_OPS:
+            continue
+        if pending is not None and ins.opname == "LOAD_ATTR":
+            attr.add(pending)
+        pending = None
         if ins.opname in LOAD_OPS:
             if isinstance(ins.argval, str):
                 loads.add(ins.argval)
+                pending = ins.argval
             elif isinstance(ins.argval, tuple):
                 loads.update(v for v in ins.argval if isinstance(v, str))
         elif ins.opname in STORE_OPS and isinstance(ins.argval, str):
@@ -133,7 +146,7 @@ def code_loads(code) -> tuple[set[str], set[str]]:
             loads.add(const)
         elif isinstance(const, tuple):
             loads.update(c for c in const if isinstance(c, str) and c.isidentifier())
-    return loads, stores
+    return loads, stores, attr
 
 
 def bound_names(tree: ast.AST) -> set[str]:
@@ -305,6 +318,8 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     candidate_names: set[str] = set()
     name_readers: dict[str, int] = {}
     name_import: set[str] = set()
+    loaded_anywhere: set[str] = set()
+    attr_readers: dict[str, int] = {}
     qual_exec: dict[tuple[str, str], int] = {}  # (rel, co_qualname) -> exec bits (functions)
     file_exec: dict[str, int] = {}  # rel -> tests running any function line
     trees: dict[str, ast.AST] = {}
@@ -323,7 +338,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         for co in iter_code(code):
             lines = {l for _, _, l in co.co_lines() if l}
             is_func = bool(co.co_flags & CO_NEWLOCALS)
-            loads, stores = code_loads(co)
+            loads, stores, attr = code_loads(co)
             bits = 0
             for l in lines:
                 bits |= lb.get(l, 0)
@@ -339,9 +354,12 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                     # a name it reads (TRANSFORMS = {**Base.TRANSFORMS}) only passes it
                     # down to a subclass, which the class rules already cover.
                     name_import.update(loads - stores)
+            loaded_anywhere.update(loads)
             if bits:
                 for name in loads:
                     name_readers[name] = name_readers.get(name, 0) | bits
+                for name in attr:
+                    attr_readers[name] = attr_readers.get(name, 0) | bits
 
     # ---- classes
     sys.path.insert(0, str(root))
@@ -368,6 +386,25 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     for name, mod in list(sys.modules.items()):
         if name.startswith("sqlglot") and mod is not None:
             walk(mod, seen)
+    # module-level containers holding classes (ALL_FUNCTIONS, EXPR_CLASSES, ...):
+    # a test that reads one may iterate over every class in it
+    registries: dict[str, set[str]] = {}
+    for name, mod in list(sys.modules.items()):
+        if not name.startswith("sqlglot") or mod is None:
+            continue
+        for gname, value in list(vars(mod).items()):
+            if isinstance(value, dict):
+                items = list(value.keys()) + list(value.values())
+            elif isinstance(value, (list, tuple, set, frozenset)):
+                items = list(value)
+            else:
+                continue
+            for item in items:
+                item = getattr(item, "__self__", item)
+                if inspect.isclass(item):
+                    mod_name = getattr(item, "__module__", "") or ""
+                    if mod_name.startswith("sqlglot"):
+                        registries.setdefault(f"{mod_name}:{item.__qualname__}", set()).add(gname)
     name_count: dict[str, int] = {}
     for key, klass in classes.items():
         name_count[klass.__name__] = name_count.get(klass.__name__, 0) + 1
@@ -419,10 +456,12 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         # short name is shared (nested Tokenizer/Parser/Generator classes)
         qual = klass.__qualname__
         if name_count.get(klass.__name__, 0) == 1 or "." not in qual:
-            bits |= name_readers.get(klass.__name__, 0)
+            bits |= attr_readers.get(klass.__name__, 0)
         if "." in qual:
             outer = qual.split(".")[0]
-            bits |= name_readers.get(outer, 0)
+            bits |= attr_readers.get(outer, 0)
+        for registry in registries.get(key, ()):
+            bits |= name_readers.get(registry, 0)
         class_users[key] = bits
 
     # ---- modules
@@ -463,7 +502,10 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 "import": {str(l): sorted(set(m)) for l, m in sorted(imp_lines.get(rel, {}).items())}}
         (lines_dir / (rel.replace("/", "__") + ".json")).write_text(
             json.dumps(data, separators=(",", ":")), "utf-8")
-    names = {n: [sets.add(name_readers.get(n, 0)), int(n in name_import)]
+    # a name no code loads by name is read dynamically (getattr(self, f"{x}_sql")):
+    # treat it as propagating
+    names = {n: [sets.add(name_readers.get(n, 0)),
+                 int(n in name_import or n not in loaded_anywhere)]
              for n in sorted(candidate_names)}
     (out / "names.json").write_text(json.dumps(names, separators=(",", ":")), "utf-8")
     (out / "classes.json").write_text(json.dumps(
