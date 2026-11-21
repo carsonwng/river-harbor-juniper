@@ -49,7 +49,7 @@ All cut from `strat/impact-base`. Sample/local; held-out not available (see belo
 | --- | --- | --- | --- | --- | --- | --- |
 | E5 | `strat/impact-base` (`6a6d766`) | – | 177.811 s | 0 | 0.76 s | baseline; **unsound**, see E6 |
 | E6 | `strat/impact-isolate` (`41c2043`) | [3](https://github.com/carsonwng/river-harbor-juniper/pull/3) | 176.882 s | 0 | 0.74 s | promising (soundness) |
-| E7 | `strat/impact-relprof` (`03afebd`) | [2](https://github.com/carsonwng/river-harbor-juniper/pull/2) | 123.726 s | 0 | 0.74 s | promising; not isolation-sound on its own |
+| E7 | `strat/impact-relprof` (`03afebd`) | [2](https://github.com/carsonwng/river-harbor-juniper/pull/2) | 123.726 s | 0 | 0.74 s | promising; falls back to the unsound baseline selection when it proves nothing |
 | E8 | `strat/impact-attrs` (`50b290d`) | [1](https://github.com/carsonwng/river-harbor-juniper/pull/1) | 155.957 s | 0 | 3.3 s | promising; not isolation-sound on its own |
 | E9 | `strat/impact-combo` | pending | pending | | | running |
 
@@ -80,7 +80,17 @@ The orchestrator re-ran each sample eval from the branch's worktree and got the 
 - Rule position: the build records observations of the pinned commit; the verdict is derived at
   run time for whatever the patch contains. It is the closest of the three to "a kind of edit",
   and the PR says so. **Humans decide whether to ship it.**
-- Recorded in a shared process, so it has the E6 hole for sites behind per-process caches.
+- The verdict is global: an edit is inert only if every evaluation recorded in the whole suite
+  agrees under the old and the new operator or literal. There is no per-test pruning, so the
+  E6 hole (code behind a per-process cache credited to the first test only) does not apply
+  directly. What remains open: evaluations the labelling run would make that our single run
+  never makes, and the fallback, which is the unsound baseline selection until it is rebased
+  on E6.
+- Agent's probes (not re-run by the orchestrator): 31 seeded probe edits, 0 unsound verdicts.
+  A second hash seed changed nothing at 1948 sites; reversed test order changed signatures at
+  5 sites and no decision. On 300 random operator swaps 32% are proven inert; on 200 random
+  literal changes 8.5%.
+- Not done: `and`/`or` (needs the operand the old code short-circuits), chained comparisons.
 
 ### E8 `impact-attrs`: import-state diff plus attribute read profile
 
