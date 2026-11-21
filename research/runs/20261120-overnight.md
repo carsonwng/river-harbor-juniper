@@ -56,3 +56,9 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
   set in Docker from `validation/m1` tooling on `validation/local-20261120`, then verifies
   `int/night-1948` against it. Reason: our only candidate is provisional, and the cloud labelling
   that cycle 1 assumed was underway has produced nothing in 30+ minutes.
+- **Retry on the human's request (20:18):** Chrome worked (browser selected). **Submission 2:** `int/night-1948`
+  `1a5f961` submitted to `carsonwng/river-harbor-juniper`, receipt BB-69453A60, queued 20:18. Expected about 179 s
+  plus practice drift. Score is read next cycle.
+- **Submission 1 detail (from the track page):** all 3 runs 867.471 s simulated, 0.81-0.84 s CPU, **0 commits missed**.
+  So triage's comment-only skip and fixture map did not miss on practice. **All three probes are retired**,
+  because their question is answered directly. (Submission 1 was at 19:06, not 18:00.)
