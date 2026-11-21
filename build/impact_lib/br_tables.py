@@ -97,16 +97,29 @@ def _mut(td):
 class _TD(dict):
     __slots__ = ("_tid",)
 
+    # the three hot lookups record inline (same as _rk, one call less)
     def __getitem__(self, key):
-        _rk(self._tid, key)
+        if not _imp:
+            try:
+                _cur.add((self._tid, key))
+            except TypeError:
+                pass
         return dict.__getitem__(self, key)
 
     def get(self, key, default=None):
-        _rk(self._tid, key)
+        if not _imp:
+            try:
+                _cur.add((self._tid, key))
+            except TypeError:
+                pass
         return dict.get(self, key, default)
 
     def __contains__(self, key):
-        _rk(self._tid, key)
+        if not _imp:
+            try:
+                _cur.add((self._tid, key))
+            except TypeError:
+                pass
         return dict.__contains__(self, key)
 
     def setdefault(self, key, default=None):
