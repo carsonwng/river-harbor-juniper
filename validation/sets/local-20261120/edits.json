@@ -1,0 +1,51 @@
+{
+ "0n1s": [
+  "fixture tests/fixtures/optimizer/pushdown_projections.sql: line 245: insert 'NULL'"
+ ],
+ "23xe": [
+  "code sqlglot/generators/python.py: == -> !="
+ ],
+ "31n7": [
+  "fixture tests/fixtures/optimizer/qualify_tables.sql: line 324: insert '42'"
+ ],
+ "3ykp": [
+  "code sqlglot/dialects/duckdb.py: 3 -> 4"
+ ],
+ "5u2j": [
+  "code sqlglot/executor/context.py: != -> ==",
+  "code sqlglot/optimizer/journal.py: is -> is not"
+ ],
+ "5z9i": [
+  "comment sqlglot/dialects/prql.py: comment before line 24"
+ ],
+ "6ku0": [
+  "code sqlglot/dialects/fabric.py: string \"UTINYINT\" -> \"utinyint\""
+ ],
+ "955b": [
+  "comment sqlglot/optimizer/simplify.py: docstring line 277: logical -> logica"
+ ],
+ "95r6": [
+  "code sqlglot/optimizer/qualify_columns.py: drop not"
+ ],
+ "9y3p": [
+  "code sqlglot/optimizer/eliminate_joins.py: and -> or"
+ ],
+ "b13e": [
+  "fixture tests/fixtures/optimizer/quote_identifiers.sql: line 1: insert 'a'"
+ ],
+ "bajg": [
+  "code sqlglot/executor/python.py: and -> or"
+ ],
+ "d4s6": [
+  "fixture tests/fixtures/optimizer/eliminate_ctes.sql: line 1: delete 'i'"
+ ],
+ "d811": [
+  "code sqlglot/parsers/databricks.py: string \"REGR_AVGY\" -> \"REGR_AVY\""
+ ],
+ "f7kz": [
+  "code sqlglot/parsers/base.py: drop element line 13: TokenType.LOCALTIMESTAMP: exp.Localtimestamp,"
+ ],
+ "kryt": [
+  "comment sqlglot/optimizer/canonicalize_internal_names.py: trailing comment at line 129"
+ ]
+}

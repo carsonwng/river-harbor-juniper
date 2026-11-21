@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/simplify.py b/sqlglot/optimizer/simplify.py
+index 48b762d..ae4323d 100644
+--- a/sqlglot/optimizer/simplify.py
++++ b/sqlglot/optimizer/simplify.py
+@@ -274,7 +274,7 @@ def _datetrunc_range(date: date, unit: str, dialect: Dialect) -> DateRange | Non
+ def _datetrunc_eq_expression(
+     left: exp.Expr, drange: DateRange, target_type: exp.DataType | None
+ ) -> exp.Expr:
+-    """Get the logical expression for a date range"""
++    """Get the logica expression for a date range"""
+     return exp.and_(
+         left >= date_literal(drange[0], target_type),
+         left < date_literal(drange[1], target_type),

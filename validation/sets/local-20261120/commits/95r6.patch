@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/qualify_columns.py b/sqlglot/optimizer/qualify_columns.py
+index a7a0c01..03a5ad1 100644
+--- a/sqlglot/optimizer/qualify_columns.py
++++ b/sqlglot/optimizer/qualify_columns.py
+@@ -237,7 +237,7 @@ def _expand_using(scope: Scope, resolver: Resolver) -> tuple[dict[str, t.Any], l
+     names = {join.alias_or_name for join in joins}
+     ordered = [key for key in scope.selected_sources if key not in names]
+ 
+-    if names and not ordered:
++    if names and ordered:
+         raise OptimizeError(f"Joins {names} missing source table {scope.expression}")
+ 
+     # Mapping of automatically joined column names to an ordered set of source names (dict).

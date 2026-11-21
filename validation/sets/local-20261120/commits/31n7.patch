@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..280ea05 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -321,7 +321,7 @@ SELECT g FROM TABLE(GENERATE_SERIES(0, 10)) AS t(g);
+ 
+ # title: Qualify TABLE(SPLIT_TO_TABLE()) with its default columns
+ # dialect: snowflake
+-SELECT value FROM TABLE(SPLIT_TO_TABLE('a.b', '.'));
++SELECT 42 value FROM TABLE(SPLIT_TO_TABLE('a.b', '.'));
+ SELECT value FROM TABLE(SPLIT_TO_TABLE('a.b', '.')) AS _0(SEQ, INDEX, VALUE);
+ 
+ # title: Qualify correlated TABLE(SPLIT_TO_TABLE()) with a table alias
