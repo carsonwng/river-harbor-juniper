@@ -64,11 +64,28 @@ Runtime (`blast/triage.py::_record_narrow`):
 | --- | --- | --- | --- |
 | sample | 131.728 | 131.728 (no tpc commits) | 0 |
 | m1 (42) | 1055.483 | 1034.261 (4qrg 25.45 -> 4.23) | 2 before, the same 2 after (8owm, doay: impact holes owned by others) |
-| synthetic tpc set (20) | 509.08 | 340.98 (8 of 20 drop to 4.23) | see verification |
+| synthetic tpc set (20, `validation/sets/gap-tests-tpc`) | 509.080 | 360.526 (7 of 20 drop to 4.23) | 0 / 0 |
 
-## Verification
+Runtime CPU: about +0.5 s wall over the 20 tpc commits (two loader runs per commit, about 25 ms each).
 
-See the run-verification section (filled in below).
+## Verification (run in the br-label image, SKIP_INTEGRATION=0)
+
+For each of the 20 synthetic cases, all of tests/test_executor.py (60 tests, in normal
+order, so the shared `cls.cache` and connections behave as in a full run) plus
+test_tpch and test_tpcds were run on a patched scratch copy. Every failing test was
+selected in all 20 cases (0 misses). Highlights:
+- tpc-ds edits in the expected half (t000, t002, t003, t006, t008, t009): only
+  test_tpcds fails, and only test_tpcds is selected. The 59 to 60 dropped TestExecutor
+  tests, including test_execute_tpcds at 21.5 s, all passed.
+- tpc-ds `sql` edits (t001, t007): test_execute_tpcds fails, and it is selected.
+- t016 (meta `# execute: false`): nothing fails. Field 0 is selected, which is conservative.
+- t017 (a `--` comment line): records are identical, so only test_tpcds is selected. Nothing fails.
+- t018 (a meta line without `:`): the loader raises, so 60 errors from setUpClass plus
+  test_tpcds. The guard selects all 61.
+- t019 (`;` inside an expected statement): the records shift, so `all` is selected.
+  test_execute_tpcds fails and is selected.
+- tpc-h (t010 to t015): failing sets range from test_tpch alone up to execute_tpch,
+  optimized_tpch and tpch, and all are selected.
 
 ## Dead ends / limits
 

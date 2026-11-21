@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..372b6d7 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -3871,7 +3871,7 @@ WITH "b1" AS (
+     AVG("store_sales"."ss_list_price") AS "b3_lp",
+     COUNT("store_sales"."ss_list_price") AS "b3_cnt",
+     COUNT(DISTINCT "store_sales"."ss_list_price") AS "b3_cntd"
+-  FROM "store_sales" AS "store_sales"
++  FROM "storesales" AS "store_sales"
+   WHERE
+     (
+       "store_sales"."ss_coupon_amt" <= 2412
