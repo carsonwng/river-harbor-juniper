@@ -82,10 +82,27 @@ hpym and local o0d4. **All 42 cases: every dropped test passes** (`research/r2-l
 e.g. hpym 1618 dropped, 1618 passed; mwpb 1595/1595; 1wpp 1619/1619).
 
 ### Cost
-- Build: plugin overhead is in the noise. The metadata snapshot takes 1 s. Cold 4-CPU
-  build: see below.
-- Run: one child import of the edited sqlglot (about 0.8 s CPU) per commit whose typing
-  edit is outside functions. That is 2 of 118 practice-like commits.
+- Build: the plugin overhead is in the noise and the metadata snapshot takes 1.3 s. A cold
+  4-CPU / 8 GB build of 249c558 took 425.5 s, against 374.0 s for 4ef5e24 on a quieter
+  machine. Most of the difference is the relprof pass (237 s vs 203 s), which is machine
+  load and not this cut.
+- Run: one child import of the edited sqlglot, about 1 s of CPU. It runs only for a typing
+  edit outside functions, and only when the base selection's cost lower bound beats the
+  cheapest selection by more than 2 s (`_worth_a_diff`, a CPU trade-off only). The relation
+  profile now runs first, so an edit it already proves inert never pays for the diff.
+
+### Docker totals (e1c0ab2, `br.py eval --docker`, cgroup CPU, host builder)
+
+| set | base f89594d | e1c0ab2 |
+|---|---|---|
+| sample | 125.407 (123.009 + 2.398) | 125.684 (123.009 + 2.675) |
+| m1 | 425.693 (420.921 + 4.772) | 393.978 (388.078 + 5.900) |
+| m1-extra | 205.320 (203.124 + 2.196) | 205.776 (203.124 + 2.652; at 249c558, same selection) |
+| local-20261120 | 327.910 (326.371 + 1.539) | 328.586 (326.283 + 2.303) |
+
+The CPU differences on sample and m1-extra are noise: no typing diff runs there. On
+local, one diff runs (i0ru, whose base is tpcds, read by Max/Min), so that is about 1 s
+with no saving.
 
 ### Notes for integration
 - `strat/r2-tables` (per-key family tables) also records table-key reads. If both land,
