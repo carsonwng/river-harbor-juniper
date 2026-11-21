@@ -1359,7 +1359,7 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
 # passes as it does at the pin. Any doubt keeps the test.
 
 _REPLAY: dict[str, dict | None] = {}
-REPLAY_TIMEOUT = 60
+REPLAY_TIMEOUT = 8  # wall seconds per replay; on timeout the test is kept
 
 
 def _replay_meta(ctx: Context) -> dict | None:
