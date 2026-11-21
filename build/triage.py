@@ -495,7 +495,8 @@ def main() -> int:
     patterns: dict[str, set[str]] = {}
     fallback: set[str] = set()
     class_cache: dict[tuple, set[str]] = {}
-    for test_id, module, owner_module, owner, node in analyzer.tests():
+    test_rows = list(analyzer.tests())
+    for test_id, module, owner_module, owner, node in test_rows:
         tests[test_id] = [owner_module.rel, (owner.name + "." if owner else "") + node.name,
                           node.lineno, node.end_lineno]
         cls_key = (module.name, owner and owner.name, test_id.split("::")[1])
@@ -533,7 +534,21 @@ def main() -> int:
         "fallback": sorted(fallback),
         "tests": tests,
         "importers": analyzer.importers(),
+        "records": {},
     }
+    try:  # record-level narrowing of lifecycle-loaded fixtures (strat/gap-tests)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import triage_records
+        data["records"] = triage_records.build(
+            analyzer, keyed, matches, test_rows, lambda m: print(m, file=sys.stderr))
+        for fixture, entry in list(data["records"].items()):
+            # every test the entry covers must be a static reader already
+            if not set(entry["tests"]) <= readers[fixture]:
+                print(f"[triage] records for {fixture} cover non-readers; dropped", file=sys.stderr)
+                data["records"].pop(fixture)
+    except Exception as error:  # never break the build; no records means old behaviour
+        print(f"[triage] records failed: {error!r}", file=sys.stderr)
+        data["records"] = {}
     (out / "triage.json").write_text(json.dumps(data, indent=0, sort_keys=True), "utf-8")
 
     src = out / "src"
@@ -546,6 +561,11 @@ def main() -> int:
             target = src / path.relative_to(root)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(path, target)
+
+    for fixture in data["records"]:
+        target = src / fixture
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / fixture, target)
 
     unread = [f for f, v in readers.items() if not v]
     print(f"[triage] {len(tests)} static tests, {len(fixtures)} fixtures, "

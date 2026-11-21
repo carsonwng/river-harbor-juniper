@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast
 import fnmatch
+import io
 import json
 import os
 from dataclasses import dataclass, field
@@ -172,14 +173,14 @@ def _fixture_readers(maps, path: str, ctx: Context) -> set[int] | None:
     return out
 
 
-def _pattern_readers(maps, path: str, ctx: Context) -> set[int]:
+def _pattern_readers(maps, path: str, ctx: Context, files_only: bool = False) -> set[int]:
     rel = path[len("tests/"):] if path.startswith("tests/") else path
     out: set[str] = set()
     for pattern, ids in maps["patterns"]:
         pattern = pattern.strip("/")
         for candidate in (pattern, "*/" + pattern):
-            if fnmatch.fnmatchcase(rel, candidate) or fnmatch.fnmatchcase(rel, candidate + "/*") \
-                    or fnmatch.fnmatchcase(rel, candidate + ".*"):
+            if fnmatch.fnmatchcase(rel, candidate) or fnmatch.fnmatchcase(rel, candidate + ".*") \
+                    or (not files_only and fnmatch.fnmatchcase(rel, candidate + "/*")):
                 out.update(ids)
                 break
     return _ids_to_numbers(out, ctx)
@@ -309,7 +310,17 @@ def _fixture_change(maps, change: FileChange, ctx: Context) -> Decision:
     old, new = change.old_path, change.new_path
     if old is not None and _is_fixture(old):
         readers = _fixture_readers(maps, old, ctx)
-        if readers is None:
+        narrowed = None
+        if readers is not None and new == old and not change.binary:
+            narrowed = _record_narrow(maps, change, ctx)
+        if narrowed is not None:
+            # A directory reference alone does not open this file (see
+            # build/triage_records.names_file): only file-form patterns count here.
+            keep, why = narrowed
+            readers |= _pattern_readers(maps, old, ctx, files_only=True)
+            selected |= (readers - _ids_to_numbers(maps["records"][old]["tests"], ctx)) | keep
+            reasons.append(why)
+        elif readers is None:
             selected |= _fixture_fallback(maps, ctx) | _pattern_readers(maps, old, ctx)
             reasons.append("unknown fixture -> fallback")
         else:
@@ -324,6 +335,89 @@ def _fixture_change(maps, change: FileChange, ctx: Context) -> Decision:
             selected |= by_pattern if by_pattern else _fixture_fallback(maps, ctx)
         reasons.append(f"new fixture {new}")
     return Decision.select(selected, "; ".join(reasons))
+
+
+# ----------------------------------------------------------------- record-level fixtures
+
+class _FakeFile(io.StringIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+
+def _run_loader(maps, entry, text: str):
+    """Run the suite's own loader (from the pinned tests/ copy) on `text` in place of the
+    fixture file. Returns the list of records, or None if it raises."""
+    module, function = entry["loader"]
+    source = _read_src(maps, module)
+    if source is None:
+        raise PatchMismatch("no loader source")
+    opened = []
+
+    def fake_open(path, *args, **kwargs):
+        if not str(path).replace("\\", "/").endswith(entry["arg"]) or opened:
+            raise PatchMismatch(f"loader opened {path}")
+        opened.append(path)
+        return _FakeFile(text)
+
+    env = {"__name__": "br_fixture_loader", "__file__": str(maps["src"] / module), "open": fake_open}
+    exec(compile(source, module, "exec"), env)
+    try:
+        return list(env[function](entry["arg"]))
+    except Exception:
+        return None
+
+
+def _record_narrow(maps, change: FileChange, ctx: Context):
+    """For a fixture that setUpClass loads into a class attribute: the class's tests that
+    use a changed field of a record, plus tests sharing mutable state with them. None if
+    narrowing does not apply (then every class test stays selected)."""
+    entry = (maps.get("records") or {}).get(change.old_path)
+    if not entry:
+        return None
+    old_text = _read_src(maps, change.old_path)
+    if old_text is None:
+        return None
+    try:
+        new_text = apply_hunks(old_text, change)
+        before, after = _run_loader(maps, entry, old_text), _run_loader(maps, entry, new_text)
+    except Exception:
+        return None
+    if before is None or after is None:
+        return None  # setUpClass raises: the whole class errors
+    changed: set | str = set()
+    if len(before) != len(after):
+        changed = "all"
+    else:
+        for old_record, new_record in zip(before, after):
+            if old_record == new_record:
+                continue
+            if isinstance(old_record, tuple) and isinstance(new_record, tuple)                     and len(old_record) == len(new_record):
+                changed |= {j for j, (a, b) in enumerate(zip(old_record, new_record)) if a != b}
+            else:
+                changed = "all"
+                break
+    tests = entry["tests"]
+
+    def uses(info) -> bool:
+        use = info["use"]
+        if use is None or not changed:
+            return False
+        return changed == "all" or use == "all" or bool(set(use) & changed)
+
+    chosen = {t for t, info in tests.items() if uses(info)}
+    dirty = {a for t in chosen for a in tests[t]["mutate"]}
+    while True:
+        more = {t for t, info in tests.items() if t not in chosen and dirty & set(info["touch"] + [entry["attr"]] * (info["use"] is not None))}
+        if not more:
+            break
+        chosen |= more
+        dirty |= {a for t in more for a in tests[t]["mutate"]}
+    fields = changed if changed == "all" else sorted(changed)
+    return _ids_to_numbers(chosen, ctx), f"records of {entry['attr']}: fields {fields} changed -> {len(chosen)} class tests"
 
 
 def _source_noop(maps, change: FileChange) -> bool:
