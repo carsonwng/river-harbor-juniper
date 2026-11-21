@@ -8,7 +8,7 @@ Limit: one submission per hour. Track page: not committed (ask the human).
 | 2 | 2026-11-20 20:18 | `1a5f961` | `int/night-1948`: main + strat/impact-base (provisional, sample only) | 178.9 s, 0 misses | **245.2 s** | receipt BB-69453A60. 0 misses (a miss alone costs 300 s). Practice/sample ratio 1.37 vs 1.21 for submission 1, so impact saves less on practice than on the sample |
 | 3 | 2026-11-20 21:27 | `53eff6e` | `int/night-2120`: main + strat/impact-relprof (provisional) | 133.7 s, 0 misses | **243.2 s** | receipt BB-C54059C4. Runs 242.04 sim, 1.16-1.18 s CPU, 0 missed. CPU equals submission 2, so the relprof map was most likely dropped in their build (time limit) |
 | 4 | 2026-11-21 00:01 | `2dd8f15` | `int/night-2354`: main + strat/impact-combo `760d8bd`, deadline 510 (default) | 194.1 s, 0 misses; m1 (70) 0; local (16) 0 | **284.7 s** | receipt BB-0083E2D6. Runs 279.936 sim, 4.76-4.87 s CPU, 0 missed. **First m1-safe submission** |
-| 5 | 2026-11-21 01:54 | `24f5e6d` | `int/night-0147`: main + strat/gap-mix `5fc0c56` (int/night-2120 + lambda cut + import check) | 135.5 s; m1 (64) 0; m1-extra (22) 0; local (16) 0 | pending | receipt BB-46097CB1. m1-safe |
+| 5 | 2026-11-21 01:54 | `24f5e6d` | `int/night-0147`: main + strat/gap-mix `5fc0c56` (int/night-2120 + lambda cut + import check) | 135.5 s; m1 (64) 0; m1-extra (22) 0; local (16) 0 | **244.9 s** | receipt BB-46097CB1. Runs 242.04 sim (= submission 3), 2.89-2.92 s CPU, 0 missed. **Best m1-safe** |
 
 ## Reading submission 1
 

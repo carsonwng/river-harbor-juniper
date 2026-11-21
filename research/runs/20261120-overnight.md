@@ -202,3 +202,7 @@ Followed from now on, on top of RUNBOOK.md.
 - **Submission 5 (01:54):** `int/night-0147` `24f5e6deb2a8feacc039cc6c4cd547aa8f592bba`, receipt BB-46097CB1. Reason: the human asked to
   submit the best run, and it beats every other m1-safe candidate. Caveat: it inherits relprof, whose map was dropped on the scorer in
   submission 3, so expect about 243 s minus gap-mix's lambda-cut gains plus import-check CPU, not the sample ratio.
+- **Submission 5 score: 244.9 s** (BB-46097CB1, wait 316 ms). Runs: 242.04 s simulated, 2.92 / 2.90 / 2.89 s CPU, 0 commits missed.
+  The simulated time is **identical to submission 3** (242.04), so on practice the lambda cut changed nothing and relprof was again most likely dropped
+  in their build. The import check costs +1.7 s CPU (2.9 vs 1.18). It is now the **best m1-safe practice score** (244.9 vs combo's 284.7), 1.7 s
+  behind the non-safe best (243.2).
