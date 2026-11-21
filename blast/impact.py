@@ -33,6 +33,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import astcache
 from .context import Context
 from .patch import FileChange
 
@@ -413,13 +414,7 @@ class FileInfo:
         self.module = self.data.get("module")
         self.line_sets = self.data["lines"]
         self.import_lines = self.data["import"]
-        code = compile(source, rel, "exec", dont_inherit=True)
-        self.code_lines: set[int] = set()
-        stack = [code]
-        while stack:
-            co = stack.pop()
-            self.code_lines.update(l for _, _, l in co.co_lines() if l)
-            stack.extend(c for c in co.co_consts if hasattr(c, "co_code"))
+        self.code_lines = astcache.code_lines(rel, source)
 
     def cov(self, lo: int, hi: int) -> int:
         bits = 0
@@ -468,12 +463,12 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             if number <= 2 and CODING.match(text):
                 raise Unsafe("encoding cookie")
     try:
-        old_tree = ast.parse(old_text)
-        new_tree = ast.parse(new_text)
+        old_tree = astcache.parse(old_text)
+        new_tree = astcache.parse(new_text)
         compile(new_text, path, "exec", dont_inherit=True)
     except SyntaxError as exc:
         raise Unsafe(f"does not compile: {exc.msg}")
-    if ast.dump(old_tree) == ast.dump(new_tree):
+    if astcache.same(old_tree, new_tree):
         _log(f"{path}: AST unchanged")
         return 0
     info = FileInfo(maps, path, old_text)
@@ -551,7 +546,8 @@ def _runs_at_import(info: "FileInfo", old_tree, new_tree, change: FileChange) ->
     at_import = set(started.get(info.rel, ())) if started is not None else None
     if at_import is None:
         return True
-    return ast.dump(_blank_bodies(old_tree, at_import)) != ast.dump(_blank_bodies(new_tree, at_import))
+    # == ast.dump(_blank_bodies(old_tree, at_import)) != ast.dump(_blank_bodies(new_tree, at_import))
+    return not astcache.same(old_tree, new_tree, funcs=True, lambdas=at_import)
 
 
 def _imports_cleanly(maps: Maps) -> bool:
@@ -592,10 +588,10 @@ def _pair_import_level(old_list, new_list, out) -> bool:
     for a, b in zip(old_list, new_list):
         if type(a) is not type(b):
             return False
-        if ast.dump(a) == ast.dump(b):
+        if astcache.same(a, b):
             continue
         if isinstance(a, ast.ClassDef):
-            if ast.dump(_header_copy(a)) != ast.dump(_header_copy(b)):
+            if not astcache.same(_header_copy(a), _header_copy(b)):
                 return False
             if not _pair_import_level(a.body, b.body, out):
                 return False
@@ -604,6 +600,9 @@ def _pair_import_level(old_list, new_list, out) -> bool:
         else:
             out.append((a, b))
     return True
+
+
+_NO_LINES: frozenset = frozenset()
 
 
 def _lambda_only_bits(info: "FileInfo", old_tree, new_tree) -> int | None:
@@ -615,24 +614,17 @@ def _lambda_only_bits(info: "FileInfo", old_tree, new_tree) -> int | None:
     pairs: list = []
     if not _pair_import_level(old_tree.body, new_tree.body, pairs) or not pairs:
         return None
-    import copy
-
     bits = 0
     for a, b in pairs:
         la = [n for n in ast.walk(a) if isinstance(n, ast.Lambda)]
         lb = [n for n in ast.walk(b) if isinstance(n, ast.Lambda)]
         if not la or len(la) != len(lb):
             return None
-        ca, cb = copy.deepcopy(a), copy.deepcopy(b)
-        holes_a = [n for n in ast.walk(ca) if isinstance(n, ast.Lambda)]
-        holes_b = [n for n in ast.walk(cb) if isinstance(n, ast.Lambda)]
-        for x, y in zip(holes_a, holes_b):
-            x.body = ast.Constant(None)
-            y.body = ast.Constant(None)
-        if ast.dump(ca) != ast.dump(cb):
+        # every lambda body blanked on both sides (was: deepcopy, blank, ast.dump)
+        if not astcache.same(a, b, lambdas=_NO_LINES):
             return None  # something outside a lambda body changed
         for x, y in zip(la, lb):
-            if ast.dump(x.body) == ast.dump(y.body):
+            if astcache.same(x.body, y.body):
                 continue
             if x.lineno in at_import:
                 return None  # some lambda starting on this line runs during import
@@ -1103,7 +1095,7 @@ def _differing(old_list, new_list, old_lines, new_lines, out) -> bool:
                         if len(x) != len(y):
                             return False
                         out.extend((p, q, False) for p, q in zip(x, y)
-                                   if ast.dump(p) != ast.dump(q))
+                                   if not astcache.same(p, q))
                     elif not _differing(x, y, old_lines, new_lines, out):
                         return False
         else:
@@ -1143,7 +1135,7 @@ def _compare_edits(old_tree, new_tree, old_lines=None, new_lines=None):
         if len(old_cmp) != len(new_cmp):
             return None
         for a, b in zip(old_cmp, new_cmp):
-            if ast.dump(a) == ast.dump(b):
+            if astcache.same(a, b):
                 continue
             edit = _one_edit(a, b)
             if edit is None:
@@ -1158,8 +1150,8 @@ def _compare_edits(old_tree, new_tree, old_lines=None, new_lines=None):
     for a, b in swaps:
         a.left, a.ops, a.comparators = b.left, b.ops, b.comparators
     try:
-        same = all(ast.dump(_header_copy(pa) if header else pa)
-                   == ast.dump(_header_copy(pb) if header else pb)
+        same = all(astcache.same(_header_copy(pa) if header else pa,
+                                 _header_copy(pb) if header else pb)
                    for pa, pb, header in parts)
     finally:
         for node, left, ops, comparators in saved:
@@ -1174,7 +1166,7 @@ def _one_edit(a, b):
     if o is None or n is None:
         return None
     sides = [(a.left, b.left), (a.comparators[0], b.comparators[0])]
-    changed = [i for i, (x, y) in enumerate(sides) if ast.dump(x) != ast.dump(y)]
+    changed = [i for i, (x, y) in enumerate(sides) if not astcache.same(x, y)]
     if not changed:
         if o >= _IN or n >= _IN:
             return None  # in <-> not in always disagree when evaluated
