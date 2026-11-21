@@ -206,3 +206,8 @@ Followed from now on, on top of RUNBOOK.md.
   The simulated time is **identical to submission 3** (242.04), so on practice the lambda cut changed nothing and relprof was again most likely dropped
   in their build. The import check costs +1.7 s CPU (2.9 vs 1.18). It is now the **best m1-safe practice score** (244.9 vs combo's 284.7), 1.7 s
   behind the non-safe best (243.2).
+
+## Cycle 10 (02:59 EST, thin mode)
+
+- Slot OPEN. No new commits on candidate branches since cycle 9. Combo's pinned-maps version isn't on origin yet (`strat/impact-combo` is still
+  `f629b5d`, notes only). No m1-safe candidate beats submission 5 (sample 135.5) by 2%. **Slot unused.** No agents (thin until 03:40).
