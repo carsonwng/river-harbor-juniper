@@ -95,6 +95,28 @@ class Maps:
             self._files[rel] = json.loads(path.read_text("utf-8")) if path.exists() else None
         return self._files[rel]
 
+    def relprof(self) -> dict | None:
+        """Relation profile of comparison sites (build/impact.py relprof_post)."""
+        if not hasattr(self, "_relprof"):
+            path = self.root / "relprof.json"
+            data = None
+            try:
+                if path.exists():
+                    data = json.loads(path.read_text("utf-8"))
+                    if data.get("version") != 1 or not data.get("complete"):
+                        data = None
+            except Exception:  # noqa: BLE001
+                data = None
+            if data is not None:
+                pos = {t: i for i, t in enumerate(self.tests)}
+                unsure = 0
+                for t in data.get("unsure", []):
+                    if t in pos:
+                        unsure |= 1 << pos[t]
+                data["unsure_bits"] = unsure
+            self._relprof = data
+        return self._relprof
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -166,6 +188,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
     if maps is None:
         return ctx.all_tests
     bits = 0
+    maps.pruned = False
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -435,6 +458,15 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
+    if bits:
+        try:
+            refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"{path}: relprof error {exc!r}")
+            refined = None
+        if refined is not None:
+            maps.pruned = True
+            return refined
     return bits
 
 
@@ -831,3 +863,337 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- relation profile
+#
+# An edit that only swaps the operator of single-operator comparisons (same
+# operands, every other AST node identical) can change a run only at an evaluation
+# of an edited comparison where the old and the new operator give different
+# results: until the first such evaluation the patched program is the pinned one,
+# step for step. build/impact.py records, for every comparison site, the relation
+# signature of every evaluation in a whole suite pass (each operator's result on
+# the operands: false, true, raises, or unknown when evaluating it would not be
+# provably pure). If every recorded signature at every edited site gives the same
+# known result (true or false) under both operators, no evaluation can be the
+# first divergence, and no test can change, except the tests the profile does not
+# vouch for (failed or behaved differently in the profile pass, started a child
+# process, or were not in it). Everything else keeps the coverage selection.
+
+_OP_INDEX = {ast.Is: 0, ast.IsNot: 1, ast.Eq: 2, ast.NotEq: 3, ast.Lt: 4, ast.LtE: 5,
+             ast.Gt: 6, ast.GtE: 7}
+_T, _F = 1, 0
+
+
+_IN, _NOT_IN = 8, 9
+
+
+def _op_index(op) -> int | None:
+    if type(op) in _OP_INDEX:
+        return _OP_INDEX[type(op)]
+    return {ast.In: _IN, ast.NotIn: _NOT_IN}.get(type(op))
+
+
+def _literal(node):
+    """(True, value) for a literal expression, else (False, None)."""
+    try:
+        return True, ast.literal_eval(node)
+    except Exception:  # noqa: BLE001
+        return False, None
+
+
+class _Edit:
+    """One edited single-operator comparison: old node, old/new operator, and for a
+    changed literal the side holding it and its old/new values."""
+
+    def __init__(self, node, old_op, new_op, side=None, old_lit=None, new_lit=None):
+        self.node, self.old_op, self.new_op = node, old_op, new_op
+        self.side, self.old_lit, self.new_lit = side, old_lit, new_lit
+        self.part = None
+
+
+def _header_copy(node):
+    """Shallow copy of a statement with its statement blocks emptied."""
+    import copy
+
+    head = copy.copy(node)
+    for name in BLOCK_FIELDS:
+        if isinstance(getattr(head, name, None), list):
+            setattr(head, name, [])
+    return head
+
+
+def _text(lines: list[str], node) -> str:
+    lo, hi = _span(node)
+    return "\n".join(lines[lo - 1:hi])
+
+
+def _differing(old_list, new_list, old_lines, new_lines, out) -> bool:
+    """Pair two statement lists; append to `out` the (old, new, is_header) parts
+    whose source differs, descending into compound statements whose blocks line
+    up. A statement's AST depends only on its own source text, so equal text
+    means equal AST. False when the lists cannot be paired."""
+    if len(old_list) != len(new_list):
+        return False
+    for a, b in zip(old_list, new_list):
+        if type(a) is not type(b):
+            return False
+        if _text(old_lines, a) == _text(new_lines, b):
+            continue
+        blocks_a = [getattr(a, n, None) for n in BLOCK_FIELDS]
+        blocks_b = [getattr(b, n, None) for n in BLOCK_FIELDS]
+        if any(isinstance(x, list) and x for x in blocks_a) and \
+                all(isinstance(x, list) == isinstance(y, list) for x, y in zip(blocks_a, blocks_b)):
+            out.append((a, b, True))
+            for x, y in zip(blocks_a, blocks_b):
+                if isinstance(x, list):
+                    # except handlers and match cases are not statements: compare whole
+                    if x and not isinstance(x[0], ast.stmt):
+                        if len(x) != len(y):
+                            return False
+                        out.extend((p, q, False) for p, q in zip(x, y)
+                                   if ast.dump(p) != ast.dump(q))
+                    elif not _differing(x, y, old_lines, new_lines, out):
+                        return False
+        else:
+            out.append((a, b, False))
+    return True
+
+
+def _walk_part(node, header: bool):
+    """ast.walk over a statement, or over its header only (no statement blocks)."""
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        yield n
+        for name, value in ast.iter_fields(n):
+            if header and n is node and name in BLOCK_FIELDS:
+                continue
+            if isinstance(value, list):
+                stack.extend(v for v in reversed(value) if isinstance(v, ast.AST))
+            elif isinstance(value, ast.AST):
+                stack.append(value)
+
+
+def _compare_edits(old_tree, new_tree, old_lines=None, new_lines=None):
+    """Edits when the new tree is the old one with only the operator and/or a
+    literal operand of single-operator comparisons changed; None otherwise."""
+    if old_lines is None:
+        parts = [(old_tree, new_tree, False)]
+    else:
+        parts = []
+        if not _differing(old_tree.body, new_tree.body, old_lines, new_lines, parts):
+            return None
+    edits = []
+    swaps = []
+    for pa, pb, header in parts:
+        old_cmp = [n for n in _walk_part(pa, header) if isinstance(n, ast.Compare)]
+        new_cmp = [n for n in _walk_part(pb, header) if isinstance(n, ast.Compare)]
+        if len(old_cmp) != len(new_cmp):
+            return None
+        for a, b in zip(old_cmp, new_cmp):
+            if ast.dump(a) == ast.dump(b):
+                continue
+            edit = _one_edit(a, b)
+            if edit is None:
+                return None
+            edit.part = (pa, header)
+            edits.append(edit)
+            swaps.append((a, b))
+    if not edits:
+        return None
+    # each differing part must be exactly the old one with those comparisons replaced
+    saved = [(a, a.left, a.ops, a.comparators) for a, _b in swaps]
+    for a, b in swaps:
+        a.left, a.ops, a.comparators = b.left, b.ops, b.comparators
+    try:
+        same = all(ast.dump(_header_copy(pa) if header else pa)
+                   == ast.dump(_header_copy(pb) if header else pb)
+                   for pa, pb, header in parts)
+    finally:
+        for node, left, ops, comparators in saved:
+            node.left, node.ops, node.comparators = left, ops, comparators
+    return edits if same else None
+
+
+def _one_edit(a, b):
+    if len(a.ops) != 1 or len(b.ops) != 1:
+        return None  # chained comparisons are not profiled
+    o, n = _op_index(a.ops[0]), _op_index(b.ops[0])
+    if o is None or n is None:
+        return None
+    sides = [(a.left, b.left), (a.comparators[0], b.comparators[0])]
+    changed = [i for i, (x, y) in enumerate(sides) if ast.dump(x) != ast.dump(y)]
+    if not changed:
+        if o >= _IN or n >= _IN:
+            return None  # in <-> not in always disagree when evaluated
+        return _Edit(a, o, n)
+    if len(changed) != 1:
+        return None
+    side = changed[0]
+    other = sides[1 - side]
+    ok_old, old_lit = _literal(sides[side][0])
+    ok_new, new_lit = _literal(sides[side][1])
+    if not (ok_old and ok_new) or _literal(other[0])[0]:
+        return None  # only a literal facing a non-literal is value-profiled
+    if (o >= _IN) != (n >= _IN) or (o >= _IN and side != 1):
+        return None
+    return _Edit(a, o, n, side, old_lit, new_lit)
+
+
+_SINGLETONS = (None, True, False, Ellipsis)
+_APPLY = (lambda x, y: x is y, lambda x, y: x is not y, lambda x, y: x == y,
+          lambda x, y: x != y, lambda x, y: x < y, lambda x, y: x <= y,
+          lambda x, y: x > y, lambda x, y: x >= y, lambda x, y: x in y,
+          lambda x, y: x not in y)
+
+
+def _decode(tagged):
+    tag, value = tagged
+    if tag == "str" and type(value) is str:
+        return value
+    if tag == "int" and type(value) is int:
+        return value
+    if tag == "float" and type(value) in (int, float):
+        return float(value)
+    if tag == "bool" and type(value) is bool:
+        return value
+    if tag == "none" and value is None:
+        return None
+    if tag == "tuple" and type(value) is list:
+        return tuple(_decode(v) for v in value)
+    raise Unsafe(f"bad value record {tagged!r}")
+
+
+def _is_safe_literal(value) -> bool:
+    return any(value is s for s in _SINGLETONS)
+
+
+def _values_agree(edit: _Edit, values) -> bool:
+    """Every recorded value of the non-literal side gives the same boolean result
+    under the old comparison and the new one."""
+    if values is None:
+        return False
+    if edit.old_op in (0, 1) or edit.new_op in (0, 1):
+        # identity against a literal is only decided by value for singletons
+        if not (_is_safe_literal(edit.old_lit) and _is_safe_literal(edit.new_lit)):
+            return False
+    old_f, new_f = _APPLY[edit.old_op], _APPLY[edit.new_op]
+    for tagged in values:
+        v = _decode(tagged)
+        try:
+            if edit.side == 1:
+                old, new = old_f(v, edit.old_lit), new_f(v, edit.new_lit)
+            else:
+                old, new = old_f(edit.old_lit, v), new_f(edit.new_lit, v)
+        except Exception:  # noqa: BLE001
+            return False
+        if type(old) is not bool or old is not new:
+            return False
+    return True
+
+
+def _parents(tree):
+    out = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            out[child] = node
+    return out
+
+
+# (parent type, field) through which a child expression is always evaluated when
+# the parent is; anything else (BoolOp tails, IfExp branches, lambdas,
+# comprehensions, ...) may skip it
+_ALWAYS = {(ast.If, "test"), (ast.While, "test"), (ast.Return, "value"),
+           (ast.Assign, "value"), (ast.AnnAssign, "value"), (ast.AugAssign, "value"),
+           (ast.Expr, "value"), (ast.Assert, "test"), (ast.Call, "args"),
+           (ast.Call, "func"), (ast.keyword, "value"), (ast.UnaryOp, "operand"),
+           (ast.IfExp, "test"), (ast.Attribute, "value"), (ast.Subscript, "value"),
+           (ast.Subscript, "slice"), (ast.Tuple, "elts"), (ast.List, "elts"),
+           (ast.BinOp, "left"), (ast.BinOp, "right"), (ast.Starred, "value")}
+
+
+def _unconditional(node, parents):
+    """Statement containing `node`, and whether executing that statement always
+    evaluates `node` (unless an earlier operand raises)."""
+    always = True
+    while True:
+        parent = parents.get(node)
+        if parent is None:
+            return None, False
+        field = None
+        for name, value in ast.iter_fields(parent):
+            if value is node or (isinstance(value, list) and any(v is node for v in value)):
+                field = name
+                break
+        if isinstance(parent, ast.stmt):
+            if (type(parent), field) not in _ALWAYS:
+                always = False
+            return parent, always
+        if isinstance(parent, ast.BoolOp):
+            if parent.values[0] is not node:
+                always = False
+        elif (type(parent), field) not in _ALWAYS:
+            always = False
+        node = parent
+
+
+def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=None,
+                    new_lines=None) -> int | None:
+    """Bits to keep when the profile proves the edit inert, else None."""
+    edits = _compare_edits(old_tree, new_tree, old_lines, new_lines)
+    if not edits:
+        return None
+    rp = info.maps.relprof()
+    if rp is None:
+        return None
+    sites = rp["sites"]
+    for edit in edits:
+        node, old_op, new_op = edit.node, edit.old_op, edit.new_op
+        part, header = edit.part
+        parents = {}
+        if part is not old_tree:
+            parents[part] = old_tree  # a statement's own parent only matters as non-None
+        for n in _walk_part(part, header):
+            for child in ast.iter_child_nodes(n):
+                parents[child] = n
+        # `x is <literal>` only adds a SyntaxWarning when the module is compiled:
+        # printed to stderr, never an error (the pinned suite has no warning
+        # filters, no -W error and no pytest config turning warnings into errors).
+        key = f"{info.rel}:{node.lineno}:{node.col_offset}"
+        entry = sites.get(key)
+        if entry is None:
+            _log(f"relprof: {key} not instrumented")
+            return None
+        sigs, eval_index = entry
+        if edit.side is not None:
+            values = rp.get("values", {})
+            if key not in values or not _values_agree(edit, values[key]):
+                _log(f"relprof: {key} literal change not proven by recorded values")
+                return None
+        else:
+            for sig in sigs:
+                a = (sig >> (2 * old_op)) & 3
+                b = (sig >> (2 * new_op)) & 3
+                if a != b or a not in (_T, _F):
+                    _log(f"relprof: {key} diverges ({sig:#06x})")
+                    return None
+        # consistency with the coverage pass: a comparison every execution of its
+        # statement evaluates must have been evaluated by every test covering it
+        stmt, always = _unconditional(node, parents)
+        if stmt is None:
+            return None
+        if always:
+            lo = stmt.lineno
+            first = _first_body_line(stmt)
+            hi = first - 1 if first is not None and first > lo else stmt.end_lineno
+            if isinstance(stmt, (ast.If, ast.While)):
+                hi = stmt.test.end_lineno
+            covered = info.cov(lo, hi)
+            evaluated = int(rp["sets"][eval_index], 16)
+            if covered & ~evaluated & ~rp["unsure_bits"]:
+                _log(f"relprof: {key} covered by tests that never evaluated it")
+                return None
+        _log(f"relprof: {key} proven inert (op {old_op}->{new_op}, literal "
+             f"{edit.old_lit!r}->{edit.new_lit!r})")
+    return bits & rp["unsure_bits"]
