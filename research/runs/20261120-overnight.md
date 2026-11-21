@@ -218,3 +218,8 @@ Followed from now on, on top of RUNBOOK.md.
   **Slot unused.**
 - `label-local`: batch B (due about 00:30) produced nothing; no br-label containers are running and the branch is still at `7dac844`. Asked it to
   finish batch B if its labels are clean, relabel what's missing (60 min cap), or write up batch A and finish. No new agent (one at a time).
+- **`label-local` finished (about 04:00):** `validation/local-20261120` `0c57b3d` (PR #4) now has **32 commits** (16 code, 8 fixture, 5 comment incl.
+  2 docstring, 3 multi; 11 break nothing). All batch B runs were clean, so nothing was relabelled. `int/night-0147` has **0 misses on all 32**
+  (docker 329.5 s, oracle 126.0 s), and a re-verify passes on every set. The local copy in main's `validation/sets/` is updated to 32.
+  Most wasteful selections: s31h (178 tests, 0 failing), g9ct (25.5 s, 0 failing), f7kz (771 tests for 1 failing). I declined the offer to label 31 more
+  patches (2.5-3 h of CPU on a shared laptop): the held-out sets now total 64 + 22 + 32. Agent closed.
