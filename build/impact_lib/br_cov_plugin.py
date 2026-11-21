@@ -122,17 +122,19 @@ PHASES = {"setup": 0, "call": 1, "teardown": 2, "collect": 3}
 
 
 def _begin():
-    global _cur, _types
+    global _cur, _types, _rcur
     _cur = set()
     _types = set()
+    _rcur = set()
     M.restart_events()
 
 
 def _end(key: str, phase: str):
-    global _cur, _types
-    lines, types = _cur, _types
-    _cur, _types = _sink, set()
+    global _cur, _types, _rcur
+    lines, types, reads = _cur, _types, _rcur
+    _cur, _types, _rcur = _sink, set(), _rsink
     _sink.clear()
+    _rsink.clear()
     if key not in _tests_pos:
         _tests_pos[key] = len(_tests)
         _tests.append(key)
@@ -140,6 +142,17 @@ def _end(key: str, phase: str):
     code = idx * 4 + PHASES[phase]
     for item in lines:
         _index.setdefault(item, []).append(code)
+    if reads:
+        done = set()
+        for owner, home, attr in reads:
+            for klass in (owner, home):
+                if klass is None:
+                    continue
+                key = _class_key(klass)
+                entry = (key or "*", attr)
+                if entry not in done:
+                    done.add(entry)
+                    _rindex.setdefault(entry, []).append(code)
     if types:
         bucket = _typemap.setdefault(idx, [])
         for tp in types:
@@ -152,9 +165,112 @@ def _end(key: str, phase: str):
 _tests_pos: dict[str, int] = {}
 
 
+# ---------------------------------------------------------------- expression class attributes
+#
+# Every plain data attribute (dict, set, bool, ...) in the own __dict__ of a sqlglot
+# Expr class (arg_types, required_args, is_var_len_args, _sql_names, ...) is
+# replaced by a non-data descriptor returning the same object, which records
+# (runtime class, attribute) and (defining class, attribute) for the current
+# phase. The selector pairs these reads with the import-time state diff of an
+# edited class body. Classes created later (lazy imports) are wrapped through
+# Expr.__init_subclass__. At the end, a descriptor that is no longer in place,
+# or a tracked-type attribute added at run time, marks that entry unsafe.
+
+TRACK_EXPR = os.environ.get("BR_TRACK_EXPR", "1") == "1"
+_PLAIN = (dict, set, frozenset, list, tuple, bool, int, float, str, type(None))
+_SKIP_ATTRS = {"key"}  # hot, and changes only with a renamed class (a class-set change)
+_rsink: set = set()
+_rcur: set = _rsink
+_rindex: dict[tuple, list] = {}
+_installed: list = []  # (class, attr, descriptor)
+_ckey: dict = {}       # class -> "module:qualname" (None: not unique, never trusted)
+_seen_names: dict[str, int] = {}
+_unsafe: set = set()
+
+
+class _Tracked:
+    __slots__ = ("value", "home", "name")
+
+    def __init__(self, value, home, name):
+        self.value = value
+        self.home = home
+        self.name = name
+
+    def __get__(self, inst, owner=None):
+        _rcur.add((owner, self.home, self.name))
+        return self.value
+
+
+def _class_key(klass):
+    got = _ckey.get(klass, 0)
+    if got == 0:
+        key = f"{getattr(klass, '__module__', '?')}:{getattr(klass, '__qualname__', '?')}"
+        got = key if _seen_names.get(key, 0) <= 1 else None
+        _ckey[klass] = got
+    return got
+
+
+def _install(klass) -> None:
+    mod = getattr(klass, "__module__", "") or ""
+    if not (mod == "sqlglot" or mod.startswith("sqlglot.")):
+        return
+    key = f"{mod}:{klass.__qualname__}"
+    _seen_names[key] = _seen_names.get(key, 0) + 1
+    if _seen_names[key] > 1:
+        _unsafe.add(key + "|*")  # duplicate name: nothing about it is trusted
+    for attr, value in list(klass.__dict__.items()):
+        if attr.startswith("__") or attr in _SKIP_ATTRS or not isinstance(value, _PLAIN):
+            continue
+        desc = _Tracked(value, klass, attr)
+        type.__setattr__(klass, attr, desc)
+        _installed.append((klass, attr, desc))
+
+
+def _track_setup() -> None:
+    try:
+        from sqlglot.expressions.core import Expr
+    except Exception:  # noqa: BLE001
+        return
+    found, stack = [Expr], [Expr]
+    seen = {Expr}
+    while stack:
+        k = stack.pop()
+        for s in type.__subclasses__(k):
+            if s not in seen:
+                seen.add(s)
+                found.append(s)
+                stack.append(s)
+    for k in found:
+        _install(k)
+    orig = Expr.__dict__["__init_subclass__"].__func__
+
+    def __init_subclass__(cls, **kwargs):
+        orig(cls, **kwargs)
+        _install(cls)
+
+    Expr.__init_subclass__ = classmethod(__init_subclass__)
+
+
+def _track_check() -> list[str]:
+    for klass, attr, desc in _installed:
+        if klass.__dict__.get(attr) is not desc:
+            key = _class_key(klass)
+            _unsafe.add(f"{key}|{attr}" if key else "*")
+    wrapped = {(k, a) for k, a, _ in _installed}
+    for klass in {k for k, _, _ in _installed}:
+        for attr, value in list(klass.__dict__.items()):
+            if (klass, attr) not in wrapped and not attr.startswith("__")                     and attr not in _SKIP_ATTRS and isinstance(value, _PLAIN):
+                key = _class_key(klass)
+                _unsafe.add(f"{key}|{attr}" if key else "*")
+    return sorted(x for x in _unsafe if x)
+
+
 def pytest_configure(config):
     global _tool
     import sqlglot  # noqa: F401  core import-time lines are mapped by the import probe
+
+    if TRACK_EXPR:
+        _track_setup()
 
     for tool in (M.COVERAGE_ID, 3, 4, 5):
         try:
@@ -217,7 +333,15 @@ def pytest_unconfigure(config):
         rel = _relpath(filename)
         files.setdefault(rel, {}).setdefault(str(line), []).extend(codes)
     os.makedirs(OUT, exist_ok=True)
+    reads = {}
+    if TRACK_EXPR:
+        for (key, attr), codes in _rindex.items():
+            reads[f"{key}|{attr}"] = codes
     with open(os.path.join(OUT, f"cov-{worker}.json"), "w", encoding="utf-8") as handle:
         json.dump({"tests": _tests, "files": files,
                    "types": {str(k): sorted(set(v)) for k, v in _typemap.items()},
-                   "outcomes": _outcomes}, handle)
+                   "outcomes": _outcomes,
+                   "exprattr": {"reads": reads,
+                                "tracked": sorted({f"{_class_key(k)}|{a}" for k, a, _ in _installed
+                                                   if _class_key(k)}) if TRACK_EXPR else [],
+                                "unsafe": _track_check() if TRACK_EXPR else ["*"]}}, handle)
