@@ -182,6 +182,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
     bits = 0
     maps.pruned = False
     maps.import_check = {}
+    maps.state_checked = set()
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -193,6 +194,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
+    if len(changes) == 1 and set(maps.import_check) <= maps.state_checked:
+        maps.import_check = {}  # the state diff already imported every module with this edit
     if maps.import_check and _import_breaks(maps, maps.import_check):
         return ctx.all_tests
     if not bits and maps.pruned and maps.always:
@@ -785,6 +788,8 @@ def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
         _log(f"{rel}: {result.get('error')}: every test")
         return maps.ALL
     changes = result.get("changes")
+    if changes is not None and "failed" not in str(result.get("error", "")):
+        maps.state_checked.add(rel)  # imported every module as the pristine commit does
     if changes is None or result.get("volatile"):
         _log(f"{rel}: state diff unusable: {result.get('error') or result.get('volatile')}")
         return None
