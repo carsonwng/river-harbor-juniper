@@ -873,6 +873,12 @@ def _old_line_bits(info, tree, line, text, hunk, new_lines, old_to_new) -> int:
             entry = names.get(func.name)
             if entry is None or entry[1]:
                 bits |= base
+            elif any(d.lineno <= line <= d.end_lineno for d in func.decorator_list) \
+                    and _imported_by_tests(info) and _scope_reads(tree, chain, fi, {func.name}):
+                # a decorator wraps the function stored by an import-time table: tests
+                # can run the wrapper without the body (null_if_any returning early)
+                _log(f"{info.rel}: decorator of {func.name}, read at import by its scope")
+                bits |= base
             else:
                 bits |= info.maps.bits(entry[0]) & base
         else:
@@ -1147,10 +1153,30 @@ def _cache_scan(tree):
     return out
 
 
+_FILLERS: dict = {}
+
+
+def _prebuilt_fillers(info: FileInfo):
+    """The build's _cache_scan of the pinned file (build/impact_cache.py), or None."""
+    if "files" not in _FILLERS:
+        try:
+            data = json.loads((info.maps.root.parent / "impact_cache" / "fillers.json")
+                              .read_text("utf-8"))
+            _FILLERS["files"] = data["files"] if data.get("version") == 1 else {}
+        except Exception:  # noqa: BLE001  no map: scan at run time
+            _FILLERS["files"] = {}
+    rows = _FILLERS["files"].get(info.rel)
+    if rows is None:
+        return None
+    return [(lo, hi, frozenset(readers), mw) for lo, hi, readers, mw in rows]
+
+
 def _cache_bits(info: FileInfo, old_tree, change: FileChange, new_to_old) -> int:
     if os.environ.get("BR_IMPACT_CACHE", "1") != "1":
         return 0
-    fillers = _cache_scan(old_tree)
+    fillers = _prebuilt_fillers(info)
+    if fillers is None:
+        fillers = _cache_scan(old_tree)
     if not fillers:
         return 0
     old_lines = set()
