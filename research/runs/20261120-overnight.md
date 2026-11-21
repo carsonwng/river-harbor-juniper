@@ -18,3 +18,8 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
 - **Agent:** started `runcpu` (Opus strategist, task 4: run CPU profile, identical stdout),
   based on `int/night-1948`. Task 3 (labelling) skipped: `validation/m1` exists on origin and a
   cloud session appears to be labelling now.
+- **Verify result (about 20:05):** `int/night-1948` `1a5f961` **PASS** on the sample: simulated 177.739 s,
+  CPU 1.184 s, **total 178.923 s, 0 misses** (docker). That is 75% under 720.2 s, so it qualifies
+  as a *provisional* candidate (sample only, no held-out set yet). Pushed to origin. It is the next
+  submission, ahead of the probes, as soon as Chrome is connected. Run it against a held-out set
+  once `validation/sets/` appears.
