@@ -29,6 +29,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -180,6 +181,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
         return ctx.all_tests
     bits = 0
     maps.pruned = False
+    maps.import_check = {}
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -191,6 +193,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
+    if maps.import_check and _import_breaks(maps, maps.import_check):
+        return ctx.all_tests
     if not bits and maps.pruned and maps.always:
         return set(maps.always)  # tests the profile never ran
     return maps.to_tests(bits) if bits else set()
@@ -425,6 +429,8 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         return 0
     info = FileInfo(maps, path, old_text)
     old_to_new = {o: n for n, o in new_to_old.items()}
+    if _touches_import(info, old_tree, new_tree, change, new_to_old):
+        maps.import_check[path] = new_text
     bits = 0
     for hunk in change.hunks:
         for number, text in hunk.removed:
@@ -677,6 +683,109 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- import check
+#
+# Coverage attributes no import-time line to a test, so the rules above assume
+# that the edited module still imports. When it does not (a class body or a
+# module-level statement that now raises, a function run at import that now
+# raises, a default or decorator that raises), every test that imports the module
+# fails, at collection or lazily through Dialect.get and the dialects package's
+# __getattr__: m1 `8owm` (1161 failing) and `doay` (17 failing, the tests that
+# load every dialect). So for every edit that reaches code run at import, a
+# fresh interpreter imports the edited sqlglot (blast/impact_import.py); a module
+# that imported on the pinned commit and no longer does selects every test.
+
+
+def _touches_import(info: FileInfo, old_tree, new_tree, change: FileChange, new_to_old) -> bool:
+    """Some edited line is in code that runs when the module is imported: class
+    or module level, the decorators/signature of a top-level def or method, or a
+    function body the import probe saw run during some import."""
+    for hunk in change.hunks:
+        for number, _ in hunk.removed:
+            if _line_at_import(info, old_tree, number, None):
+                return True
+        for number, _ in hunk.added:
+            if _line_at_import(info, new_tree, number, new_to_old):
+                return True
+    return False
+
+
+def _line_at_import(info: FileInfo, tree, line: int, new_to_old) -> bool:
+    chain = _chain(tree, line)
+    if not chain:
+        return False  # blank or comment line at module level
+    fi = next((i for i, n in enumerate(chain) if isinstance(n, FUNC)), None)
+    if fi is None:
+        return True  # module or class level
+    func = chain[fi]  # outermost function: its header is evaluated at import
+    first = _first_body_line(func)
+    if first is None or line < first:
+        return True
+    # body lines only: the def line itself always runs at import
+    lo, hi = _map_span((first, func.end_lineno), new_to_old)
+    if lo is None:
+        return True
+    return any(str(l) in info.import_lines for l in range(lo, hi + 1))
+
+
+_PRISTINE_FAILED: dict[str, set[str] | None] = {}
+
+
+def _run_import_check(sqlglot: Path, files: dict[str, str]) -> dict[str, str] | None:
+    """{module: error} for modules that fail to import; None if the check failed."""
+    script = Path(__file__).resolve().parent / "impact_import.py"
+    request = json.dumps({"sqlglot": str(sqlglot.resolve()), "files": files})
+    try:
+        proc = subprocess.run([sys.executable, "-I", "-B", str(script)], input=request,
+                              capture_output=True, text=True, encoding="utf-8", timeout=90)
+        lines = proc.stdout.strip().splitlines()
+        if not lines:
+            _log(f"import check: no output, exit {proc.returncode}: {proc.stderr[-300:]}")
+            return None
+        return json.loads(lines[-1])["failed"]
+    except subprocess.TimeoutExpired:
+        _log("import check: timed out")
+        return {"<timeout>": "import did not finish"}
+    except Exception as exc:  # noqa: BLE001
+        _log(f"import check failed: {exc!r}")
+        return None
+
+
+def _pristine_failed(maps: Maps) -> set[str] | None:
+    key = str(maps.root)
+    if key not in _PRISTINE_FAILED:
+        got = None
+        path = maps.root / "importable.json"
+        try:
+            if path.exists():
+                got = set(json.loads(path.read_text("utf-8"))["failed"])
+        except Exception:  # noqa: BLE001
+            got = None
+        if got is None:
+            failed = _run_import_check(maps.sqlglot, {})
+            got = None if failed is None else set(failed)
+        _PRISTINE_FAILED[key] = got
+    return _PRISTINE_FAILED[key]
+
+
+def _import_breaks(maps: Maps, files: dict[str, str]) -> bool:
+    if os.environ.get("BR_IMPACT_IMPORT_CHECK", "1") != "1":
+        return False
+    failed = _run_import_check(maps.sqlglot, files)
+    if failed is None:
+        return True  # could not tell: the safe answer
+    if not failed:
+        return False
+    pristine = _pristine_failed(maps)
+    if pristine is None:
+        return True
+    new = sorted(set(failed) - pristine)
+    if new:
+        _log(f"import check: {', '.join(f'{m} ({failed[m]})' for m in new[:4])}: all tests")
+        return True
+    return False
 
 
 # ---------------------------------------------------------------- relation profile

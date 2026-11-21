@@ -333,6 +333,28 @@ class Sets:
         return found
 
 
+def write_importable(root: Path, out: Path) -> None:
+    """Byte-compile the pinned sqlglot (so the selector's import check reads .pyc
+    on the read-only disk) and record which modules fail to import on the pinned
+    commit (importable.json; the import check ignores those)."""
+    start = time.time()
+    try:
+        import compileall
+
+        compileall.compile_dir(str(root / "sqlglot"), quiet=1, workers=1)
+        script = Path(__file__).resolve().parent.parent / "blast" / "impact_import.py"
+        proc = subprocess.run([sys.executable, "-I", "-B", str(script)],
+                              input=json.dumps({"sqlglot": str(root)}), capture_output=True,
+                              text=True, encoding="utf-8", timeout=300)
+        result = json.loads(proc.stdout.strip().splitlines()[-1])
+        (out / "importable.json").write_text(json.dumps(result), "utf-8")
+        log(f"import check baseline: {result['modules']} modules, {len(result['failed'])} fail, "
+            f"{time.time() - start:.1f}s")
+    except Exception as exc:  # noqa: BLE001  the selector computes it itself
+        log(f"import check baseline failed: {exc!r}")
+        (out / "importable.json").unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sqlglot", required=True, type=Path)
@@ -391,6 +413,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001  the selector works without it
         log(f"relprof failed, no relprof map: {exc!r}")
         (out / "relprof.json").unlink(missing_ok=True)
+    write_importable(root, out)
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
     for dirpath, _dirs, files in os.walk(out):
