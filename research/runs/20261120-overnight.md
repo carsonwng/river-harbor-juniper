@@ -142,3 +142,6 @@ Followed from now on, on top of RUNBOOK.md.
   `int/night-2120`. That base has the `8owm` m1 miss in impact, so the branch can't pass m1 as is. It's for the lead to fold
   into combo, not a submission candidate.
 - **Submission: slot unused** (no m1-safe candidate). `label-local` is still running (no commits since `e72f246`).
+- **Incident (lead, about 23:2x):** another local agent killed up to 4 `br-label` containers by mount pattern
+  (funny_hodgkin, objective_mendel, unruffled_torvalds, zen_driscoll, quirky_neumann). `label-local` was told to find runs that
+  didn't finish cleanly, relabel those commits before publishing `validation/local-*`, and record it.
