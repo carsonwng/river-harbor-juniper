@@ -518,7 +518,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
                  f"(base {bin(bits).count('1')})")
             if alt == maps.ALL:
                 return alt
-            bits &= alt
+            bits = (bits & alt) | cache  # cache readers stay (r2-sound)
     return bits
 
 
