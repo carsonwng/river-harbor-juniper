@@ -83,3 +83,28 @@ gap-heavy's gain transfers only if the scorer's relprof finishes or is moved aft
 
 - Reordering instr before relprof (or giving instr its own share of the deadline) would
   carry gap-heavy's local gains to practice. It changes the build policy, so left to the lead.
+
+## Variant `int/night-0519-norelprof` (0434-all + `ENV BR_RELPROF_TIMEOUT=0`)
+
+Build only: the existing relprof limit set to 0 s, so the relprof pass gives up at once and no
+relprof map is written (the selector falls back as on the scorer today). gap-heavy's instr pass
+then has time. Cold 4 CPU / 8 GB build: **228.5 s** (coverage 88.7 s, state snapshot 9.4 s,
+instr 17/17 tests in 50.3 s, impact step 160.9 s).
+
+Docker verify, 0 misses on every set. Simulated against the scorer-like baseline (ae47472's code
+with the relprof and instr maps switched off):
+
+| set | baseline sim | norelprof sim | norelprof total (sim + CPU) |
+| --- | --- | --- | --- |
+| sample | 175.8 | 174.4 | 178.6 |
+| m1 | 461.5 | 444.1 | 456.8 |
+| m1-extra | 203.1 | 202.6 | 206.7 |
+| local-20261120 | 326.4 | 304.9 | 308.4 |
+| syn-import16 | 589.1 | 589.1 | 593.2 |
+| gap-tests-tpc | 360.5 | 360.5 | 361.1 |
+
+The gain is gap-heavy's alone and lands on heavy tests (m1 -17.4, local -21.5, sample -1.4).
+If the scorer really drops relprof, this should beat ae47472 by about 1-5 % on practice, with a build
+that is 140 s shorter. If relprof does complete on the scorer, this loses relprof's gain (on the host
+builder, sample 121.6 with relprof vs 174.4 without), so the practice score of ae47472 (flat across
+three runs) is the evidence to weigh.
