@@ -1,0 +1,13 @@
+diff --git a/sqlglot/diff.py b/sqlglot/diff.py
+index bfe8b15..2eb34c0 100644
+--- a/sqlglot/diff.py
++++ b/sqlglot/diff.py
+@@ -354,7 +354,7 @@ class ChangeDistiller:
+                                 source_leaf,
+                                 target_leaf,
+                             ),
+-                        )
++                        )  # Normalize early
+ 
+         # Pick best matchings based on the highest score
+         matching_set = set()

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..9db03e6 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -11529,7 +11529,7 @@ SELECT
+   "customer"."c_first_name" AS "c_first_name",
+   "customer"."c_last_name" AS "c_last_name",
+   "customer_address"."ca_street_number" AS "ca_street_number",
+-  "customer_address"."ca_street_name" AS "ca_street_name",
++ "customer_address"."ca_street_name" AS "ca_street_name",
+   "customer_address"."ca_street_type" AS "ca_street_type",
+   "customer_address"."ca_suite_number" AS "ca_suite_number",
+   "customer_address"."ca_city" AS "ca_city",

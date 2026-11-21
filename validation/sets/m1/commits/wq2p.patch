@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..46992af 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -828,7 +828,7 @@ FROM "CTE1" AS "CTE1";
+ 
+ # title: ensures proper quoting happens after all optimizations
+ # execute: false
+-SELECT "foO".x FROM (SELECT 1 AS x) AS "foO";
++SELECT "foO".x FR OM (SELECT 1 AS x) AS "foO";
+ WITH "foO" AS (
+   SELECT
+     1 AS "x"

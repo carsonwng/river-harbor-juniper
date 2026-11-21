@@ -216,5 +216,47 @@
  ],
  "qfky": [
   "fixture tests/fixtures/optimizer/unnest_subqueries.sql: line 198: delete '('"
+ ],
+ "qr0o": [
+  "fixture tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 11532: delete ' '"
+ ],
+ "ri8z": [
+  "code sqlglot/parsers/druid.py: string \"JSON_VALUE\" -> \"JON_VALUE\""
+ ],
+ "rv36": [
+  "code sqlglot/generators/snowflake.py: and -> or"
+ ],
+ "rvqg": [
+  "comment sqlglot/executor/__init__.py: comment before line 76"
+ ],
+ "sddi": [
+  "code sqlglot/diff.py: string \"side\" -> \"side \""
+ ],
+ "sscf": [
+  "comment sqlglot/generators/exasol.py: comment before line 831"
+ ],
+ "tz2z": [
+  "comment sqlglot/diff.py: trailing comment at line 357"
+ ],
+ "v6i4": [
+  "code sqlglot/dialects/tsql.py: string \"d\" -> \"D\""
+ ],
+ "vgzy": [
+  "code sqlglot/dialects/teradata.py: drop element line 42: \"EEEE\": \"%A\","
+ ],
+ "wq2p": [
+  "fixture tests/fixtures/optimizer/optimizer.sql: line 831: split word"
+ ],
+ "x7dz": [
+  "fixture tests/fixtures/optimizer/qualify_columns__with_invisible.sql: line 35: delete 'A'"
+ ],
+ "y3y1": [
+  "code sqlglot/optimizer/unnest_subqueries.py: is not -> is"
+ ],
+ "yjrr": [
+  "code sqlglot/parsers/dremio.py: 2 -> 1"
+ ],
+ "ym61": [
+  "fixture tests/fixtures/optimizer/qualify_columns_ddl.sql: line 6: insert ','"
  ]
 }

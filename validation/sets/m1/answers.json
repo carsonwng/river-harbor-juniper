@@ -1713,6 +1713,83 @@
     1454
    ],
    "kind": "fixture"
+  },
+  "qr0o": {
+   "failing": [
+    1440
+   ],
+   "kind": "fixture"
+  },
+  "ri8z": {
+   "failing": [
+    315
+   ],
+   "kind": "code"
+  },
+  "rv36": {
+   "failing": [
+    192,
+    709,
+    733,
+    773
+   ],
+   "kind": "code"
+  },
+  "rvqg": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "sddi": {
+   "failing": [
+    1060
+   ],
+   "kind": "code"
+  },
+  "sscf": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "tz2z": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "v6i4": {
+   "failing": [
+    977
+   ],
+   "kind": "code"
+  },
+  "vgzy": {
+   "failing": [],
+   "kind": "code"
+  },
+  "wq2p": {
+   "failing": [
+    1355
+   ],
+   "kind": "fixture"
+  },
+  "x7dz": {
+   "failing": [
+    1384
+   ],
+   "kind": "fixture"
+  },
+  "y3y1": {
+   "failing": [
+    1454
+   ],
+   "kind": "code"
+  },
+  "yjrr": {
+   "failing": [],
+   "kind": "code"
+  },
+  "ym61": {
+   "failing": [
+    1382
+   ],
+   "kind": "fixture"
   }
  }
 }

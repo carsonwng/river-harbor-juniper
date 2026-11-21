@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/snowflake.py b/sqlglot/generators/snowflake.py
+index c224f5f..8b414c7 100644
+--- a/sqlglot/generators/snowflake.py
++++ b/sqlglot/generators/snowflake.py
+@@ -317,7 +317,7 @@ def _qualify_unnested_columns(expression: exp.Expr) -> exp.Expr:
+                 unnest_identifier
+                 and not table
+                 and len(scope.sources) == 1
+-                and column.name.lower() != unnest_identifier.name.lower()
++                or column.name.lower() != unnest_identifier.name.lower()
+             ):
+                 unnest_ancestor = column.find_ancestor(exp.Unnest, exp.Select)
+                 if isinstance(unnest_ancestor, exp.Unnest):

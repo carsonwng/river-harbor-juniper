@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/exasol.py b/sqlglot/generators/exasol.py
+index 25d2709..f427ebb 100644
+--- a/sqlglot/generators/exasol.py
++++ b/sqlglot/generators/exasol.py
+@@ -828,6 +828,7 @@ class ExasolGenerator(generator.Generator):
+         "subtype",
+         "sysdate",
+         "system",
++        # Handled by the parser
+         "system_user",
+         "systimestamp",
+         "table",

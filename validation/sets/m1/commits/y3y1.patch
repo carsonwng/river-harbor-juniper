@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/unnest_subqueries.py b/sqlglot/optimizer/unnest_subqueries.py
+index e84b207..431abfb 100644
+--- a/sqlglot/optimizer/unnest_subqueries.py
++++ b/sqlglot/optimizer/unnest_subqueries.py
+@@ -590,7 +590,7 @@ def _is_post_aggregation(expression: exp.Expr, select: exp.Select) -> bool:
+     if isinstance(ancestor, exp.AggFunc):
+         # Look through FILTER, IGNORE NULLS and parentheses for an enclosing window.
+         while (
+-            ancestor.parent is not select
++            ancestor.parent is select
+             and ancestor.parent
+             and ancestor.arg_key == "this"
+             and not isinstance(ancestor.parent, (exp.Func, exp.Window))

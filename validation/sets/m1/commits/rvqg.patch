@@ -1,0 +1,12 @@
+diff --git a/sqlglot/executor/__init__.py b/sqlglot/executor/__init__.py
+index 174ad3c..f4de571 100644
+--- a/sqlglot/executor/__init__.py
++++ b/sqlglot/executor/__init__.py
+@@ -73,6 +73,7 @@ def execute(
+         raise ExecuteError("Tables must support the same table args as schema")
+ 
+     now = time.time()
++    # Kept for backwards compatibility
+     expression = optimize(sql, schema, leave_tables_isolated=True, dialect=dialect)
+ 
+     logger.debug("Optimization finished: %f", time.time() - now)
