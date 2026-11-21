@@ -91,3 +91,15 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
   2.0 s relprof showed on the sample in local docker. **Reading: the relprof map was most likely missing in their
   build (the profile pass hit its time limit and fell back)**, so practice ran essentially impact-base. Per the lead:
   hold further relprof-based submissions unless they're clearly better on held-out data.
+
+## Policy from the lead (relayed from the human, received about 21:55): build-deadline ladder
+
+Followed from now on, on top of RUNBOOK.md.
+- `strat/impact-combo` (relprof + attrs + isolate) uses `ENV BR_BUILD_DEADLINE_S=<s>` (default 555). Optional precision passes stop at the deadline.
+- When combo passes `br.py verify` (0 misses), integrate and submit it at **555**.
+- If 555 is rejected for build time (or any timeout-like code), submit the same commit at **510** next slot and stay at 510.
+- If 555 succeeds, a later slot may try **570**. If 570 is rejected, go back to 555 and stay there. Never go above 570.
+- A variant is `int/night-<HHMM>-d<s>`, changing only the ENV line. Verify it (selections must be identical), then push.
+- Compare variants by practice score. 570 must beat 555 by more than 1 s, otherwise prefer 555 (margin for the final rebuild).
+- Record each variant's deadline, receipt, score and per-run lines in research/submissions.md.
+- Hold relprof-based submissions (other than combo under this ladder) unless they're clearly better on held-out data.
