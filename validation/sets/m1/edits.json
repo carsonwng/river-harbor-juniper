@@ -8,9 +8,6 @@
  "0rur": [
   "fixture tests/fixtures/optimizer/optimize_joins.sql: line 11: insert 'NULL'"
  ],
- "0xw8": [
-  "code sqlglot/dialects/redshift.py: string \"%b\" -> \"b\""
- ],
  "18uf": [
   "code sqlglot/optimizer/merge_subqueries.py: drop element line 136: exp.Column,"
  ],
@@ -20,9 +17,6 @@
  "1tbb": [
   "fixture tests/fixtures/optimizer/eliminate_joins.sql: line 100: insert 'NULL'",
   "code sqlglot/dialects/hive.py: True -> False"
- ],
- "26kc": [
-  "code sqlglot/executor/env.py: drop element line 294: \"LIKE\": null_if_any(lambda this, e: _like(this, e)),"
  ],
  "28pq": [
   "code sqlglot/planner.py: and -> or",
@@ -41,29 +35,17 @@
  "48oa": [
   "fixture tests/fixtures/optimizer/qualify_tables.sql: line 283: delete 'a'"
  ],
- "4mef": [
-  "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 22: insert '42'"
- ],
  "4qrg": [
   "fixture tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 7557: insert '42'"
  ],
  "58fd": [
   "fixture tests/fixtures/optimizer/qualify_tables.sql: line 63: insert ','"
  ],
- "5s3x": [
-  "code sqlglot/parsers/athena.py: or -> and"
- ],
  "6nzp": [
   "fixture tests/fixtures/optimizer/qualify_columns_ddl.sql: line 37: delete 't'"
  ],
  "75to": [
   "code sqlglot/parsers/databricks.py: string \"GETDATE\" -> \"GETATE\""
- ],
- "765l": [
-  "code sqlglot/expressions/query.py: != -> =="
- ],
- "77j5": [
-  "fixture tests/fixtures/optimizer/annotate_types.sql: line 294: insert '1'"
  ],
  "7lc8": [
   "code sqlglot/generators/doris.py: 0 -> 1",
@@ -72,12 +54,6 @@
  ],
  "7wwr": [
   "code sqlglot/optimizer/optimize_joins.py: string \"INNER\" -> \"INNERs\""
- ],
- "8e5r": [
-  "code sqlglot/generators/starrocks.py: drop not"
- ],
- "8i33": [
-  "fixture tests/fixtures/optimizer/optimize_joins.sql: line 7: swap chars"
  ],
  "8owm": [
   "code sqlglot/dialects/hive.py: * -> +"
@@ -107,12 +83,6 @@
  "doay": [
   "code sqlglot/parsers/risingwave.py: * -> +"
  ],
- "e9gs": [
-  "code sqlglot/optimizer/journal.py: 0 -> 1"
- ],
- "each": [
-  "code sqlglot/parsers/snowflake.py: True -> False"
- ],
  "elzo": [
   "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 230: insert '42'"
  ],
@@ -122,17 +92,11 @@
  "frjh": [
   "code sqlglot/dialects/materialize.py: string \"v\" -> \"vs\""
  ],
- "gu57": [
-  "code sqlglot/expressions/array.py: string \"this\" -> \"thi\""
- ],
  "h3rw": [
   "code sqlglot/typing/__init__.py: is not -> !="
  ],
  "h4hk": [
   "fixture tests/fixtures/optimizer/optimizer.sql: line 559: split word"
- ],
- "hpp7": [
-  "code sqlglot/optimizer/merge_subqueries.py: == -> !="
  ],
  "hpym": [
   "code sqlglot/typing/__init__.py: drop element line 187: exp.Skewness,"
@@ -155,23 +119,14 @@
  "k1vf": [
   "code sqlglot/planner.py: True -> False"
  ],
- "k514": [
-  "code sqlglot/generators/tsql.py: drop not"
- ],
  "kk06": [
   "comment sqlglot/dialects/tableau.py: comment before line 14"
- ],
- "ldxg": [
-  "code sqlglot/dialects/starrocks.py: drop element line 32: \"ADD BACKEND BLACKLIST\": TokenType.COMMAND,"
  ],
  "lgov": [
   "code sqlglot/generators/clickhouse.py: is -> =="
  ],
  "ly2o": [
   "fixture tests/fixtures/optimizer/annotate_functions.sql: line 4401: delete ';'"
- ],
- "lys1": [
-  "fixture tests/fixtures/optimizer/qualify_columns__with_invisible.sql: line 35: split word"
  ],
  "m92s": [
   "comment sqlglot/generators/singlestore.py: comment before line 1619"
@@ -191,9 +146,6 @@
  "n34m": [
   "code sqlglot/executor/env.py: and -> or"
  ],
- "n5zw": [
-  "code sqlglot/dialects/duckdb.py: is not -> is"
- ],
  "nl8m": [
   "code sqlglot/optimizer/qualify_columns.py: is not -> !="
  ],
@@ -205,20 +157,11 @@
   "code sqlglot/dialects/dune.py: string \"X'\" -> \"X\"",
   "code sqlglot/parsers/oracle.py: and -> or"
  ],
- "phxl": [
-  "code sqlglot/executor/__init__.py: and -> or"
- ],
  "pogk": [
   "comment sqlglot/parsers/clickhouse.py: comment before line 669"
  ],
- "pz4c": [
-  "code sqlglot/parsers/fabric.py: == -> !="
- ],
  "qfky": [
   "fixture tests/fixtures/optimizer/unnest_subqueries.sql: line 198: delete '('"
- ],
- "qr0o": [
-  "fixture tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 11532: delete ' '"
  ],
  "ri8z": [
   "code sqlglot/parsers/druid.py: string \"JSON_VALUE\" -> \"JON_VALUE\""
@@ -229,17 +172,11 @@
  "rvqg": [
   "comment sqlglot/executor/__init__.py: comment before line 76"
  ],
- "sddi": [
-  "code sqlglot/diff.py: string \"side\" -> \"side \""
- ],
  "sscf": [
   "comment sqlglot/generators/exasol.py: comment before line 831"
  ],
  "tz2z": [
   "comment sqlglot/diff.py: trailing comment at line 357"
- ],
- "v6i4": [
-  "code sqlglot/dialects/tsql.py: string \"d\" -> \"D\""
  ],
  "vgzy": [
   "code sqlglot/dialects/teradata.py: drop element line 42: \"EEEE\": \"%A\","
@@ -261,8 +198,5 @@
  ],
  "yzt8": [
   "code sqlglot/generators/postgres.py: == -> !="
- ],
- "z6pg": [
-  "code sqlglot/parsers/redshift.py: string \"EXCLUDE\" -> \"EXCLUDEX\""
  ]
 }

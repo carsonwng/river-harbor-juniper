@@ -1,0 +1,68 @@
+{
+ "0xw8": [
+  "code sqlglot/dialects/redshift.py: string \"%b\" -> \"b\""
+ ],
+ "26kc": [
+  "code sqlglot/executor/env.py: drop element line 294: \"LIKE\": null_if_any(lambda this, e: _like(this, e)),"
+ ],
+ "4mef": [
+  "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 22: insert '42'"
+ ],
+ "5s3x": [
+  "code sqlglot/parsers/athena.py: or -> and"
+ ],
+ "765l": [
+  "code sqlglot/expressions/query.py: != -> =="
+ ],
+ "77j5": [
+  "fixture tests/fixtures/optimizer/annotate_types.sql: line 294: insert '1'"
+ ],
+ "8e5r": [
+  "code sqlglot/generators/starrocks.py: drop not"
+ ],
+ "8i33": [
+  "fixture tests/fixtures/optimizer/optimize_joins.sql: line 7: swap chars"
+ ],
+ "e9gs": [
+  "code sqlglot/optimizer/journal.py: 0 -> 1"
+ ],
+ "each": [
+  "code sqlglot/parsers/snowflake.py: True -> False"
+ ],
+ "gu57": [
+  "code sqlglot/expressions/array.py: string \"this\" -> \"thi\""
+ ],
+ "hpp7": [
+  "code sqlglot/optimizer/merge_subqueries.py: == -> !="
+ ],
+ "k514": [
+  "code sqlglot/generators/tsql.py: drop not"
+ ],
+ "ldxg": [
+  "code sqlglot/dialects/starrocks.py: drop element line 32: \"ADD BACKEND BLACKLIST\": TokenType.COMMAND,"
+ ],
+ "lys1": [
+  "fixture tests/fixtures/optimizer/qualify_columns__with_invisible.sql: line 35: split word"
+ ],
+ "n5zw": [
+  "code sqlglot/dialects/duckdb.py: is not -> is"
+ ],
+ "phxl": [
+  "code sqlglot/executor/__init__.py: and -> or"
+ ],
+ "pz4c": [
+  "code sqlglot/parsers/fabric.py: == -> !="
+ ],
+ "qr0o": [
+  "fixture tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 11532: delete ' '"
+ ],
+ "sddi": [
+  "code sqlglot/diff.py: string \"side\" -> \"side \""
+ ],
+ "v6i4": [
+  "code sqlglot/dialects/tsql.py: string \"d\" -> \"D\""
+ ],
+ "z6pg": [
+  "code sqlglot/parsers/redshift.py: string \"EXCLUDE\" -> \"EXCLUDEX\""
+ ]
+}

@@ -18,3 +18,14 @@
 - `strat/mutants`: generator plus full-suite labeller in progress. The data set lives in the
   local `.cache` only for now.
 - Next: an impact research cluster in the cloud (`cloud/impact-cluster.md`, tag `cloud-base-1`).
+
+## 2026-11-21: cloud session, held-out validation set m1 (`validation/m1`)
+
+- Labeller now runs pytest inside the Dockerfile's base image with `requirements.lock`
+  (`validation/label.py --docker`). Agreement with `sample/answers.json`: **30 / 30 exact**.
+- `validation/sets/m1`: 64 labelled mutants in harness format with the sample's mix (code 33,
+  fixture 17, comment 8, multi 6; 25 break nothing, 39%). `validation/sets/m1-extra`: 22 more
+  breaking commits. 928 KB together. Oracle floor: m1 146.9 s, m1-extra 102.0 s.
+- About 140 s per full-suite run on the 4-core cloud box; 86 labels took 3 h 31 min.
+- Caveats: `7lc8` has a borderline timeout label on #1106; no mutant breaks #1490; each commit
+  labelled once. Report: `runs/20261121-validation-m1.md`.

@@ -16,12 +16,6 @@
    ],
    "kind": "fixture"
   },
-  "0xw8": {
-   "failing": [
-    586
-   ],
-   "kind": "code"
-  },
   "18uf": {
    "failing": [
     1343
@@ -41,14 +35,6 @@
     1325
    ],
    "kind": "multi"
-  },
-  "26kc": {
-   "failing": [
-    1106,
-    1115,
-    1116
-   ],
-   "kind": "code"
   },
   "28pq": {
    "failing": [
@@ -80,14 +66,6 @@
    ],
    "kind": "fixture"
   },
-  "4mef": {
-   "failing": [
-    1107,
-    1123,
-    1441
-   ],
-   "kind": "fixture"
-  },
   "4qrg": {
    "failing": [
     1440
@@ -100,12 +78,6 @@
    ],
    "kind": "fixture"
   },
-  "5s3x": {
-   "failing": [
-    231
-   ],
-   "kind": "code"
-  },
   "6nzp": {
    "failing": [
     1382
@@ -117,26 +89,6 @@
     131
    ],
    "kind": "code"
-  },
-  "765l": {
-   "failing": [
-    250,
-    256,
-    1049,
-    1216,
-    1327,
-    1355,
-    1378,
-    1382,
-    1417
-   ],
-   "kind": "code"
-  },
-  "77j5": {
-   "failing": [
-    1302
-   ],
-   "kind": "fixture"
   },
   "7lc8": {
    "failing": [
@@ -153,18 +105,6 @@
     1362
    ],
    "kind": "code"
-  },
-  "8e5r": {
-   "failing": [
-    884
-   ],
-   "kind": "code"
-  },
-  "8i33": {
-   "failing": [
-    1362
-   ],
-   "kind": "fixture"
   },
   "8owm": {
    "failing": [
@@ -1390,18 +1330,6 @@
    ],
    "kind": "code"
   },
-  "e9gs": {
-   "failing": [
-    1336
-   ],
-   "kind": "code"
-  },
-  "each": {
-   "failing": [
-    708
-   ],
-   "kind": "code"
-  },
   "elzo": {
    "failing": [
     1107,
@@ -1418,12 +1346,6 @@
    "failing": [],
    "kind": "code"
   },
-  "gu57": {
-   "failing": [
-    1295
-   ],
-   "kind": "code"
-  },
   "h3rw": {
    "failing": [],
    "kind": "code"
@@ -1433,12 +1355,6 @@
     1355
    ],
    "kind": "fixture"
-  },
-  "hpp7": {
-   "failing": [
-    1343
-   ],
-   "kind": "code"
   },
   "hpym": {
    "failing": [
@@ -1479,25 +1395,9 @@
    "failing": [],
    "kind": "code"
   },
-  "k514": {
-   "failing": [
-    252,
-    1001,
-    1002,
-    1003,
-    1004
-   ],
-   "kind": "code"
-  },
   "kk06": {
    "failing": [],
    "kind": "comment"
-  },
-  "ldxg": {
-   "failing": [
-    874
-   ],
-   "kind": "code"
   },
   "lgov": {
    "failing": [],
@@ -1506,12 +1406,6 @@
   "ly2o": {
    "failing": [
     1295
-   ],
-   "kind": "fixture"
-  },
-  "lys1": {
-   "failing": [
-    1384
    ],
    "kind": "fixture"
   },
@@ -1555,12 +1449,6 @@
   },
   "n34m": {
    "failing": [],
-   "kind": "code"
-  },
-  "n5zw": {
-   "failing": [
-    1389
-   ],
    "kind": "code"
   },
   "nl8m": {
@@ -1647,76 +1535,13 @@
    ],
    "kind": "multi"
   },
-  "phxl": {
-   "failing": [
-    1083,
-    1085,
-    1086,
-    1087,
-    1088,
-    1089,
-    1090,
-    1091,
-    1092,
-    1093,
-    1094,
-    1095,
-    1096,
-    1097,
-    1098,
-    1099,
-    1100,
-    1101,
-    1102,
-    1103,
-    1104,
-    1105,
-    1106,
-    1108,
-    1109,
-    1110,
-    1111,
-    1112,
-    1113,
-    1114,
-    1115,
-    1116,
-    1117,
-    1118,
-    1119,
-    1120,
-    1121,
-    1122,
-    1124,
-    1127,
-    1128,
-    1130,
-    1131,
-    1133,
-    1140,
-    1141
-   ],
-   "kind": "code"
-  },
   "pogk": {
    "failing": [],
    "kind": "comment"
   },
-  "pz4c": {
-   "failing": [
-    416
-   ],
-   "kind": "code"
-  },
   "qfky": {
    "failing": [
     1454
-   ],
-   "kind": "fixture"
-  },
-  "qr0o": {
-   "failing": [
-    1440
    ],
    "kind": "fixture"
   },
@@ -1739,12 +1564,6 @@
    "failing": [],
    "kind": "comment"
   },
-  "sddi": {
-   "failing": [
-    1060
-   ],
-   "kind": "code"
-  },
   "sscf": {
    "failing": [],
    "kind": "comment"
@@ -1752,12 +1571,6 @@
   "tz2z": {
    "failing": [],
    "kind": "comment"
-  },
-  "v6i4": {
-   "failing": [
-    977
-   ],
-   "kind": "code"
   },
   "vgzy": {
    "failing": [],
@@ -1823,12 +1636,6 @@
     1229,
     1417,
     1526
-   ],
-   "kind": "code"
-  },
-  "z6pg": {
-   "failing": [
-    636
    ],
    "kind": "code"
   }
