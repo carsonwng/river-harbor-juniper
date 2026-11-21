@@ -498,7 +498,7 @@ def _diff_bits(maps: Maps, rel: str, new_text: str) -> int | None:
     opaque = maps.opaque()
     if profile is None or opaque is None:
         return None
-    adir = maps.root / "attrs"
+    adir = (maps.root / "attrs").resolve()
     script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
     if not script.exists() or not (adir / "state.json").exists():
         return None
@@ -508,14 +508,21 @@ def _diff_bits(maps: Maps, rel: str, new_text: str) -> int | None:
         env["PYTHONPYCACHEPREFIX"] = str((adir / "pyc").resolve())
     try:
         proc = subprocess.run(
-            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot", str(maps.sqlglot),
+            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot", str(maps.sqlglot.resolve()),
              "--state", str(adir / "state.json"), "--rel", rel],
             input=new_text, capture_output=True, text=True, timeout=120, env=env,
             cwd=str(adir))
-        result = json.loads(proc.stdout.strip().splitlines()[-1])
+        lines = proc.stdout.strip().splitlines()
+        if not lines:
+            raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
+        result = json.loads(lines[-1])
     except Exception as exc:  # noqa: BLE001
         _log(f"{rel}: state diff failed ({exc!r})")
         return None
+    if result.get("import_failed"):
+        # the edited sqlglot no longer imports some module: whatever imports it fails
+        _log(f"{rel}: {result.get('error')}: every test")
+        return maps.ALL
     if "changes" not in result or result.get("volatile"):
         _log(f"{rel}: state diff unusable: {result.get('error') or result.get('volatile')}")
         return None

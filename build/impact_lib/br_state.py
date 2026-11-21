@@ -458,7 +458,7 @@ def main() -> int:
     failed = import_all(root)
     state = snapshot(unordered=set(old.get("unordered", ())), old=old)
     if old.get("failed") != failed:
-        print(json.dumps({"error": f"import failures differ: {failed}"}))
+        print(json.dumps({"error": f"import failures differ: {failed}", "import_failed": True}))
         return 0
     volatile = set(old.get("volatile", ()))
     changes = diff(old, state)
