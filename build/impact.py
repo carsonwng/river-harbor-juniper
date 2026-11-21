@@ -40,6 +40,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 LIB = HERE / "impact_lib"
+FORK_SUPPLEMENT = LIB / "fork_supplement.json"
 VERSION = 1
 CO_NEWLOCALS = 0x2
 LOAD_OPS = {"LOAD_ATTR", "LOAD_GLOBAL", "LOAD_NAME", "LOAD_METHOD", "LOAD_SUPER_ATTR",
@@ -499,6 +500,9 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=int(os.environ.get("BR_IMPACT_JOBS", "4")))
     parser.add_argument("--work", type=Path, help="keep raw results here (default: temp)")
     parser.add_argument("--reuse", action="store_true", help="reuse raw results in --work")
+    parser.add_argument("--make-fork-supplement", type=Path,
+                        help="with --reuse on a work dir holding both coverage passes: write "
+                             "the fork supplement (build/impact_lib/fork_supplement.json)")
     parser.add_argument("--isolate", choices=("none", "fork", "both"),
                         default=os.environ.get("BR_IMPACT_ISOLATE", "both"),
                         help="coverage pass(es): in-process, forked per test, or the union")
@@ -680,7 +684,7 @@ def main() -> int:
     # ---- postprocess whatever completed
     start = time.time()
     postprocess(root, out, probes, workers, test_imports, attr_workers,
-                passes=budget.passes)
+                passes=budget.passes, make_supplement=options.make_fork_supplement)
     log(f"postprocess in {time.time() - start:.1f}s")
     start = time.time()
     try:
@@ -709,7 +713,7 @@ def main() -> int:
 
 def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
                 test_imports: dict | None = None, attr_workers: list[dict] | None = None,
-                passes: dict | None = None) -> None:
+                passes: dict | None = None, make_supplement: Path | None = None) -> None:
     # ---- tests and per-line test sets
     nodeids: set[str] = set()
     outcomes: dict[str, str] = {}
@@ -772,6 +776,34 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
                 if w.get("mode") == "fork":
                     fork_target = fork_line_bits.setdefault(rel, {})
                     fork_target[int(line)] = fork_target.get(int(line), 0) | acc
+
+    # No forked pass this build (dropped by the deadline): use the fork supplement,
+    # derived once from a build of the pinned commit that ran both passes. It holds
+    # the forked pass's test sets for every line of the functions where it saw more
+    # tests than the shared process (per-process caches), and the state-dependent
+    # functions, so the cross-test cache holes stay closed (strat/impact-isolate).
+    supplement_dependent: list[tuple[str, str]] | None = None
+    if not fork_line_bits and has_ref and FORK_SUPPLEMENT.exists() and make_supplement is None:
+        try:
+            supp = json.loads(FORK_SUPPLEMENT.read_text("utf-8"))
+            stests = supp["tests"]
+            remap = [pos.get(t) for t in stests]
+            for rel, lines in supp["lines"].items():
+                target = line_bits.setdefault(rel, {})
+                for line, hexbits in lines.items():
+                    b, acc = int(hexbits, 16), 0
+                    while b:
+                        low = b & -b
+                        i = remap[low.bit_length() - 1]
+                        if i is not None:
+                            acc |= 1 << i
+                        b ^= low
+                    target[int(line)] = target.get(int(line), 0) | acc
+            supplement_dependent = [tuple(x) for x in supp["dependent"]]
+            log(f"fork supplement: {sum(len(v) for v in supp['lines'].values())} lines, "
+                f"{len(supplement_dependent)} state-dependent functions")
+        except Exception as exc:  # noqa: BLE001
+            log(f"fork supplement unusable: {exc!r}")
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -869,8 +901,9 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
     # run's order and layout are unknown, so every line of such a function counts
     # for every test that ran it, or ran a function that calls it by name (the
     # callers take the polluted branch: Dialect.get, __getitem__, classes).
+    dependent: list[tuple[str, str]] = []
     if fork_line_bits and has_ref:
-        dependent = []
+        gained = []
         for (rel, qual), lines in func_lines.items():
             ref, fork = ref_line_bits.get(rel, {}), fork_line_bits.get(rel, {})
             il = imp_lines.get(rel, {})
@@ -878,6 +911,28 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
             # the first importer, the forked pass to nobody (the probe maps them)
             if any(l not in il and ref.get(l, 0) & ~fork.get(l, 0) for l in lines):
                 dependent.append((rel, qual))
+            if any(l not in il and fork.get(l, 0) & ~ref.get(l, 0) for l in lines):
+                gained.append((rel, qual))
+        if make_supplement is not None:
+            lines_out: dict[str, dict[str, str]] = {}
+            for rel, qual in gained:
+                fork = fork_line_bits.get(rel, {})
+                for l in sorted(func_lines[(rel, qual)]):
+                    if fork.get(l):
+                        lines_out.setdefault(rel, {})[str(l)] = format(fork[l], "x")
+            make_supplement.write_text(json.dumps(
+                {"about": "forked-pass test sets of the functions where the forked coverage "
+                          "pass saw more tests than the in-process one, and the state-dependent "
+                          "functions; derived from a build of the pinned sqlglot "
+                          "(build/impact.py --make-fork-supplement)",
+                 "tests": tests, "lines": lines_out,
+                 "dependent": sorted([list(x) for x in dependent])},
+                separators=(",", ":")), "utf-8")
+            log(f"fork supplement written: {len(gained)} functions, "
+                f"{sum(len(v) for v in lines_out.values())} lines, {len(dependent)} dependent")
+    elif supplement_dependent is not None:
+        dependent = [d for d in supplement_dependent if d in func_lines]
+    if dependent:
         for rel, qual in dependent:
             name = qual.rsplit(".", 1)[-1]
             bits = qual_exec.get((rel, qual), 0)
