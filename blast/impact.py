@@ -435,7 +435,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             break
     if bits:
         try:
-            refined = _relprof_refine(info, old_tree, new_tree, bits)
+            refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
         except Exception as exc:  # noqa: BLE001
             _log(f"{path}: relprof error {exc!r}")
             refined = None
@@ -723,56 +723,136 @@ class _Edit:
     def __init__(self, node, old_op, new_op, side=None, old_lit=None, new_lit=None):
         self.node, self.old_op, self.new_op = node, old_op, new_op
         self.side, self.old_lit, self.new_lit = side, old_lit, new_lit
+        self.part = None
 
 
-def _compare_edits(old_tree, new_tree):
+def _header_copy(node):
+    """Shallow copy of a statement with its statement blocks emptied."""
+    import copy
+
+    head = copy.copy(node)
+    for name in BLOCK_FIELDS:
+        if isinstance(getattr(head, name, None), list):
+            setattr(head, name, [])
+    return head
+
+
+def _text(lines: list[str], node) -> str:
+    lo, hi = _span(node)
+    return "\n".join(lines[lo - 1:hi])
+
+
+def _differing(old_list, new_list, old_lines, new_lines, out) -> bool:
+    """Pair two statement lists; append to `out` the (old, new, is_header) parts
+    whose source differs, descending into compound statements whose blocks line
+    up. A statement's AST depends only on its own source text, so equal text
+    means equal AST. False when the lists cannot be paired."""
+    if len(old_list) != len(new_list):
+        return False
+    for a, b in zip(old_list, new_list):
+        if type(a) is not type(b):
+            return False
+        if _text(old_lines, a) == _text(new_lines, b):
+            continue
+        blocks_a = [getattr(a, n, None) for n in BLOCK_FIELDS]
+        blocks_b = [getattr(b, n, None) for n in BLOCK_FIELDS]
+        if any(isinstance(x, list) and x for x in blocks_a) and \
+                all(isinstance(x, list) == isinstance(y, list) for x, y in zip(blocks_a, blocks_b)):
+            out.append((a, b, True))
+            for x, y in zip(blocks_a, blocks_b):
+                if isinstance(x, list):
+                    # except handlers and match cases are not statements: compare whole
+                    if x and not isinstance(x[0], ast.stmt):
+                        if len(x) != len(y):
+                            return False
+                        out.extend((p, q, False) for p, q in zip(x, y)
+                                   if ast.dump(p) != ast.dump(q))
+                    elif not _differing(x, y, old_lines, new_lines, out):
+                        return False
+        else:
+            out.append((a, b, False))
+    return True
+
+
+def _walk_part(node, header: bool):
+    """ast.walk over a statement, or over its header only (no statement blocks)."""
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        yield n
+        for name, value in ast.iter_fields(n):
+            if header and n is node and name in BLOCK_FIELDS:
+                continue
+            if isinstance(value, list):
+                stack.extend(v for v in reversed(value) if isinstance(v, ast.AST))
+            elif isinstance(value, ast.AST):
+                stack.append(value)
+
+
+def _compare_edits(old_tree, new_tree, old_lines=None, new_lines=None):
     """Edits when the new tree is the old one with only the operator and/or a
     literal operand of single-operator comparisons changed; None otherwise."""
-    old_cmp = [n for n in ast.walk(old_tree) if isinstance(n, ast.Compare)]
-    new_cmp = [n for n in ast.walk(new_tree) if isinstance(n, ast.Compare)]
-    if len(old_cmp) != len(new_cmp):
-        return None
+    if old_lines is None:
+        parts = [(old_tree, new_tree, False)]
+    else:
+        parts = []
+        if not _differing(old_tree.body, new_tree.body, old_lines, new_lines, parts):
+            return None
     edits = []
-    for a, b in zip(old_cmp, new_cmp):
-        if ast.dump(a) == ast.dump(b):
-            continue
-        if len(a.ops) != 1 or len(b.ops) != 1:
-            return None  # chained comparisons are not profiled
-        o, n = _op_index(a.ops[0]), _op_index(b.ops[0])
-        if o is None or n is None:
+    swaps = []
+    for pa, pb, header in parts:
+        old_cmp = [n for n in _walk_part(pa, header) if isinstance(n, ast.Compare)]
+        new_cmp = [n for n in _walk_part(pb, header) if isinstance(n, ast.Compare)]
+        if len(old_cmp) != len(new_cmp):
             return None
-        sides = [(a.left, b.left), (a.comparators[0], b.comparators[0])]
-        changed = [i for i, (x, y) in enumerate(sides) if ast.dump(x) != ast.dump(y)]
-        if not changed:
-            if o >= _IN or n >= _IN:
-                return None  # in <-> not in always disagree when evaluated
-            edits.append(_Edit(a, o, n))
-            continue
-        if len(changed) != 1:
-            return None
-        side = changed[0]
-        other = sides[1 - side]
-        ok_old, old_lit = _literal(sides[side][0])
-        ok_new, new_lit = _literal(sides[side][1])
-        if not (ok_old and ok_new) or _literal(other[0])[0]:
-            return None  # only a literal facing a non-literal is value-profiled
-        if (o >= _IN) != (n >= _IN) or (o >= _IN and side != 1):
-            return None
-        edits.append(_Edit(a, o, n, side, old_lit, new_lit))
+        for a, b in zip(old_cmp, new_cmp):
+            if ast.dump(a) == ast.dump(b):
+                continue
+            edit = _one_edit(a, b)
+            if edit is None:
+                return None
+            edit.part = (pa, header)
+            edits.append(edit)
+            swaps.append((a, b))
     if not edits:
         return None
-    # the new tree must be exactly the old one with those comparisons replaced
-    pairs = {id(a): b for a, b in zip(old_cmp, new_cmp)}
-    saved = [(e.node, e.node.left, e.node.ops, e.node.comparators) for e in edits]
-    for e in edits:
-        b = pairs[id(e.node)]
-        e.node.left, e.node.ops, e.node.comparators = b.left, b.ops, b.comparators
+    # each differing part must be exactly the old one with those comparisons replaced
+    saved = [(a, a.left, a.ops, a.comparators) for a, _b in swaps]
+    for a, b in swaps:
+        a.left, a.ops, a.comparators = b.left, b.ops, b.comparators
     try:
-        same = ast.dump(old_tree) == ast.dump(new_tree)
+        same = all(ast.dump(_header_copy(pa) if header else pa)
+                   == ast.dump(_header_copy(pb) if header else pb)
+                   for pa, pb, header in parts)
     finally:
         for node, left, ops, comparators in saved:
             node.left, node.ops, node.comparators = left, ops, comparators
     return edits if same else None
+
+
+def _one_edit(a, b):
+    if len(a.ops) != 1 or len(b.ops) != 1:
+        return None  # chained comparisons are not profiled
+    o, n = _op_index(a.ops[0]), _op_index(b.ops[0])
+    if o is None or n is None:
+        return None
+    sides = [(a.left, b.left), (a.comparators[0], b.comparators[0])]
+    changed = [i for i, (x, y) in enumerate(sides) if ast.dump(x) != ast.dump(y)]
+    if not changed:
+        if o >= _IN or n >= _IN:
+            return None  # in <-> not in always disagree when evaluated
+        return _Edit(a, o, n)
+    if len(changed) != 1:
+        return None
+    side = changed[0]
+    other = sides[1 - side]
+    ok_old, old_lit = _literal(sides[side][0])
+    ok_new, new_lit = _literal(sides[side][1])
+    if not (ok_old and ok_new) or _literal(other[0])[0]:
+        return None  # only a literal facing a non-literal is value-profiled
+    if (o >= _IN) != (n >= _IN) or (o >= _IN and side != 1):
+        return None
+    return _Edit(a, o, n, side, old_lit, new_lit)
 
 
 _SINGLETONS = (None, True, False, Ellipsis)
@@ -872,18 +952,25 @@ def _unconditional(node, parents):
         node = parent
 
 
-def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int) -> int | None:
+def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=None,
+                    new_lines=None) -> int | None:
     """Bits to keep when the profile proves the edit inert, else None."""
-    edits = _compare_edits(old_tree, new_tree)
+    edits = _compare_edits(old_tree, new_tree, old_lines, new_lines)
     if not edits:
         return None
     rp = info.maps.relprof()
     if rp is None:
         return None
     sites = rp["sites"]
-    parents = _parents(old_tree)
     for edit in edits:
         node, old_op, new_op = edit.node, edit.old_op, edit.new_op
+        part, header = edit.part
+        parents = {}
+        if part is not old_tree:
+            parents[part] = old_tree  # a statement's own parent only matters as non-None
+        for n in _walk_part(part, header):
+            for child in ast.iter_child_nodes(n):
+                parents[child] = n
         # `x is <literal>` only adds a SyntaxWarning when the module is compiled:
         # printed to stderr, never an error (the pinned suite has no warning
         # filters, no -W error and no pytest config turning warnings into errors).
