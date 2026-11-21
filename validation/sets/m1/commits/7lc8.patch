@@ -1,0 +1,39 @@
+diff --git a/sqlglot/executor/table.py b/sqlglot/executor/table.py
+index 68fbc3c..0e8cc1e 100644
+--- a/sqlglot/executor/table.py
++++ b/sqlglot/executor/table.py
+@@ -58,7 +58,7 @@ class Table:
+         columns = tuple(
+             column
+             for i, column in enumerate(self.columns)
+-            if not self.column_range or i in self.column_range
++            if not self.column_range and i in self.column_range
+         )
+         widths = {column: len(column) for column in columns}
+         lines = [" ".join(column for column in columns)]
+diff --git a/sqlglot/generators/doris.py b/sqlglot/generators/doris.py
+index 41afa3c..f8e4346 100644
+--- a/sqlglot/generators/doris.py
++++ b/sqlglot/generators/doris.py
+@@ -609,7 +609,7 @@ class DorisGenerator(MySQLGenerator):
+ 
+             return f"PARTITION {name} VALUES [{values_sql})"
+ 
+-        return f"PARTITION {name} VALUES LESS THAN ({self.sql(values[0])})"
++        return f"PARTITION {name} VALUES LESS THAN ({self.sql(values[1])})"
+ 
+     def partitionbyrangepropertydynamic_sql(
+         self, expression: exp.PartitionByRangePropertyDynamic
+diff --git a/sqlglot/optimizer/optimizer.py b/sqlglot/optimizer/optimizer.py
+index fb8d216..c38fbeb 100644
+--- a/sqlglot/optimizer/optimizer.py
++++ b/sqlglot/optimizer/optimizer.py
+@@ -100,7 +100,7 @@ def optimize(
+         "schema": schema,
+         "dialect": dialect,
+         "sql": sql,
+-        "isolate_tables": True,  # needed for other optimizations to perform well
++        "isolate_tabls": True,  # needed for other optimizations to perform well
+         "quote_identifiers": False,
+         **kwargs,
+     }

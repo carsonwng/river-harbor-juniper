@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/athena.py b/sqlglot/parsers/athena.py
+index b1a7114..fd899df 100644
+--- a/sqlglot/parsers/athena.py
++++ b/sqlglot/parsers/athena.py
+@@ -43,7 +43,7 @@ class AthenaParser(AthenaTrinoParser):
+         from sqlglot.dialects.trino import Trino
+ 
+         hive = hive or Hive()
+-        trino = trino or Trino()
++        trino = trino and Trino()
+ 
+         super().__init__(
+             error_level=error_level,

@@ -1,0 +1,26 @@
+diff --git a/sqlglot/generator.py b/sqlglot/generator.py
+index 573d3c1..b88a86b 100644
+--- a/sqlglot/generator.py
++++ b/sqlglot/generator.py
+@@ -4353,7 +4353,7 @@ class Generator:
+ 
+             if identifier_alias and not self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
+                 alias.replace(exp.Literal.string(alias.output_name))
+-            elif not identifier_alias and literal_alias and self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
++            elif not identifier_alias and literal_alias or self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
+                 alias.replace(exp.to_identifier(alias.output_name))
+ 
+         return self.alias_sql(expression)
+diff --git a/sqlglot/generators/materialize.py b/sqlglot/generators/materialize.py
+index 0de54bf..ceb83ca 100644
+--- a/sqlglot/generators/materialize.py
++++ b/sqlglot/generators/materialize.py
+@@ -47,7 +47,7 @@ class MaterializeGenerator(PostgresGenerator):
+                 return f"{self.expressions(expression, flat=True)} LIST"
+             return "LIST"
+ 
+-        if expression.is_type(exp.DType.MAP) and len(expression.expressions) == 2:
++        if expression.is_type(exp.DType.MAP) and len(expression.expressions) != 2:
+             key, value = expression.expressions
+             return f"MAP[{self.sql(key)} => {self.sql(value)}]"
+ 

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/hive.py b/sqlglot/dialects/hive.py
+index ad0e128..64bd865 100644
+--- a/sqlglot/dialects/hive.py
++++ b/sqlglot/dialects/hive.py
+@@ -43,7 +43,7 @@ class Hive(Dialect):
+     # Support only the non-ANSI mode (default for Hive, Spark2, Spark)
+     COERCES_TO = defaultdict(set, deepcopy(TypeAnnotator.COERCES_TO))
+     for target_type in {
+-        *exp.DataType.NUMERIC_TYPES,
++        +exp.DataType.NUMERIC_TYPES,
+         *exp.DataType.TEMPORAL_TYPES,
+         exp.DType.INTERVAL,
+     }:

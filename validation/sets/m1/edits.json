@@ -43,5 +43,50 @@
  ],
  "4mef": [
   "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 22: insert '42'"
+ ],
+ "4qrg": [
+  "fixture tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 7557: insert '42'"
+ ],
+ "58fd": [
+  "fixture tests/fixtures/optimizer/qualify_tables.sql: line 63: insert ','"
+ ],
+ "5s3x": [
+  "code sqlglot/parsers/athena.py: or -> and"
+ ],
+ "6nzp": [
+  "fixture tests/fixtures/optimizer/qualify_columns_ddl.sql: line 37: delete 't'"
+ ],
+ "75to": [
+  "code sqlglot/parsers/databricks.py: string \"GETDATE\" -> \"GETATE\""
+ ],
+ "765l": [
+  "code sqlglot/expressions/query.py: != -> =="
+ ],
+ "77j5": [
+  "fixture tests/fixtures/optimizer/annotate_types.sql: line 294: insert '1'"
+ ],
+ "7lc8": [
+  "code sqlglot/generators/doris.py: 0 -> 1",
+  "code sqlglot/executor/table.py: or -> and",
+  "code sqlglot/optimizer/optimizer.py: string \"isolate_tables\" -> \"isolate_tabls\""
+ ],
+ "7wwr": [
+  "code sqlglot/optimizer/optimize_joins.py: string \"INNER\" -> \"INNERs\""
+ ],
+ "8e5r": [
+  "code sqlglot/generators/starrocks.py: drop not"
+ ],
+ "8i33": [
+  "fixture tests/fixtures/optimizer/optimize_joins.sql: line 7: swap chars"
+ ],
+ "8owm": [
+  "code sqlglot/dialects/hive.py: * -> +"
+ ],
+ "9cam": [
+  "code sqlglot/generator.py: and -> or",
+  "code sqlglot/generators/materialize.py: == -> !="
+ ],
+ "9evc": [
+  "code sqlglot/dialects/dune.py: string \"0x\" -> \"0\""
  ]
 }

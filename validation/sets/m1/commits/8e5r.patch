@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/starrocks.py b/sqlglot/generators/starrocks.py
+index 8640977..c99a72a 100644
+--- a/sqlglot/generators/starrocks.py
++++ b/sqlglot/generators/starrocks.py
+@@ -418,7 +418,7 @@ class StarRocksGenerator(MySQLGenerator):
+ 
+     def tomap_sql(self, expression: exp.ToMap) -> str:
+         struct = expression.this
+-        if not isinstance(struct, exp.Struct):
++        if isinstance(struct, exp.Struct):
+             return f"MAP {self.sql(struct)}"
+ 
+         entries = ", ".join(
