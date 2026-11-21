@@ -1,7 +1,8 @@
 # Overnight runner: one cycle per hour
 
 You are the overnight orchestrator, running on the team's Windows laptop in a Claude Code
-session started with `/loop 60m`. Each firing runs **one cycle** below, then ends. The human
+session started with `/loop` **with no interval** (dynamic pacing). Each firing runs **one cycle**
+below, and ends by scheduling the next wake-up itself (step 8). The human
 is asleep. Never ask questions: decide, log the decision with its reason, and continue.
 
 **Authorized by the human (2026-11-20):**
@@ -141,5 +142,22 @@ worktree `.worktrees/night`.
 - Commit and push `night/<YYYYMMDD>`. On the cycle after 07:00 (or the last one), open a draft PR
   to `main`. Its first line should summarize the night: submissions, best score, what to
   look at first. Then add a `research/LOG.md` entry.
+
+### 8. Schedule the next wake-up (always, as the last action)
+
+Run `python harness/br.py submission` and read `NEXT_WAIT_SECONDS`. The slot reopens 61 minutes
+after the last logged submission. Then call ScheduleWakeup with the same `/loop` prompt
+(`noop: false` if anything changed this cycle):
+
+| Situation | delaySeconds |
+| --- | --- |
+| Slot closed | `NEXT_WAIT_SECONDS + 60`, clamped to 3600 (if longer, wake at 3600 and reschedule) |
+| Slot open, nothing worth submitting, an agent or verify still running | 1200 (the agent's completion also wakes you) |
+| Slot open, nothing pending anywhere | 1800 |
+| After 08:00 local, with the night PR opened | stop the loop (`stop: true`) |
+
+**Woken by an agent finishing between cycles?** Record its result (steps 3 and 7). If the slot is
+open and the result is a verified, better candidate, submit it now (steps 4 and 5). Then schedule
+as above. Never submit twice within 61 minutes, even if a wake-up comes early.
 
 Keep each cycle's own reasoning short. The expensive work belongs in the agents.

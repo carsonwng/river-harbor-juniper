@@ -428,10 +428,15 @@ def cmd_submission(options) -> int:
     last = max((dt.datetime.fromisoformat(r["time"]) for r in records), default=None)
     if last is None:
         print("SLOT OPEN (no submissions logged)")
-    else:
+        print("NEXT_WAIT_SECONDS=0")
+        return 0
+    if True:
         ready = last + dt.timedelta(minutes=61)
         print(f"SLOT {'OPEN' if now >= ready else 'CLOSED until ' + ready.strftime('%H:%M:%S')}"
               f" (last {last.strftime('%H:%M:%S')})")
+        print(f"NEXT_WAIT_SECONDS={max(0, int((ready - now).total_seconds()))}")
+        return 0
+    print("NEXT_WAIT_SECONDS=0")
     return 0
 
 
