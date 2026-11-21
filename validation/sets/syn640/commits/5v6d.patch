@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/tsql.py b/sqlglot/parsers/tsql.py
+index 0900aca..ef89bb6 100644
+--- a/sqlglot/parsers/tsql.py
++++ b/sqlglot/parsers/tsql.py
+@@ -453,7 +453,7 @@ class TSQLParser(parser.Parser):
+     NO_PAREN_FUNCTION_PARSERS = {
+         **parser.Parser.NO_PAREN_FUNCTION_PARSERS,
+         "NEXT": lambda self: self._parse_next_value_for(),
+-    }
++    }  # Handled by the parser
+ 
+     FUNCTION_PARSERS = {
+         **parser.Parser.FUNCTION_PARSERS,

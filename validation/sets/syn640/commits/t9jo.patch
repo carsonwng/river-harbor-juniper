@@ -1,0 +1,26 @@
+diff --git a/sqlglot/parsers/singlestore.py b/sqlglot/parsers/singlestore.py
+index fa1b84c..d035ae2 100644
+--- a/sqlglot/parsers/singlestore.py
++++ b/sqlglot/parsers/singlestore.py
+@@ -71,7 +71,7 @@ class SingleStoreParser(MySQLParser):
+             this=seq_get(args, 0),
+             format=MySQL.format_time(exp.Literal.string("%M")),
+         ),
+-        "WEEKDAY": lambda args: exp.paren(exp.DayOfWeek(this=seq_get(args, 0)) + 5, copy=False) % 7,
++        "WEEKDAY": lambda args: exp.paren(exp.DayOfWeek(this=seq_get(args, 0)) - 5, copy=False) % 7,
+         "UNIX_TIMESTAMP": exp.StrToUnix.from_arg_list,
+         "FROM_UNIXTIME": build_formatted_time(exp.UnixToTime, "mysql"),
+         "TIME_BUCKET": lambda args: exp.DateBin(
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..ee45ccb 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -426,7 +426,7 @@ CROSS JOIN (
+ ) AS y;
+ SELECT
+   x.a
+-FROM x
++ROM x
+ CROSS JOIN (
+   SELECT
+     COUNT(*) AS b

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/pretty.sql b/tests/fixtures/pretty.sql
+index f6ae547..2951e78 100644
+--- a/tests/fixtures/pretty.sql
++++ b/tests/fixtures/pretty.sql
+@@ -479,7 +479,7 @@ WHEN MATCHED THEN UPDATE SET
+   amount = s.amount;
+ 
+ SELECT
+-    id,
++   id,
+     -- SUM(total) as all_that,
+     ARRAY_AGG(foo)[0][0] AS first_foo,
+ FROM facts

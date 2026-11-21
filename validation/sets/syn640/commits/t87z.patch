@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/dax.py b/sqlglot/dialects/dax.py
+index 7e8916e..43f120a 100644
+--- a/sqlglot/dialects/dax.py
++++ b/sqlglot/dialects/dax.py
+@@ -15,6 +15,6 @@ class DAX(Dialect):
+         IDENTIFIERS = ["'", ("[", "]")]
+         QUOTES = ['"']
+         STRING_ESCAPES = ['"']
+-        COMMENTS = ["--", "//", ("/*", "*/")]
++        COMMENTS = ["--", "//", ("/", "*/")]
+ 
+     Parser = DAXParser

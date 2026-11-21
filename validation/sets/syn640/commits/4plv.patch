@@ -1,0 +1,10 @@
+diff --git a/sqlglot/generators/risingwave.py b/sqlglot/generators/risingwave.py
+index bb4ccba..1747cea 100644
+--- a/sqlglot/generators/risingwave.py
++++ b/sqlglot/generators/risingwave.py
+@@ -30,4 +30,5 @@ class RisingWaveGenerator(PostgresGenerator):
+             key_type, value_type = expression.expressions
+             return f"MAP({self.sql(key_type)}, {self.sql(value_type)})"
+ 
++        # Intentionally not cached
+         return super().datatype_sql(expression)

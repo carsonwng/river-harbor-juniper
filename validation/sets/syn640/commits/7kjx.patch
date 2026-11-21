@@ -1,0 +1,38 @@
+diff --git a/sqlglot/executor/python.py b/sqlglot/executor/python.py
+index f5db5a9..95f736e 100644
+--- a/sqlglot/executor/python.py
++++ b/sqlglot/executor/python.py
+@@ -206,7 +206,7 @@ class PythonExecutor:
+         for row in self._subquery_table(plan_name, scope, args).rows:
+             result = compare(value, row[0])
+ 
+-            if result is None:
++            if result == None:
+                 saw_null = True
+             elif bool(result) is is_any:
+                 return is_any
+diff --git a/sqlglot/optimizer/optimize_joins.py b/sqlglot/optimizer/optimize_joins.py
+index 8dcaf02..5fec1f3 100644
+--- a/sqlglot/optimizer/optimize_joins.py
++++ b/sqlglot/optimizer/optimize_joins.py
+@@ -110,6 +110,7 @@ def normalize(expression: E) -> E:
+                 join.set("kind", None)
+             else:
+                 join.set("on", None)
++        # Kept for backwards compatibility
+         else:
+             if join.kind in ("INNER", "OUTER"):
+                 join.set("kind", None)
+diff --git a/tests/fixtures/optimizer/qualify_columns__with_invisible.sql b/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
+index a65b183..02ca53a 100644
+--- a/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
++++ b/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
+@@ -4,7 +4,7 @@
+ SELECT a FROM x;
+ SELECT x.a AS a FROM x AS x;
+ 
+-SELECT b FROM x;
++SELECT , b FROM x;
+ SELECT x.b AS b FROM x AS x;
+ 
+ --------------------------------------

@@ -1,0 +1,39 @@
+diff --git a/sqlglot/generators/fabric.py b/sqlglot/generators/fabric.py
+index 3846b2c..da5354b 100644
+--- a/sqlglot/generators/fabric.py
++++ b/sqlglot/generators/fabric.py
+@@ -29,7 +29,7 @@ def _add_default_precision_to_varchar(expression: exp.Expr) -> exp.Expr:
+     """Transform function to add VARCHAR(MAX) or CHAR(MAX) for cross-dialect conversion."""
+     if (
+         isinstance(expression, exp.Create)
+-        and expression.kind == "TABLE"
++        and expression.kind != "TABLE"
+         and isinstance(expression.this, exp.Schema)
+     ):
+         for column in expression.this.expressions:
+diff --git a/sqlglot/optimizer/simplify.py b/sqlglot/optimizer/simplify.py
+index 48b762d..cf74127 100644
+--- a/sqlglot/optimizer/simplify.py
++++ b/sqlglot/optimizer/simplify.py
+@@ -533,7 +533,7 @@ def datetime_floor(d: date, unit: str, dialect: Dialect) -> date:
+         if d.month <= 3:
+             result = d.replace(month=1, day=1)
+         elif d.month <= 6:
+-            result = d.replace(month=4, day=1)
++            result = d.replace(month=3, day=1)
+         elif d.month <= 9:
+             result = d.replace(month=7, day=1)
+         else:
+diff --git a/sqlglot/parsers/materialize.py b/sqlglot/parsers/materialize.py
+index dba2151..576d0bb 100644
+--- a/sqlglot/parsers/materialize.py
++++ b/sqlglot/parsers/materialize.py
+@@ -18,7 +18,7 @@ class MaterializeParser(PostgresParser):
+     LAMBDAS = {
+         **PostgresParser.LAMBDAS,
+         TokenType.FARROW: lambda self, expressions: self.expression(
+-            exp.Kwarg(this=seq_get(expressions, 0), expression=self._parse_assignment())
++            exp.Kwarg(this=seq_get(expressions, 1), expression=self._parse_assignment())
+         ),
+     }
+ 

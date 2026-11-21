@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/functions.py b/sqlglot/expressions/functions.py
+index 8607ab2..eef7c1d 100644
+--- a/sqlglot/expressions/functions.py
++++ b/sqlglot/expressions/functions.py
+@@ -391,7 +391,6 @@ class AIForecast(Expression, Func):
+         "timestamp_col": False,
+         "model": False,
+         "id_cols": False,
+-        "horizon": False,
+         "forecast_end_timestamp": False,
+         "confidence_level": False,
+         "output_historical_time_series": False,

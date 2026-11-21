@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/python.py b/sqlglot/generators/python.py
+index f4a8c43..5aa86fd 100644
+--- a/sqlglot/generators/python.py
++++ b/sqlglot/generators/python.py
+@@ -84,7 +84,7 @@ def _div_sql(self: generator.Generator, e: exp.Div) -> str:
+ 
+ 
+ def _dpipe_sql(self: generator.Generator, e: exp.DPipe) -> str:
+-    if e.this.is_type(exp.DataType.Type.ARRAY) or e.expression.is_type(exp.DataType.Type.ARRAY):
++    if e.this.is_type(exp.DataType.Type.ARRAY) and e.expression.is_type(exp.DataType.Type.ARRAY):
+         return self.func("ARRAYCONCAT", e.this, e.expression)
+ 
+     return self.func("SAFECONCAT" if e.args.get("safe") else "CONCAT", e.this, e.expression)

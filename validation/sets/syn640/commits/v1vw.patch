@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/canonicalize_internal_names.sql b/tests/fixtures/optimizer/canonicalize_internal_names.sql
+index 1df162d..d559b67 100644
+--- a/tests/fixtures/optimizer/canonicalize_internal_names.sql
++++ b/tests/fixtures/optimizer/canonicalize_internal_names.sql
+@@ -138,7 +138,7 @@ SELECT CASE WHEN "_t0"."a" > 0 THEN "_t0"."b" ELSE "_t0"."a" END AS "_col_0" FRO
+ 
+ # title: three way join
+ SELECT x.a, y.b, z.c FROM x JOIN y ON x.b = y.b JOIN z ON y.c = z.c;
+-SELECT "_t0"."a" AS "a", "_t1"."b" AS "b", "_t2"."c" AS "c" FROM "c"."db"."x" AS "_t0" JOIN "c"."db"."y" AS "_t1" ON "_t0"."b" = "_t1"."b" JOIN "c"."db"."z" AS "_t2" ON "_t1"."c" = "_t2"."c";
++SELECT "_t0"."a" AS "a", "_t1"."b" AS "b", "_t2"."c" AS "c" FROM "c"."db"."x" AS "_t0" JOIN "c"."db"."y" AS a "_t1" ON "_t0"."b" = "_t1"."b" JOIN "c"."db"."z" AS "_t2" ON "_t1"."c" = "_t2"."c";
+ 
+ # title: struct field access, field names are preserved
+ SELECT structs.one.a_1 FROM structs;

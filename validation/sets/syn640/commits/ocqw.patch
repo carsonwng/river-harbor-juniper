@@ -1,0 +1,39 @@
+diff --git a/sqlglot/optimizer/optimize_joins.py b/sqlglot/optimizer/optimize_joins.py
+index 8dcaf02..b8688b3 100644
+--- a/sqlglot/optimizer/optimize_joins.py
++++ b/sqlglot/optimizer/optimize_joins.py
+@@ -39,7 +39,7 @@ def optimize_joins(expression: E) -> E:
+             for dep in references.get(name, []):
+                 # An ANTI join's ON clause is negated, i.e. NOT EXISTS(a AND b) is not
+                 # equivalent to b AND NOT EXISTS(a), so its conjuncts can't be extracted
+-                if dep.kind == "ANTI":
++                if dep.kind != "ANTI":
+                     continue
+ 
+                 on = dep.args["on"]
+diff --git a/sqlglot/parsers/materialize.py b/sqlglot/parsers/materialize.py
+index dba2151..163b334 100644
+--- a/sqlglot/parsers/materialize.py
++++ b/sqlglot/parsers/materialize.py
+@@ -12,7 +12,7 @@ class MaterializeParser(PostgresParser):
+ 
+     NO_PAREN_FUNCTION_PARSERS = {
+         **PostgresParser.NO_PAREN_FUNCTION_PARSERS,
+-        "MAP": lambda self: self._parse_map(),
++        "MP": lambda self: self._parse_map(),
+     }
+ 
+     LAMBDAS = {
+diff --git a/sqlglot/typing/spark.py b/sqlglot/typing/spark.py
+index 7ca06a7..81e42a0 100644
+--- a/sqlglot/typing/spark.py
++++ b/sqlglot/typing/spark.py
+@@ -49,7 +49,7 @@ EXPRESSION_METADATA = {
+             exp.Overlay,
+         }
+     },
+-    exp.BitmapCount: {"returns": exp.DType.BIGINT},
++    exp.BitmapCount: {"RETURNS": exp.DType.BIGINT},
+     exp.Grouping: {"returns": exp.DType.TINYINT},
+     exp.Localtimestamp: {"returns": exp.DType.TIMESTAMPNTZ},
+ }

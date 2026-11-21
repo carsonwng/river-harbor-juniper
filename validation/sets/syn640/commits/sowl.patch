@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/spark2.py b/sqlglot/generators/spark2.py
+index 1871ca7..d0a2cca 100644
+--- a/sqlglot/generators/spark2.py
++++ b/sqlglot/generators/spark2.py
+@@ -279,7 +279,7 @@ class Spark2Generator(HiveGenerator):
+         ) and not arg.args.get("variant_extract")
+ 
+         # We can't use a non-nested type (eg. STRING) as a schema
+-        if expression.to.args.get("nested") and (is_parse_json(arg) or is_json_extract):
++        if expression.to.args.get("nested") or (is_parse_json(arg) or is_json_extract):
+             schema = f"'{self.sql(expression, 'to')}'"
+             return self.func("FROM_JSON", arg if is_json_extract else arg.this, schema)
+ 

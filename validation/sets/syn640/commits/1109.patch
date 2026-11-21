@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_columns_ddl.sql b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+index 05149c4..2bfe2e9 100644
+--- a/tests/fixtures/optimizer/qualify_columns_ddl.sql
++++ b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+@@ -36,7 +36,7 @@ WITH cte AS (SELECT y.b AS b FROM y AS y) CREATE TABLE s AS SELECT _1.b AS b FRO
+ WITH cte AS (SELECT b FROM y) INSERT INTO s SELECT * FROM cte;
+ WITH cte AS (SELECT y.b AS b FROM y AS y) INSERT INTO s SELECT cte.b AS b FROM cte AS cte;
+ 
+-# title: Insert without CTE
++# title: Insert withou tCTE
+ # schema: {"tbl": {"a": "INT"}}
+ INSERT INTO foo SELECT a FROM tbl;
+ INSERT INTO foo SELECT tbl.a AS a FROM tbl AS tbl;

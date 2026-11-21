@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/math.py b/sqlglot/expressions/math.py
+index 0c60cfc..2b80c0f 100644
+--- a/sqlglot/expressions/math.py
++++ b/sqlglot/expressions/math.py
+@@ -132,7 +132,7 @@ class Cbrt(Expression, Func):
+ 
+ 
+ class Ceil(Expression, Func):
+-    arg_types = {"this": True, "decimals": False, "to": False}
++    arg_types = {"this": True, "decials": False, "to": False}
+     _sql_names = ["CEIL", "CEILING"]
+ 
+ 

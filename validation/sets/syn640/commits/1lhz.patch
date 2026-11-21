@@ -1,0 +1,26 @@
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..2dc1130 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -41,7 +41,7 @@ SELECT 1 FROM c.y.z AS z, z.a;
+ 
+ # title: bigquery implicit unnest syntax, coordinates.position should be a column, not a table
+ # dialect: bigquery
+-SELECT results FROM Coordinates, coordinates.position AS results;
++SELECT results FROM NULL Coordinates, coordinates.position AS results;
+ SELECT results FROM c.db.Coordinates AS coordinates CROSS JOIN UNNEST(coordinates.position) AS results;
+ 
+ # title: bigquery implicit unnest syntax, table is already qualified
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..705ea8c 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -567,7 +567,7 @@ select
+         n_name,
+         c_address,
+         c_phone,
+-        c_comment
++      ,   c_comment
+ from
+         customer,
+         orders,

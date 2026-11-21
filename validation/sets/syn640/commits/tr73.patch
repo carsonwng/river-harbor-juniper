@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_columns.sql b/tests/fixtures/optimizer/qualify_columns.sql
+index 735d631..9f913f8 100644
+--- a/tests/fixtures/optimizer/qualify_columns.sql
++++ b/tests/fixtures/optimizer/qualify_columns.sql
+@@ -1385,7 +1385,7 @@ SELECT
+ FROM x;
+ SELECT x.a + 1 AS i, x.a + 1 + 1 AS j, x.a + 1 + 1 + 1 AS k FROM x AS x;
+ 
+-# title: noop - reference comes before alias
++# title: noop - reference comes before AS alias
+ # execute: false
+ # validate_qualify_columns: false
+ SELECT i + 1 AS j, x.a + 1 AS i FROM x;

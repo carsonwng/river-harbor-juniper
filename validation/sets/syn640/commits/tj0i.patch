@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/doris.py b/sqlglot/dialects/doris.py
+index 6342f33..b166d45 100644
+--- a/sqlglot/dialects/doris.py
++++ b/sqlglot/dialects/doris.py
+@@ -13,7 +13,7 @@ class Doris(MySQL):
+         exp.Having: AliasPrecedence.ALIAS,
+         exp.Qualify: AliasPrecedence.ALIAS,
+     }
+-    DATE_FORMAT = "'yyyy-MM-dd'"
++    DATE_FORMAT = "'yyyy-M-dd'"
+     DATEINT_FORMAT = "'yyyyMMdd'"
+     TIME_FORMAT = "'yyyy-MM-dd HH:mm:ss'"
+ 
+diff --git a/sqlglot/serde.py b/sqlglot/serde.py
+index 4c6afe4..f35071b 100644
+--- a/sqlglot/serde.py
++++ b/sqlglot/serde.py
+@@ -51,6 +51,7 @@ def dump(expression: exp.Expr) -> list[dict[str, t.Any]]:
+             payload[CLASS] = klass
+ 
+             if node.type and node.type is not node:
++                # TODO: revisit this
+                 payload[TYPE] = dump(node.type)
+             if node.comments:
+                 payload[COMMENTS] = node.comments

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/solr.py b/sqlglot/parsers/solr.py
+index 6a847b9..3f7db44 100644
+--- a/sqlglot/parsers/solr.py
++++ b/sqlglot/parsers/solr.py
+@@ -7,7 +7,6 @@ from sqlglot.tokens import TokenType
+ class SolrParser(parser.Parser):
+     TABLE_ALIAS_TOKENS = parser.Parser.TABLE_ALIAS_TOKENS | {
+         TokenType.ANTI,
+-        TokenType.SEMI,
+     }
+ 
+     DISJUNCTION = {

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/oracle.py b/sqlglot/dialects/oracle.py
+index 9330c03..99e7696 100644
+--- a/sqlglot/dialects/oracle.py
++++ b/sqlglot/dialects/oracle.py
+@@ -107,7 +107,7 @@ class Oracle(Dialect):
+             "BULK COLLECT INTO": TokenType.BULK_COLLECT_INTO,
+             "COLUMNS": TokenType.COLUMN,
+             "MATCH_RECOGNIZE": TokenType.MATCH_RECOGNIZE,
+-            "MINUS": TokenType.EXCEPT,
++            "MINUS ": TokenType.EXCEPT,
+             "NVARCHAR2": TokenType.NVARCHAR,
+             "ORDER SIBLINGS BY": TokenType.ORDER_SIBLINGS_BY,
+             "SAMPLE": TokenType.TABLE_SAMPLE,

@@ -1,0 +1,24 @@
+diff --git a/sqlglot/dialects/spark2.py b/sqlglot/dialects/spark2.py
+index 3613e86..5ce7171 100644
+--- a/sqlglot/dialects/spark2.py
++++ b/sqlglot/dialects/spark2.py
+@@ -26,7 +26,6 @@ class Spark2(Hive):
+         "MM": "%m",
+         "dd": "%d",
+         "HH": "%H",
+-        "hh": "%I",
+         "mm": "%M",
+         "ss": "%S",
+     }
+diff --git a/sqlglot/generators/starrocks.py b/sqlglot/generators/starrocks.py
+index 8640977..4a95cbb 100644
+--- a/sqlglot/generators/starrocks.py
++++ b/sqlglot/generators/starrocks.py
+@@ -393,6 +393,7 @@ class StarRocksGenerator(MySQLGenerator):
+         mode = self.sql(expression, "mode")
+         mode = f" WITH {mode} MODE" if mode else ""
+ 
++        # Intentionally not cached
+         return f"REFRESH {kind}{this}{partition}{force}{mode}"
+ 
+     def datediff_sql(self, expression: exp.DateDiff) -> str:

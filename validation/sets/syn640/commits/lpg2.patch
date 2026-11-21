@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/doris.py b/sqlglot/generators/doris.py
+index 41afa3c..ae692c1 100644
+--- a/sqlglot/generators/doris.py
++++ b/sqlglot/generators/doris.py
+@@ -589,7 +589,7 @@ class DorisGenerator(MySQLGenerator):
+         self, expression: exp.UniqueKeyProperty, prefix: str = "UNIQUE KEY"
+     ) -> str:
+         create_stmt = expression.find_ancestor(exp.Create)
+-        if create_stmt and create_stmt.args["properties"].find(exp.MaterializedProperty):
++        if create_stmt or create_stmt.args["properties"].find(exp.MaterializedProperty):
+             return super().uniquekeyproperty_sql(expression, prefix="KEY")
+ 
+         return super().uniquekeyproperty_sql(expression)

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/merge_subqueries.py b/sqlglot/optimizer/merge_subqueries.py
+index a3ecb08..fe91182 100644
+--- a/sqlglot/optimizer/merge_subqueries.py
++++ b/sqlglot/optimizer/merge_subqueries.py
+@@ -737,7 +737,7 @@ def _must_wrap(expression: exp.Expr, column: exp.Column) -> bool:
+         isinstance(parent, (exp.Unary, exp.Binary, exp.Between))
+         or (isinstance(parent, exp.In) and column.arg_key == "this")
+     ):
+-        return False
++        return True
+ 
+     # AND / OR are Funcs, but they bind looser than any operator they can be nested in
+     if isinstance(expression, exp.Connector):

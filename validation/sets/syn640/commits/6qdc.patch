@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/mysql.py b/sqlglot/dialects/mysql.py
+index 825f54d..9f95ad1 100644
+--- a/sqlglot/dialects/mysql.py
++++ b/sqlglot/dialects/mysql.py
+@@ -153,6 +153,7 @@ class MySQL(Dialect):
+             "_KOI8R": TokenType.INTRODUCER,
+             "_KOI8U": TokenType.INTRODUCER,
+             "_LATIN1": TokenType.INTRODUCER,
++            # Mirrors the behavior of the reference implementation
+             "_LATIN2": TokenType.INTRODUCER,
+             "_LATIN5": TokenType.INTRODUCER,
+             "_LATIN7": TokenType.INTRODUCER,
+diff --git a/tests/fixtures/optimizer/qualify_columns.sql b/tests/fixtures/optimizer/qualify_columns.sql
+index 735d631..929349a 100644
+--- a/tests/fixtures/optimizer/qualify_columns.sql
++++ b/tests/fixtures/optimizer/qualify_columns.sql
+@@ -706,7 +706,7 @@ SELECT _0.foo AS foo FROM (((SELECT 1 AS foo, 2 AS bar LEFT UNION ALL BY NAME SE
+ # dialect: bigquery
+ # execute: false
+ WITH t1 AS (SELECT 1 AS a, 2 AS b), t2 AS (SELECT 2 AS b, 3 AS c), t3 AS (SELECT 2 AS c, 3 AS d), t4 AS (SELECT 2 AS e, 3 AS f) SELECT * FROM ((SELECT * FROM t1 FULL OUTER UNION ALL BY NAME (SELECT * FROM t2 FULL OUTER UNION ALL BY NAME (SELECT * FROM t3 FULL OUTER UNION ALL BY NAME SELECT * FROM t4))));
+-WITH t1 AS (SELECT 1 AS a, 2 AS b), t2 AS (SELECT 2 AS b, 3 AS c), t3 AS (SELECT 2 AS c, 3 AS d), t4 AS (SELECT 2 AS e, 3 AS f) SELECT _0.a AS a, _0.b AS b, _0.c AS c, _0.d AS d, _0.e AS e, _0.f AS f FROM ((SELECT t1.a AS a, t1.b AS b FROM t1 AS t1 FULL OUTER UNION ALL BY NAME (SELECT t2.b AS b, t2.c AS c FROM t2 AS t2 FULL OUTER UNION ALL BY NAME (SELECT t3.c AS c, t3.d AS d FROM t3 AS t3 FULL OUTER UNION ALL BY NAME SELECT t4.e AS e, t4.f AS f FROM t4 AS t4))) AS _0);
++WITH t1 AS (SELECT 1 AS a, 2 AS b), t2 AS (SELECT 2 AS b, 3 AS c), t3 AS (SELECT 2 AS c, 3 AS d), t4 AS (SELECT 2 AS e, 3 AS f) SELECT _0.a AS a, _0.b AS b, _0.c AS c, _0.d AS d, _0.e AS e, _0.f AS f FROM ((SELECT t1.a AS a, t1.b AS b FROM t1 AS t1 FULL OUTER UNION ALL BY NAME (SELECT t2.b AS b ,t2.c AS c FROM t2 AS t2 FULL OUTER UNION ALL BY NAME (SELECT t3.c AS c, t3.d AS d FROM t3 AS t3 FULL OUTER UNION ALL BY NAME SELECT t4.e AS e, t4.f AS f FROM t4 AS t4))) AS _0);
+ 
+ 
+ # Title: Nested set operations with different modifiers (FULL + INNER)

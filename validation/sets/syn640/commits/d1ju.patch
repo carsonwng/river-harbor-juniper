@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/trino.py b/sqlglot/parsers/trino.py
+index a78a7e9..ed38b56 100644
+--- a/sqlglot/parsers/trino.py
++++ b/sqlglot/parsers/trino.py
+@@ -33,7 +33,7 @@ class TrinoParser(PrestoParser):
+         **PrestoParser.FUNCTIONS,
+         "APPROX_PERCENTILE": lambda args: (
+             exp.ApproxQuantile(this=args[0], weight=args[1], quantile=args[2])
+-            if len(args) == 3
++            if len(args) == 2
+             else _build_approx_percentile(args)
+         ),
+         "VERSION": exp.CurrentVersion.from_arg_list,

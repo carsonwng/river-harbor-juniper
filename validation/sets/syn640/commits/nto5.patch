@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/json.py b/sqlglot/expressions/json.py
+index a801678..a4c209f 100644
+--- a/sqlglot/expressions/json.py
++++ b/sqlglot/expressions/json.py
+@@ -114,7 +114,6 @@ class JSONExtract(Expression, Binary, Func):
+         "option": False,
+         "quote": False,
+         "on_condition": False,
+-        "requires_json": False,
+         "emits": False,
+     }
+     _sql_names = ["JSON_EXTRACT"]

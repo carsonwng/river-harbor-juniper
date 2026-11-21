@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/doris.py b/sqlglot/parsers/doris.py
+index da59396..1955b17 100644
+--- a/sqlglot/parsers/doris.py
++++ b/sqlglot/parsers/doris.py
+@@ -79,7 +79,7 @@ class DorisParser(MySQLParser):
+         if self._curr.token_type == TokenType.VAR and self._match_texts(self.MATCH_OPERATORS):
+             kind = self._prev.text.upper().partition("_")[2] or None
+             expression = self._parse_bitwise()
+-            if not expression:
++            if expression:
+                 # Preserve implicit aliases named after MATCH operators.
+                 self._retreat(index)
+                 return super()._parse_range(this, parse_is=parse_is)

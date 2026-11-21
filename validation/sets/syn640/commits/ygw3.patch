@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..c4d2790 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -368,7 +368,7 @@ TIMESTAMPTZ;
+ 
+ # dialect: duckdb
+ CAST('2019-01-10 02:03:04' AS TIMESTAMP) AT TIME ZONE 'UTC';
+-TIMESTAMPTZ;
++TIESTAMPTZ;
+ 
+ # dialect: duckdb
+ CAST('2019-01-10 02:03:04' AS TIMESTAMP_S) AT TIME ZONE 'UTC';

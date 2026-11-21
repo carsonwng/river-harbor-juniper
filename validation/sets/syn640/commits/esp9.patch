@@ -1,0 +1,13 @@
+diff --git a/sqlglot/executor/table.py b/sqlglot/executor/table.py
+index 68fbc3c..4c5e728 100644
+--- a/sqlglot/executor/table.py
++++ b/sqlglot/executor/table.py
+@@ -130,7 +130,7 @@ def _ensure_tables(d: dict | None, dialect: DialectType = None) -> dict:
+     depth = dict_depth(d)
+     if depth > 1:
+         return {
+-            normalize_name(k, dialect=dialect, is_table=True).name: _ensure_tables(
++            normalize_name(k, dialect=dialect, is_table=False).name: _ensure_tables(
+                 v, dialect=dialect
+             )
+             for k, v in d.items()

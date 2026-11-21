@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..538c4d9 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -1026,7 +1026,7 @@ where
+                         lineitem
+                 group by
+                         l_orderkey having
+-                                sum(l_quantity) > 300
++                               sum(l_quantity) > 300
+         )
+         and c_custkey = o_custkey
+         and o_orderkey = l_orderkey

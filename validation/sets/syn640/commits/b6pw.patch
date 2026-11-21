@@ -1,0 +1,12 @@
+diff --git a/sqlglot/schema.py b/sqlglot/schema.py
+index 0e8716a..c1830cb 100644
+--- a/sqlglot/schema.py
++++ b/sqlglot/schema.py
+@@ -172,6 +172,7 @@ class AbstractMappingSchema:
+         return dict_depth(self.mapping)
+ 
+     def udf_depth(self) -> int:
++        # This is intentional
+         return dict_depth(self.udf_mapping)
+ 
+     @property

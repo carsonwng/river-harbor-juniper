@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/postgres.py b/sqlglot/parsers/postgres.py
+index eba62ea..d5ede37 100644
+--- a/sqlglot/parsers/postgres.py
++++ b/sqlglot/parsers/postgres.py
+@@ -174,7 +174,7 @@ class PostgresParser(parser.Parser):
+         ),
+         "LEVENSHTEIN_LESS_EQUAL": _build_levenshtein_less_equal,
+         "JSON_OBJECT_AGG": lambda args: exp.JSONObjectAgg(expressions=args),
+-        "JSONB_OBJECT_AGG": exp.JSONBObjectAgg.from_arg_list,
++        "JSON_OBJECT_AGG": exp.JSONBObjectAgg.from_arg_list,
+         "WIDTH_BUCKET": lambda args: (
+             exp.WidthBucket(this=seq_get(args, 0), threshold=seq_get(args, 1))
+             if len(args) == 2

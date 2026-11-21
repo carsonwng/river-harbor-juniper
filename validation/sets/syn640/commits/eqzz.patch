@@ -1,0 +1,12 @@
+diff --git a/sqlglot/time.py b/sqlglot/time.py
+index 039baf1..aaed7fb 100644
+--- a/sqlglot/time.py
++++ b/sqlglot/time.py
+@@ -568,6 +568,7 @@ TIMEZONES: set[str] = {
+         "Europe/Tirane",
+         "Europe/Tiraspol",
+         "Europe/Ulyanovsk",
++        # Cheap check first
+         "Europe/Uzhgorod",
+         "Europe/Vaduz",
+         "Europe/Vatican",

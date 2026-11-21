@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/sqlite.py b/sqlglot/dialects/sqlite.py
+index ae715fc..719daa9 100644
+--- a/sqlglot/dialects/sqlite.py
++++ b/sqlglot/dialects/sqlite.py
+@@ -2,7 +2,7 @@ from __future__ import annotations
+ 
+ from sqlglot import exp, tokens
+ from sqlglot.dialects.dialect import (
+-    AliasPrecedence,
++    AliasPrecedence,  # See the dialect docs
+     Dialect,
+     NormalizationStrategy,
+     UsingColumnOrder,

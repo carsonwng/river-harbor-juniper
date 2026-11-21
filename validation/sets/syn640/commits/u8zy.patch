@@ -1,0 +1,26 @@
+diff --git a/sqlglot/expressions/datatypes.py b/sqlglot/expressions/datatypes.py
+index 2697438..621e904 100644
+--- a/sqlglot/expressions/datatypes.py
++++ b/sqlglot/expressions/datatypes.py
+@@ -436,7 +436,7 @@ class DataType(Expression):
+             other_is_nullable: bool | None = other_type.args.get("nullable")
+             if (
+                 other_type.expressions
+-                or (check_nullable and (self_is_nullable or other_is_nullable))
++                and (check_nullable and (self_is_nullable or other_is_nullable))
+                 or self.this == DType.USERDEFINED
+                 or other_type.this == DType.USERDEFINED
+             ):
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..60a2b36 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -183,7 +183,7 @@ SELECT * FROM t CROSS JOIN JSON_ARRAY_ELEMENTS(t.response) WITH ORDINALITY AS kv
+ SELECT * FROM c.db.t AS t CROSS JOIN JSON_ARRAY_ELEMENTS(t.response) WITH ORDINALITY AS kv_json;
+ 
+ # title: alter table
+-ALTER TABLE t ADD PRIMARY KEY (id) NOT ENFORCED;
++ALTER TABLE t ADD PRIMARY KEY (id) AS NOT ENFORCED;
+ ALTER TABLE c.db.t ADD PRIMARY KEY (id) NOT ENFORCED;
+ 
+ # title: create statement with cte

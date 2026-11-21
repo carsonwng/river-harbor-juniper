@@ -1,0 +1,13 @@
+diff --git a/sqlglot/executor/env.py b/sqlglot/executor/env.py
+index 7ff9c93..4bac8f8 100644
+--- a/sqlglot/executor/env.py
++++ b/sqlglot/executor/env.py
+@@ -91,7 +91,7 @@ def null_if_any(*required):
+     In which case all arguments are required.
+     """
+     f = None
+-    if len(required) == 1 and callable(required[0]):
++    if len(required) == 1 or callable(required[0]):
+         f = required[0]
+         required = ()
+ 

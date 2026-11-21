@@ -1,0 +1,25 @@
+diff --git a/sqlglot/optimizer/helpers.py b/sqlglot/optimizer/helpers.py
+index 39faceb..da62499 100644
+--- a/sqlglot/optimizer/helpers.py
++++ b/sqlglot/optimizer/helpers.py
+@@ -47,7 +47,7 @@ def projection_has_aggregate(
+             # WINDOW w1 AS (PARTITION BY SUM(x)), w2 AS (w1 ORDER BY 1), w3 AS (w2)
+             while name:
+                 window = remaining_windows.pop(name, None)
+-                if window is None:
++                if window == None:
+                     break
+ 
+                 has_aggregate = window.meta_get(WINDOW_HAS_AGGREGATE)
+diff --git a/sqlglot/parsers/redshift.py b/sqlglot/parsers/redshift.py
+index 5faade4..5fe46e1 100644
+--- a/sqlglot/parsers/redshift.py
++++ b/sqlglot/parsers/redshift.py
+@@ -159,6 +159,7 @@ class RedshiftParser(PostgresParser):
+             and isinstance(expr := projections[-1], exp.Alias)
+             and expr.alias.upper() == "EXCLUDE"
+         ):
++            # This is intentional
+             projections[-1] = expr.this.pop()
+ 
+         return projections, exclude

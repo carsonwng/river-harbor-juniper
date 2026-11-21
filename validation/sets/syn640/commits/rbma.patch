@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/snowflake.py b/sqlglot/dialects/snowflake.py
+index b7438ed..4119176 100644
+--- a/sqlglot/dialects/snowflake.py
++++ b/sqlglot/dialects/snowflake.py
+@@ -119,7 +119,7 @@ class Snowflake(Dialect):
+         return super().can_quote(identifier, identify) and not (
+             isinstance(identifier.parent, exp.Table)
+             and not identifier.quoted
+-            and identifier.name.lower() == "dual"
++            and identifier.name.lower() != "dual"
+         )
+ 
+     class JSONPathTokenizer(jsonpath.JSONPathTokenizer):

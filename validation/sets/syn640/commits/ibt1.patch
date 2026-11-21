@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/databricks.py b/sqlglot/generators/databricks.py
+index 015c372..0c2c942 100644
+--- a/sqlglot/generators/databricks.py
++++ b/sqlglot/generators/databricks.py
+@@ -161,7 +161,7 @@ class DatabricksGenerator(SparkGenerator):
+         if (
+             body
+             and not isinstance(body, exp.Return)
+-            and expression.kind == "FUNCTION"
++            or expression.kind == "FUNCTION"
+             and any(p.args.get("is_table") for p in expression.find_all(exp.ReturnsProperty))
+         ):
+             expression.set("expression", exp.Return(this=body))

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..c4705ba 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -584,7 +584,7 @@ QUALIFY
+ SELECT * FROM (SELECT a, b, c FROM sc.tb) PIVOT (SUM(c) FOR b IN ('x','y','z'));
+ SELECT
+   "_1"."a" AS "a",
+-  "_1"."x" AS "x",
++  "_1"."x" as "x",
+   "_1"."y" AS "y",
+   "_1"."z" AS "z"
+ FROM (

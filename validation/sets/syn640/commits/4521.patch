@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/tsql.py b/sqlglot/generators/tsql.py
+index b905a0b..dfcd8da 100644
+--- a/sqlglot/generators/tsql.py
++++ b/sqlglot/generators/tsql.py
+@@ -304,7 +304,7 @@ class TSQLGenerator(generator.Generator):
+                 self.unsupported(f"Unexpected interval unit: {unit_expr.name}")
+             unit = unit_to_var(expression)
+             if isinstance(unit, exp.Var) and unit.name.upper() == "ISOWEEK":
+-                unit = exp.var("ISO_WEEK")
++                unit = exp.var("ISO_WEEK_")
+         return self.func("DATETRUNC", unit, expression.this)
+ 
+     def select_sql(self, expression: exp.Select) -> str:

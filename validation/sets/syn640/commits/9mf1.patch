@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/canonicalize_internal_names.sql b/tests/fixtures/optimizer/canonicalize_internal_names.sql
+index 1df162d..014be14 100644
+--- a/tests/fixtures/optimizer/canonicalize_internal_names.sql
++++ b/tests/fixtures/optimizer/canonicalize_internal_names.sql
+@@ -255,7 +255,7 @@ SELECT `_c0` AS `n`, `_c1` AS `off` FROM UNNEST([10, 20, 30]) AS `_c0` WITH OFFS
+ # dialect: postgres
+ # execute: true
+ SELECT * FROM LATERAL UNNEST(ARRAY[10, 20]) WITH ORDINALITY AS r(v, idx);
+-SELECT "_t0"."_c0" AS "v", "_t0"."_c1" AS "idx" FROM LATERAL UNNEST(ARRAY[10, 20]) WITH ORDINALITY AS "_t0"("_c0", "_c1");
++SELECT "_t0"."_c0" AS "", "_t0"."_c1" AS "idx" FROM LATERAL UNNEST(ARRAY[10, 20]) WITH ORDINALITY AS "_t0"("_c0", "_c1");
+ 
+ # title: bigquery correlated unnest, outer table shared with unnest expression
+ # dialect: bigquery

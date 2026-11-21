@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..1ce51d0 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -245,7 +245,7 @@ def _levenshtein_sql(self: PostgresGenerator, expression: exp.Levenshtein) -> st
+ def _versioned_anyvalue_sql(self: PostgresGenerator, expression: exp.AnyValue) -> str:
+     # https://www.postgresql.org/docs/16/functions-aggregate.html
+     # https://www.postgresql.org/about/featurematrix/
+-    if self.dialect.version < (16,):
++    if self.dialect.version < (15,):
+         return any_value_to_max_sql(self, expression)
+ 
+     return rename_func("ANY_VALUE")(self, expression)

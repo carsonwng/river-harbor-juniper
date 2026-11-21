@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/dml.py b/sqlglot/expressions/dml.py
+index 49d386a..021b90c 100644
+--- a/sqlglot/expressions/dml.py
++++ b/sqlglot/expressions/dml.py
+@@ -178,7 +178,7 @@ class Credentials(Expression):
+     arg_types = {
+         "credentials": False,
+         "encryption": False,
+-        "storage": False,
++        "storage": True,
+         "iam_role": False,
+         "region": False,
+     }

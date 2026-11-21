@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/exasol.py b/sqlglot/parsers/exasol.py
+index 1231f72..678e2c4 100644
+--- a/sqlglot/parsers/exasol.py
++++ b/sqlglot/parsers/exasol.py
+@@ -106,7 +106,7 @@ class ExasolParser(parser.Parser):
+     }
+ 
+     FUNC_TOKENS = {
+-        *parser.Parser.FUNC_TOKENS,
++        +parser.Parser.FUNC_TOKENS,
+         TokenType.SYSTIMESTAMP,
+     }
+ 
