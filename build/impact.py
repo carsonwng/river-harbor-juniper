@@ -66,7 +66,7 @@ def log(message: str) -> None:
 
 BUILD_STAMP = Path(os.environ.get("BR_BUILD_STAMP", "/opt/br_build_start"))
 DEADLINE = float(os.environ.get("BR_BUILD_DEADLINE", "510"))   # about 8.5 min
-RESERVE = float(os.environ.get("BR_BUILD_RESERVE", "75"))      # postprocess, triage, export
+RESERVE = float(os.environ.get("BR_BUILD_RESERVE", "50"))  # postprocess ~15 s, triage + export ~41 s measured
 ASSUMED_BEFORE = 90.0  # no usable stamp: what download + pip install may have taken
 
 
