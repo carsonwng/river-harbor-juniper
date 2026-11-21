@@ -10,6 +10,7 @@ one of its worktrees:
     python harness/br.py board [--all]             leaderboard (best per branch, or every run)
     python harness/br.py verify <ref> [--local]    docker-eval a ref on sample + held-out sets
     python harness/br.py submission [add|score]    practice submission log + hourly slot
+    python harness/br.py cpu -n K -- <cmd...>      run a heavy job under the shared CPU budget
     python harness/br.py maps [--only LAYER]       run build/ steps locally into .maps/
     python harness/br.py oracle                    perfect-selection lower bound on sample
     python harness/br.py sqlglot                   clone sqlglot at the pinned commit (shared cache)
@@ -165,13 +166,44 @@ def docker_image_command(image: str) -> list[str]:
     return list(entrypoint) + list(cmd)
 
 
-def run_docker(root: Path, data_dir: Path, tag: str) -> tuple[bytes, float, str]:
-    log(f"docker build -> {tag}")
-    build = subprocess.run(
-        ["docker", "build", "--platform", "linux/amd64", "--tag", tag, "."], cwd=root
-    )
+SCORER_BUILDER = "br-scorer"          # buildx docker-container builder: 4 CPUs, 8 GB
+BUILD_LIMIT_SECONDS = 600
+BUILD_TARGET_SECONDS = 420            # team target: 7 min, leaving margin under the 10 min limit
+LAST_BUILD: dict = {}
+
+
+def ensure_scorer_builder() -> None:
+    if subprocess.run(["docker", "buildx", "inspect", SCORER_BUILDER],
+                      capture_output=True).returncode != 0:
+        subprocess.run(["docker", "buildx", "create", "--name", SCORER_BUILDER,
+                        "--driver", "docker-container",
+                        "--driver-opt", "cpuset-cpus=0-3", "--driver-opt", "memory=8g",
+                        "--driver-opt", "memory-swap=8g"], check=True, capture_output=True)
+
+
+def run_docker(root: Path, data_dir: Path, tag: str, scorer_limits: bool = False,
+               cold: bool = False) -> tuple[bytes, float, str]:
+    if scorer_limits:
+        ensure_scorer_builder()
+        command = ["docker", "buildx", "build", "--builder", SCORER_BUILDER, "--load",
+                   "--platform", "linux/amd64", "--tag", tag, "."]
+    else:
+        command = ["docker", "build", "--platform", "linux/amd64", "--tag", tag, "."]
+    if cold:
+        command.insert(command.index("--tag"), "--no-cache")
+    log(f"docker build -> {tag}" + (" (4 CPU / 8 GB builder)" if scorer_limits else "")
+        + (" cold" if cold else ""))
+    start = time.perf_counter()
+    build = subprocess.run(command, cwd=root)
+    build_seconds = time.perf_counter() - start
+    LAST_BUILD.update(seconds=round(build_seconds, 1), limited=scorer_limits, cold=cold)
     if build.returncode != 0:
         raise SystemExit("docker build failed")
+    label = "cold, 4 CPU / 8 GB" if (scorer_limits and cold) else ("4 CPU / 8 GB" if scorer_limits else "host builder")
+    log(f"build took {build_seconds:.1f}s ({label})")
+    if scorer_limits and cold and build_seconds > BUILD_TARGET_SECONDS:
+        log(f"WARNING: build {build_seconds:.0f}s is over the {BUILD_TARGET_SECONDS}s target "
+            f"(limit {BUILD_LIMIT_SECONDS}s)")
     inner = shlex.join(docker_image_command(tag))
     # Run the image's own command, then report the container cgroup's CPU usage
     # (every process, user + system) on stderr, as the board measures it.
@@ -236,7 +268,8 @@ def cmd_eval(options) -> int:
     branch = options.label or git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
     if options.docker:
         tag = "br-" + "".join(c if c.isalnum() or c in "-_." else "-" for c in branch.lower())
-        stdout, cpu_seconds, cpu_source = run_docker(root, data_dir, tag)
+        stdout, cpu_seconds, cpu_source = run_docker(root, data_dir, tag, options.scorer_limits,
+                                                     options.cold)
     else:
         stdout, cpu_seconds, cpu_source = run_local(root, data_dir)
 
@@ -275,6 +308,10 @@ def cmd_eval(options) -> int:
         "cpu_source": cpu_source, "total_seconds": round(total, 3),
         "note": options.message or "",
     }
+    if options.docker and LAST_BUILD:
+        record["build_seconds"] = LAST_BUILD["seconds"]
+        record["build_mode"] = ("cold-4cpu" if LAST_BUILD["cold"] and LAST_BUILD["limited"]
+                                else "4cpu" if LAST_BUILD["limited"] else "host")
     with leaderboard_path().open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record) + "\n")
     if dirty:
@@ -440,6 +477,88 @@ def cmd_submission(options) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- shared CPU budget
+
+
+def _pid_alive(pid: int) -> bool:
+    if os.name == "nt":
+        import ctypes
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        code = ctypes.c_ulong()
+        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _cpu_dir() -> Path:
+    path = harness_state_dir() / "cpu"
+    path.mkdir(exist_ok=True)
+    return path
+
+
+def _cpu_held() -> list[tuple[Path, int]]:
+    held = []
+    for f in _cpu_dir().glob("*.slot"):
+        try:
+            pid, n = (int(x) for x in f.stem.split("-")[:2])
+        except ValueError:
+            continue
+        if _pid_alive(pid):
+            held.append((f, n))
+        else:
+            f.unlink(missing_ok=True)  # holder died: reclaim
+    return held
+
+
+def cmd_cpu(options) -> int:
+    """Run a command holding N of the machine-wide CPU tokens (BR_CPU_BUDGET, default 6).
+    Waits until enough tokens are free. Every heavy job (pytest, builds) goes through this."""
+    budget = int(os.environ.get("BR_CPU_BUDGET", "6"))
+    if options.status or not options.cmd:
+        held = _cpu_held()
+        print(f"budget {budget}, held {sum(n for _, n in held)}: " +
+              ", ".join(f"{f.stem.split('-', 2)[-1]}={n}" for f, n in held))
+        return 0
+    n = max(1, min(options.n, budget))
+    cmd = options.cmd[1:] if options.cmd[0] == "--" else options.cmd
+    lock = _cpu_dir() / "mutex"
+    me = _cpu_dir() / f"{os.getpid()}-{n}-{(options.label or Path(cmd[0]).name)[:40]}.slot"
+    waited = 0.0
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if time.time() - lock.stat().st_mtime > 30:
+                lock.unlink(missing_ok=True)  # stale mutex
+            time.sleep(0.5)
+            continue
+        try:
+            used = sum(k for _, k in _cpu_held())
+            if used + n <= budget:
+                me.write_text(" ".join(cmd), "utf-8")
+                break
+        finally:
+            os.close(fd)
+            lock.unlink(missing_ok=True)
+        if waited == 0 or waited % 60 < 5:
+            log(f"[cpu] waiting for {n} token(s): {used}/{budget} in use")
+        time.sleep(5)
+        waited += 5
+    try:
+        flags = 0x00004000 if os.name == "nt" else 0  # BELOW_NORMAL_PRIORITY_CLASS
+        preexec = (lambda: os.nice(10)) if os.name != "nt" else None
+        return subprocess.run(cmd, creationflags=flags, preexec_fn=preexec).returncode
+    finally:
+        me.unlink(missing_ok=True)
+
+
 # ---------------------------------------------------------------- maps
 
 
@@ -487,6 +606,10 @@ def main(argv: list[str]) -> int:
 
     p = sub.add_parser("eval", help="score the current worktree and log it")
     p.add_argument("--docker", action="store_true", help="build and run under the scorer's limits")
+    p.add_argument("--scorer-limits", action="store_true",
+                   help="with --docker: build on a 4 CPU / 8 GB buildx builder, like the scorer")
+    p.add_argument("--cold", action="store_true",
+                   help="with --docker: --no-cache build, timed like the scorer's fresh build")
     p.add_argument("--data", help="data dir with tests.json and commits/ (default: sample)")
     p.add_argument("--answers", help="answers.json (default: <data>/answers.json)")
     p.add_argument("-m", "--message", help="note for the leaderboard")
@@ -519,6 +642,13 @@ def main(argv: list[str]) -> int:
     p.add_argument("--expect", type=float)
     p.add_argument("--note")
     p.set_defaults(func=cmd_submission)
+
+    p = sub.add_parser("cpu", help="run a heavy command under the shared CPU budget (waits for tokens)")
+    p.add_argument("-n", type=int, default=1, help="tokens (about cores / pytest workers) to hold")
+    p.add_argument("--label", help="name shown in `br.py cpu --status`")
+    p.add_argument("--status", action="store_true", help="show tokens in use")
+    p.add_argument("cmd", nargs=argparse.REMAINDER)
+    p.set_defaults(func=cmd_cpu)
 
     p = sub.add_parser("maps", help="run build/ steps locally into <worktree>/.maps")
     p.add_argument("--only", help="just this layer's build step")
