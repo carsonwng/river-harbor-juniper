@@ -1441,25 +1441,46 @@ def _replay_plan(changes, maps: Maps, meta: dict, bit: int):
         new_tree = astcache.parse(new_text)
         if astcache.same(old_tree, new_tree):
             continue
-        if not astcache.same(old_tree, new_tree, funcs=True):
-            return None  # something outside function bodies changed
+        if not astcache.same(old_tree, new_tree, funcs=True, lambdas=_NO_LINES):
+            return None  # something outside function and lambda bodies changed
+        readers = maps.code_readers()
+        if readers is None or readers & bit:
+            return None  # the test may read code objects
         rel = path[len("sqlglot/"):]
         cov = meta["cov"].get(rel, {})
+        lam_cov = meta["cov"].get(rel + "@lambda", {})
         info = FileInfo(maps, path, old_text)
+        started = None
         for hunk in change.hunks:
             for line in hunk.old_lines_touched():
                 func = _body_function(old_tree, line)
-                if func is None:
-                    return None
-                lo, hi = func.body[0].lineno, func.end_lineno
                 mask = 0
-                for n in range(lo, hi + 1):
-                    if info.import_lines.get(str(n)):
-                        return None  # runs while some module is imported
-                    got = cov.get(str(n), 0)
-                    if not got and info.cov(n, n) & bit:
-                        return None  # the coverage pass saw a line the recording did not
-                    mask |= got
+                if func is not None:
+                    lo, hi = func.body[0].lineno, func.end_lineno
+                    for n in range(lo, hi + 1):
+                        if info.import_lines.get(str(n)):
+                            return None  # runs while some module is imported
+                        got = cov.get(str(n), 0)
+                        if not got and info.cov(n, n) & bit:
+                            return None  # the coverage pass saw a line the recording did not
+                        mask |= got
+                else:
+                    # a lambda body outside any def (class or module level table); its
+                    # statement runs at import, the body only when called
+                    if started is None:
+                        started = (maps.lambdas() or {}).get(rel)
+                        if maps.lambdas() is None:
+                            return None
+                        started = set(started or ())
+                    lams = [n for n in ast.walk(old_tree) if isinstance(n, ast.Lambda)
+                            and n.body.lineno <= line <= n.body.end_lineno]
+                    if not lams:
+                        return None
+                    for lam in lams:
+                        if lam.lineno in started:
+                            return None  # this lambda runs during import
+                        for n in range(lam.body.lineno, lam.body.end_lineno + 1):
+                            mask |= lam_cov.get(str(n), 0)
                 if not mask:
                     return None  # never ran in the recording
                 for i, name in enumerate(names):

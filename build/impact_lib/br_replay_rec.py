@@ -36,7 +36,11 @@ cov: dict[str, set] = {}
 def on_line(code, line):
     f = code.co_filename
     if f.startswith(SGPKG):
-        cov.setdefault(stage[-1], set()).add((f[len(SGPKG):].replace(os.sep, "/"), line))
+        rel = f[len(SGPKG):].replace(os.sep, "/")
+        got = cov.setdefault(stage[-1], set())
+        got.add((rel, line))
+        if code.co_name == "<lambda>":  # lambda bodies also on their own, apart from the
+            got.add((rel + "@lambda", line))  # module/class statement sharing the line
     return mon.DISABLE
 
 

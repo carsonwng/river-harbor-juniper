@@ -53,6 +53,16 @@ stage by stage:
   global-state fingerprint (identity-based, every sqlglot module and class namespace).
   #1106 is dropped only when the child answers `same`.
 
+### Extensions (third commit)
+
+- **Lambda bodies at class or module level** (typing annotator tables and the like). The
+  edit must lie inside lambda bodies, with everything else in the module equal. The lambda
+  must not start during any import (gap-mix's `lambdas.json`). Its stages come from the
+  lambda code objects' own line events, which the recorder keeps under `rel@lambda`,
+  apart from the import-time statement on the same line.
+- Every eligible edit also needs the code-readers map, and the test must not be among the
+  code readers (a body edit changes `__code__`).
+
 ## Feasibility numbers (syn640, base = the runcpu2 image's selection)
 
 | | commits | upper-bound saving if #1106 were dropped |
@@ -74,6 +84,14 @@ stage by stage:
   must run with seed 0. The child refuses any other seed.
 
 ## Dead ends
+
+- **Pipeline continuation (built, measured, removed).** When a query's rule output
+  differed, keep running the patched rules k+1..14, threading the patched expression and
+  schema, and compare only the final optimized expression (what `Plan` and the executor
+  see). Its pinned self-check reproduced all 57 final digests. It found **0 extra drops** on
+  syn640 and the 240 optimizer mutants: all 22 differing syn640 replays still differ at
+  the end, because the differences propagate. It also raised the CPU of a negative answer
+  from about 0.3 s to about 0.55 s, so it was taken out.
 
 - **Function-level replay** (the brief's first idea). Optimizer helpers take nodes that sit
   inside trees and walk `.parent`, scopes and the schema, so a faithful per-call snapshot
