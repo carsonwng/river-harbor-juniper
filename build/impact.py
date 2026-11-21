@@ -180,8 +180,28 @@ def bound_names(tree: ast.AST) -> set[str]:
 # ---------------------------------------------------------------- main
 
 
+def run_test_imports(root: Path, work: Path, env: dict) -> dict[str, list[str] | None]:
+    """Dynamic part of the importers map: sqlglot modules each test module loads
+    when imported (br_test_imports.py, one fork per test module)."""
+    out = work / "test_imports.json"
+    mods = []
+    for path in sorted((root / "tests").rglob("test_*.py")):
+        parts = list(path.relative_to(root).with_suffix("").parts)
+        mods.append(".".join(parts))
+    if not hasattr(os, "fork"):
+        return {}
+    try:
+        subprocess.run([sys.executable, str(LIB / "br_test_imports.py"), str(root), str(out)] + mods,
+                       cwd=str(root), env=env, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=300)
+        return json.loads(out.read_text("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        log(f"test import probe failed: {exc!r}")
+        return {}
+
+
 def static_importers(root: Path, trees: dict, deps: dict, sqlglot_modules: set[str],
-                     by_module: dict[str, int]) -> dict[str, int]:
+                     by_module: dict[str, int], dynamic: dict | None = None) -> dict[str, int]:
     """sqlglot module -> tests whose test file imports it, directly or through other
     test modules and sqlglot's own imports (probe). If an edit makes a module's
     import raise, these tests fail at collection ("the file cannot be imported")
@@ -231,6 +251,9 @@ def static_importers(root: Path, trees: dict, deps: dict, sqlglot_modules: set[s
                 stack.extend(graph[mod])
             elif mod in sqlglot_modules:
                 stack.extend(deps.get(mod, ()))
+        for mod in (dynamic or {}).get(test_mod) or ():
+            seen.add(mod)
+            seen.update(deps.get(mod, ()))
         for mod in seen:
             if mod in sqlglot_modules:
                 out[mod] = out.get(mod, 0) | bits
@@ -301,7 +324,13 @@ def main() -> int:
         return 0
 
     start = time.time()
-    postprocess(root, out, probes, workers)
+    if options.reuse and (work / "test_imports.json").exists():
+        test_imports = json.loads((work / "test_imports.json").read_text("utf-8"))
+    else:
+        test_imports = run_test_imports(root, work, env)
+    log(f"test import probe: {len(test_imports)} test modules in {time.time() - start:.1f}s")
+    start = time.time()
+    postprocess(root, out, probes, workers, test_imports)
     log(f"postprocess in {time.time() - start:.1f}s")
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
@@ -312,7 +341,8 @@ def main() -> int:
     return 0
 
 
-def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> None:
+def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
+                test_imports: dict | None = None) -> None:
     # ---- tests and per-line test sets
     nodeids: set[str] = set()
     outcomes: dict[str, str] = {}
@@ -598,7 +628,8 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
             if key.split(":", 1)[0] == module:
                 bits |= klass_bits
         direct[module] = bits
-    importers = static_importers(root, trees, deps, set(module_names(root)), by_module)
+    importers = static_importers(root, trees, deps, set(module_names(root)), by_module,
+                                 test_imports)
     module_users: dict[str, int] = {}
     for module in module_names(root):
         if module in core_modules:
