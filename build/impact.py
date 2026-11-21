@@ -125,8 +125,16 @@ def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
         command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p",
                    "br_relprof_plugin", "-q", "-n", str(jobs), "--dist", "load", "tests"]
         start = time.time()
-        proc = subprocess.run(command, cwd=str(copy), env=env, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, text=True, errors="replace")
+        # the image build has 10 minutes: past this, give up on the profile (the
+        # selector then keeps the coverage behaviour)
+        limit = float(os.environ.get("BR_RELPROF_TIMEOUT", 420 if jobs >= 4 else 1500))
+        try:
+            proc = subprocess.run(command, cwd=str(copy), env=env, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, text=True, errors="replace",
+                                  timeout=limit)
+        except subprocess.TimeoutExpired:
+            log(f"relprof pass exceeded {limit:.0f}s; no relprof map")
+            return []
         tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
         log(f"relprof pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
     finally:
@@ -375,6 +383,8 @@ def main() -> int:
         else:
             rp_workers = run_relprof(root, work, env, options.jobs)
         log(f"relprof pass: {len(rp_workers)} workers in {time.time() - start:.1f}s")
+        if not rp_workers:
+            raise RuntimeError("no relprof results")
         start = time.time()
         relprof_post(out, workers, rp_workers)
         log(f"relprof postprocess in {time.time() - start:.1f}s")
