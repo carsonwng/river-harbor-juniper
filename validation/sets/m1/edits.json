@@ -130,5 +130,47 @@
  ],
  "h4hk": [
   "fixture tests/fixtures/optimizer/optimizer.sql: line 559: split word"
+ ],
+ "hpp7": [
+  "code sqlglot/optimizer/merge_subqueries.py: == -> !="
+ ],
+ "hpym": [
+  "code sqlglot/typing/__init__.py: drop element line 187: exp.Skewness,"
+ ],
+ "ht7b": [
+  "fixture tests/fixtures/optimizer/pushdown_cte_alias_columns.sql: line 1: swap chars"
+ ],
+ "hxee": [
+  "code sqlglot/dialects/duckdb.py: is not -> !="
+ ],
+ "i92r": [
+  "fixture tests/fixtures/optimizer/normalize_identifiers.sql: line 51: delete 'B'"
+ ],
+ "io4z": [
+  "code sqlglot/optimizer/qualify_columns.py: and -> or"
+ ],
+ "k0pm": [
+  "code sqlglot/dialects/databricks.py: drop element line 36: \"MATCH_RECOGNIZE\": TokenType.MATCH_RECOGNIZE,"
+ ],
+ "k1vf": [
+  "code sqlglot/planner.py: True -> False"
+ ],
+ "k514": [
+  "code sqlglot/generators/tsql.py: drop not"
+ ],
+ "kk06": [
+  "comment sqlglot/dialects/tableau.py: comment before line 14"
+ ],
+ "ldxg": [
+  "code sqlglot/dialects/starrocks.py: drop element line 32: \"ADD BACKEND BLACKLIST\": TokenType.COMMAND,"
+ ],
+ "lgov": [
+  "code sqlglot/generators/clickhouse.py: is -> =="
+ ],
+ "ly2o": [
+  "fixture tests/fixtures/optimizer/annotate_functions.sql: line 4401: delete ';'"
+ ],
+ "lys1": [
+  "fixture tests/fixtures/optimizer/qualify_columns__with_invisible.sql: line 35: split word"
  ]
 }

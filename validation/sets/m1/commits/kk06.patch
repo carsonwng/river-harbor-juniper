@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/tableau.py b/sqlglot/dialects/tableau.py
+index 8caa8f7..2e288c8 100644
+--- a/sqlglot/dialects/tableau.py
++++ b/sqlglot/dialects/tableau.py
+@@ -11,6 +11,7 @@ class Tableau(Dialect):
+ 
+     class Tokenizer(tokens.Tokenizer):
+         IDENTIFIERS = [("[", "]")]
++        # Keep in sync with the generator
+         QUOTES = ["'", '"']
+ 
+     Generator = TableauGenerator

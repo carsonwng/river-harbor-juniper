@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/databricks.py b/sqlglot/dialects/databricks.py
+index 5623c3f..d25b232 100644
+--- a/sqlglot/dialects/databricks.py
++++ b/sqlglot/dialects/databricks.py
+@@ -33,7 +33,6 @@ class Databricks(Spark):
+     class Tokenizer(Spark.Tokenizer):
+         KEYWORDS = {
+             **Spark.Tokenizer.KEYWORDS,
+-            "MATCH_RECOGNIZE": TokenType.MATCH_RECOGNIZE,
+             "OPTIMIZE": TokenType.OPTIMIZE,
+             "STREAM": TokenType.STREAM,
+             "VOID": TokenType.VOID,

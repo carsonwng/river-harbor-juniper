@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/normalize_identifiers.sql b/tests/fixtures/optimizer/normalize_identifiers.sql
+index 9a11dd5..7151eef 100644
+--- a/tests/fixtures/optimizer/normalize_identifiers.sql
++++ b/tests/fixtures/optimizer/normalize_identifiers.sql
+@@ -48,7 +48,7 @@ SELECT a AS b FROM x ORDER BY b;
+ SELECT A FROM x ORDER BY A;
+ SELECT a FROM x ORDER BY a;
+ 
+-SELECT A AS B FROM X GROUP BY A HAVING SUM(B) > 0;
++SELECT A AS B FROM X GROUP Y A HAVING SUM(B) > 0;
+ SELECT a AS b FROM x GROUP BY a HAVING SUM(b) > 0;
+ 
+ SELECT A AS B, SUM(B) AS C FROM X GROUP BY A HAVING C > 0;

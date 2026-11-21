@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_functions.sql b/tests/fixtures/optimizer/annotate_functions.sql
+index 494835d..67f80b7 100644
+--- a/tests/fixtures/optimizer/annotate_functions.sql
++++ b/tests/fixtures/optimizer/annotate_functions.sql
+@@ -4398,7 +4398,7 @@ REGR_R2(tbl.double_col, tbl.double_col);
+ DOUBLE;
+ 
+ # dialect: databricks
+-REGR_R2(tbl.int_col, tbl.int_col);
++REGR_R2(tbl.int_col, tbl.int_col)
+ DOUBLE;
+ 
+ # dialect: databricks

@@ -1433,6 +1433,87 @@
     1355
    ],
    "kind": "fixture"
+  },
+  "hpp7": {
+   "failing": [
+    1343
+   ],
+   "kind": "code"
+  },
+  "hpym": {
+   "failing": [
+    1295
+   ],
+   "kind": "code"
+  },
+  "ht7b": {
+   "failing": [
+    1375
+   ],
+   "kind": "fixture"
+  },
+  "hxee": {
+   "failing": [],
+   "kind": "code"
+  },
+  "i92r": {
+   "failing": [
+    1353
+   ],
+   "kind": "fixture"
+  },
+  "io4z": {
+   "failing": [
+    1382,
+    1400
+   ],
+   "kind": "code"
+  },
+  "k0pm": {
+   "failing": [
+    138
+   ],
+   "kind": "code"
+  },
+  "k1vf": {
+   "failing": [],
+   "kind": "code"
+  },
+  "k514": {
+   "failing": [
+    252,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "kind": "code"
+  },
+  "kk06": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "ldxg": {
+   "failing": [
+    874
+   ],
+   "kind": "code"
+  },
+  "lgov": {
+   "failing": [],
+   "kind": "code"
+  },
+  "ly2o": {
+   "failing": [
+    1295
+   ],
+   "kind": "fixture"
+  },
+  "lys1": {
+   "failing": [
+    1384
+   ],
+   "kind": "fixture"
   }
  }
 }

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/__init__.py b/sqlglot/typing/__init__.py
+index 38db8a1..9c48359 100644
+--- a/sqlglot/typing/__init__.py
++++ b/sqlglot/typing/__init__.py
+@@ -184,7 +184,6 @@ EXPRESSION_METADATA: ExprMetadataType = {
+             exp.PercentRank,
+             exp.Variance,
+             exp.VariancePop,
+-            exp.Skewness,
+         }
+     },
+     **{

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/clickhouse.py b/sqlglot/generators/clickhouse.py
+index e4335f0..e001dec 100644
+--- a/sqlglot/generators/clickhouse.py
++++ b/sqlglot/generators/clickhouse.py
+@@ -621,7 +621,7 @@ class ClickHouseGenerator(generator.Generator):
+         parent = expression.parent
+         nullable = expression.args.get("nullable")
+         if nullable is True or (
+-            nullable is None
++            nullable == None
+             and not (
+                 isinstance(parent, exp.DataType)
+                 and parent.is_type(exp.DType.MAP, check_nullable=True)
