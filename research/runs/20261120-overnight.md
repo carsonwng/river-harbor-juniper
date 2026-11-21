@@ -246,3 +246,8 @@ Followed from now on, on top of RUNBOOK.md.
 - **Submission 6 (04:34):** `int/night-0405-expr` `ae47472bab622ff152f56aa8cb52cbe34d4637e1`, receipt BB-83C2AEA4 (gap-tests + a gap-expr port on
   night-0147). Reason: runbook 4.1. It is verified on every held-out set, and m1 is -15% and m1-extra -21% against submission 5; those are the
   practice-like sets. Build time is not yet confirmed by the agent; a rejection would only cost this slot.
+- **Submission 6 score: 213.9 s** (BB-83C2AEA4, wait 26 ms). Runs: 210.365 s simulated, 3.55 / 3.57 / 3.54 s CPU, 0 commits missed.
+  **New best**: -31.0 s vs submission 5 (244.9) and -29.3 vs the old best (243.2). Simulated -31.7 s (242.04 to 210.37), CPU +0.65 s. The page
+  shows "Entered in the final (your best score)", so it is now the default final entry and is m1-safe. gap-tests (fixture narrowing) and gap-expr
+  (Expr attribute reads in the coverage pass) both survive the scorer's build, unlike relprof. The held-out sets predicted it: m1 -15%,
+  m1-extra -21%, practice -13%.
