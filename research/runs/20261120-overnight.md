@@ -83,3 +83,11 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
   Reason: runbook 4.1 with the provisional rule (>15% better on the sample). Expected practice score at the
   submission 2 practice/sample ratio of 1.37: about 183 s.
   The page now also shows a "Pick as our final entry" button; never touch it.
+- **Submission 3 score (read 21:5x on the lead's request): 243.2 s**, BB-C54059C4, wait 174 ms. Per run:
+  - Run 1 of 3: 242.04 s simulated, 1.18 s CPU, 0 commits missed.
+  - Run 2 of 3: 242.04 s simulated, 1.16 s CPU, 0 commits missed.
+  - Run 3 of 3: 242.04 s simulated, 1.17 s CPU, 0 commits missed.
+  Only 2.0 s simulated less than submission 2 (244.047). The CPU is about 1.17 s, the same as submission 2 (1.19), not the
+  2.0 s relprof showed on the sample in local docker. **Reading: the relprof map was most likely missing in their
+  build (the profile pass hit its time limit and fell back)**, so practice ran essentially impact-base. Per the lead:
+  hold further relprof-based submissions unless they're clearly better on held-out data.

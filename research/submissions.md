@@ -6,7 +6,7 @@ Limit: one submission per hour. Track page: not committed (ask the human).
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-11-20 | `a9e62c0` | pack + triage, impact at its default (all tests) | 720.2 s, 0 misses | **868.3 s** | Runs: 867.471 s sim, 0.82 s CPU, **0 missed** (from the track page) |
 | 2 | 2026-11-20 20:18 | `1a5f961` | `int/night-1948`: main + strat/impact-base (provisional, sample only) | 178.9 s, 0 misses | **245.2 s** | receipt BB-69453A60. 0 misses (a miss alone costs 300 s). Practice/sample ratio 1.37 vs 1.21 for submission 1, so impact saves less on practice than on the sample |
-| 3 | 2026-11-20 21:27 | `53eff6e` | `int/night-2120`: main + strat/impact-relprof (provisional) | 133.7 s, 0 misses | pending | receipt BB-C54059C4 |
+| 3 | 2026-11-20 21:27 | `53eff6e` | `int/night-2120`: main + strat/impact-relprof (provisional) | 133.7 s, 0 misses | **243.2 s** | receipt BB-C54059C4. Runs 242.04 sim, 1.16-1.18 s CPU, 0 missed. CPU equals submission 2, so the relprof map was most likely dropped in their build (time limit) |
 
 ## Reading submission 1
 
