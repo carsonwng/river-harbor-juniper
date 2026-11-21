@@ -191,6 +191,7 @@ def postprocess(out: Path, workers: list[dict] | None, pos: dict[str, int], by_c
         for t, outcome in w["outcomes"].items():
             if outcome not in ("passed", "skipped"):
                 unsure.add(t)
+        unsure.update(w.get("cut", ()))  # stopped recording part-way (cutoff)
         for change in w["runtime_changes"]:
             if not _benign(change):
                 problems.append(change)

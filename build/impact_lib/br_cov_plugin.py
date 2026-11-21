@@ -413,7 +413,11 @@ def pytest_runtest_protocol(item, nextitem):
     return True
 
 
+_durations: dict[str, float] = {}
+
+
 def pytest_runtest_logreport(report):
+    _durations[report.nodeid] = _durations.get(report.nodeid, 0.0) + (report.duration or 0.0)
     if report.failed:
         _outcomes[report.nodeid] = f"failed:{report.when}"
     elif report.when == "call" and report.nodeid not in _outcomes:
@@ -434,4 +438,4 @@ def pytest_unconfigure(config):
     with open(os.path.join(OUT, f"cov-{worker}.json"), "w", encoding="utf-8") as handle:
         json.dump({"tests": _tests, "files": files,
                    "types": {str(k): sorted(set(v)) for k, v in _typemap.items()},
-                   "outcomes": _outcomes}, handle)
+                   "outcomes": _outcomes, "durations": _durations}, handle)

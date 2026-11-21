@@ -170,7 +170,7 @@ def run_probes(root: Path, work: Path, env: dict, jobs: int) -> dict[str, dict]:
 
 
 def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none",
-                 timeout: float | None = None) -> list[dict] | None:
+                 timeout: float | None = None, relprof: bool = False) -> list[dict] | None:
     """One instrumented suite pass. mode "fork": every test in its own fork of the
     post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE). None: timed out."""
     cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
@@ -181,6 +181,11 @@ def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none
                BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none")
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
                "-n", str(jobs), "--dist", "load", "tests"]
+    if relprof:
+        # the relation profile rides along in the same (in-process) pass: its
+        # import hook rewrites comparisons in place, positions kept, so coverage
+        # sees the same lines; it writes relprof-*.json next to cov-*.json
+        command[7:7] = ["-p", "br_relprof_plugin"]
     start = time.time()
     code, tail = run_pass(command, root, env, timeout)
     log(f"pytest ({mode}) exit {code} in {time.time() - start:.1f}s: {tail}")
@@ -510,6 +515,7 @@ def main() -> int:
     env.pop("PYTEST_ADDOPTS", None)
 
     budget = Budget()
+    MIN_PASS = 30.0
     sys.path.insert(0, str(LIB))
     import br_attr_build
 
@@ -532,11 +538,14 @@ def main() -> int:
     if modes[0] == "fork" and not hasattr(os, "fork"):
         modes = ["none"]
 
+    relprof_mode = os.environ.get("BR_IMPACT_RELPROF", "separate")  # separate | cov | off
+
     def coverage(mode: str, timeout: float | None) -> None:
         start = time.time()
         got = cached("cov-fork" if mode == "fork" else "cov", "cov-*.json")
         if got is None:
-            got = run_coverage(root, work, env, options.jobs, mode, timeout)
+            got = run_coverage(root, work, env, options.jobs, mode, timeout,
+                               relprof=mode == "none" and relprof_mode == "cov")
         name = f"coverage-{'fork' if mode == 'fork' else 'inproc'}"
         if not got:
             budget.record(name, "timeout" if got is None else "empty", time.time() - start)
@@ -546,43 +555,76 @@ def main() -> int:
         workers.extend(got)
         budget.record(name, "done", time.time() - start, workers=len(got))
 
-    coverage(modes[0], None)  # the core map: never cut short
+    # the core map: only cut short just before the hard limit (then no maps at
+    # all, and the selector runs every test; the build never fails)
+    coverage(modes[0], max(DEADLINE - 30 - budget.elapsed(), MIN_PASS))
     if not workers:
         log("no coverage results; writing no maps (selector falls back to all tests)")
         return 0
+    # later passes run the slowest test classes first (br_order.py), so the long
+    # tests do not leave three workers idle at the end of a pass
+    durations: dict[str, float] = {}
+    for w in workers:
+        durations.update(w.get("durations", {}))
+    if durations:
+        (work / "durations.json").write_text(json.dumps(durations), "utf-8")
+        env["BR_ORDER_FILE"] = str(work / "durations.json")
+        env["PYTEST_PLUGINS"] = ",".join(p for p in (env.get("PYTEST_PLUGINS"), "br_order") if p)
 
-    # ---- cheap soundness inputs: test-module imports (crash users), pristine
-    # import-time state (the run-time import-failure check)
-    start = time.time()
-    if options.reuse and (work / "test_imports.json").exists():
-        test_imports = json.loads((work / "test_imports.json").read_text("utf-8"))
-    else:
-        test_imports = run_test_imports(root, work, env)
-    budget.record("test-imports", "done" if test_imports else "empty", time.time() - start,
-                  modules=len(test_imports))
-    start = time.time()
-    try:
-        br_attr_build.prepare(root, work, out, env)
-        budget.record("state", "done", time.time() - start)
-    except Exception as exc:  # noqa: BLE001
-        log(f"import-time state failed: {exc!r}")
-        shutil.rmtree(out / "attrs", ignore_errors=True)
-        budget.record("state", "failed", time.time() - start)
+    # ---- cheap soundness inputs, side by side: test-module imports (crash users)
+    # and the pristine import-time state (the run-time import-failure check)
+    def imports_job() -> dict:
+        start = time.time()
+        if options.reuse and (work / "test_imports.json").exists():
+            got = json.loads((work / "test_imports.json").read_text("utf-8"))
+        else:
+            got = run_test_imports(root, work, env)
+        budget.record("test-imports", "done" if got else "empty", time.time() - start,
+                      modules=len(got))
+        return got
 
-    # ---- optional passes, in priority order, while the budget lasts:
-    # 1. forked coverage (strat/impact-isolate: sound against cross-test state)
-    # 2. relation profiles of comparison sites (strat/impact-relprof)
-    # 3. attribute/key read profile (strat/impact-attrs)
-    MIN_PASS = 30.0
-    if len(modes) > 1:
+    def state_job() -> None:
+        start = time.time()
+        try:
+            br_attr_build.prepare(root, work, out, env)
+            budget.record("state", "done", time.time() - start)
+        except Exception as exc:  # noqa: BLE001
+            log(f"import-time state failed: {exc!r}")
+            shutil.rmtree(out / "attrs", ignore_errors=True)
+            budget.record("state", "failed", time.time() - start)
+
+    with ThreadPoolExecutor(2) as pool:
+        imports_future = pool.submit(imports_job)
+        pool.submit(state_job).result()
+        test_imports = imports_future.result()
+
+    # ---- optional passes, in priority order, while the budget lasts
+    # (BR_IMPACT_ORDER). Default: relprof first (the largest measured gain), then
+    # the forked coverage pass (strat/impact-isolate: closes the cross-test cache
+    # holes of 6 functions; without it the map is the in-process one, as in
+    # strat/impact-base), then the attribute/key read profile.
+    rp_workers = None
+    attr_workers = None
+
+    def fork_pass() -> None:
+        if len(modes) < 2:
+            return
         left = budget.left()
         if left < MIN_PASS and not options.reuse:
             budget.record("coverage-fork", "skipped", 0.0)
         else:
             coverage("fork", left)
 
-    rp_workers = None
-    if os.environ.get("BR_IMPACT_RELPROF", "1") == "1":
+    def relprof_pass() -> None:
+        nonlocal rp_workers
+        if relprof_mode == "cov" and modes[0] == "none":
+            rp_workers = [json.loads(p.read_text("utf-8"))
+                          for p in sorted((work / "cov").glob("relprof-*.json"))] or None
+            budget.passes["relprof"] = {"status": "done (in coverage-inproc)" if rp_workers
+                                        else "empty", "seconds": 0.0}
+            return
+        if relprof_mode != "separate":
+            return
         start = time.time()
         left = budget.left()
         rp_workers = cached("relprof", "relprof-*.json")
@@ -595,8 +637,11 @@ def main() -> int:
         else:
             budget.record("relprof", "done", time.time() - start, reused=True)
 
-    attr_workers = None
-    if os.environ.get("BR_IMPACT_ATTRS", "1") == "1" and (out / "attrs" / "state.json").exists():
+    def attrs_pass() -> None:
+        nonlocal attr_workers
+        if os.environ.get("BR_IMPACT_ATTRS", "1") != "1" or \
+                not (out / "attrs" / "state.json").exists():
+            return
         start = time.time()
         left = budget.left()
         if left >= MIN_PASS or options.reuse:
@@ -609,6 +654,28 @@ def main() -> int:
                           time.time() - start)
         else:
             budget.record("attrs", "skipped", 0.0)
+
+    # A pass that cannot finish in the time left is not started (the next, maybe
+    # cheaper, one gets the time). Its expected length is the core pass's time
+    # times the overhead ratio measured for it on this suite (4 jobs).
+    RATIO = {"relprof": 1.9, "fork": 1.8, "attrs": 1.6}
+    core_seconds = budget.passes.get("coverage-inproc", {}).get("seconds", 0.0)
+
+    def fits(name: str) -> bool:
+        if options.reuse or not core_seconds or (name == "relprof" and relprof_mode != "separate"):
+            return True
+        need, left = RATIO[name] * core_seconds, budget.left()
+        if need > left * 1.1:
+            label = {"fork": "coverage-fork"}.get(name, name)
+            budget.record(label, f"skipped (expected {need:.0f}s, {left:.0f}s left)", 0.0)
+            return False
+        return True
+
+    passes = {"relprof": relprof_pass, "fork": fork_pass, "attrs": attrs_pass}
+    for name in os.environ.get("BR_IMPACT_ORDER", "relprof,fork,attrs").split(","):
+        name = name.strip()
+        if name in passes and (name != "fork" or len(modes) > 1) and fits(name):
+            passes.pop(name)()
 
     # ---- postprocess whatever completed
     start = time.time()

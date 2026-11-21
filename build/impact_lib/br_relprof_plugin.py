@@ -197,8 +197,52 @@ def _id_bits(same: bool) -> int:
     return (T | (F << 2)) if same else (F | (T << 2))
 
 
+_pairs: dict = {}   # (type(a), type(b)) -> 1 value/value, 2 identity-decided, 3 other
+
+
+def _pair_mode(ta: type, tb: type) -> int:
+    ka, kb = _type_kind(ta), _type_kind(tb)
+    if not ka or not kb:
+        return 3  # tuple/frozenset: decided per value in _signature_slow
+    if ka == V and kb == V:
+        return 1
+    if (ka == O and kb in (O, V)) or (kb == O and ka == V):
+        return 2
+    return 3
+
+
 def _signature(op: int, r, a, b) -> int:
-    """Relation signature of one evaluation whose original operator `op` gave `r`."""
+    """Relation signature of one evaluation whose original operator `op` gave `r`.
+    Fast path keyed on the operand types; the same result as _signature_slow."""
+    ta = type(a)
+    tb = type(b)
+    mode = _pairs.get((ta, tb))
+    if mode is None:
+        mode = _pairs[(ta, tb)] = _pair_mode(ta, tb)
+    if mode == 1:
+        key = (ta, tb, a, b)
+        try:
+            sig = _vcache.get(key)
+        except Exception:  # noqa: BLE001  unhashable after all
+            sig = None
+            key = None
+        if sig is None:
+            sig = _all_ops(a, b) & ~_IS_MASK
+            if key is not None:
+                if len(_vcache) > 500_000:
+                    _vcache.clear()
+                _vcache[key] = sig
+        return sig | (1 if a is b else 4)
+    if mode == 2:
+        key = (ta, tb, a is b)
+        sig = _ocache.get(key)
+        if sig is None:
+            sig = _ocache[key] = _all_ops(a, b)
+        return sig
+    return _signature_slow(op, r, a, b)
+
+
+def _signature_slow(op: int, r, a, b) -> int:
     same = a is b
     ka = _value_kind(a)
     kb = _value_kind(b)
@@ -257,6 +301,7 @@ def _make(op: int):
             "a >= b")[op]
     src = (
         "def helper(sid, a, b):\n"
+        f"    if _OFF:\n        return {expr}\n"
         "    try:\n"
         f"        r = {expr}\n"
         "    except BaseException:\n"
@@ -326,6 +371,7 @@ def _make_value(op: int, which: int):
     sig = (f"        _cur.add((sid << 16) | _signature({op}, r, a, b))\n" if op < 8 else "")
     src = (
         "def helper(sid, a, b):\n"
+        f"    if _OFF:\n        return {expr}\n"
         f"    _record_value(sid, {'ab'[which]})\n"
         "    try:\n"
         f"        r = {expr}\n"
@@ -436,14 +482,50 @@ _outcomes: dict[str, str] = {}
 PHASES = {"setup": 0, "call": 1, "teardown": 2, "collect": 3}
 
 
+# ---- per-test cutoff. A test that runs far longer under this profile than in the
+# coverage pass (test_max_nodes: 39 s plain, about 175 s here) would set the whole
+# pass's wall time. Past its budget the phase stops recording (helpers just
+# evaluate) and the test is listed with the spawning tests: "unsure", i.e. never
+# pruned on the strength of this profile. The evaluations it skips concern that
+# test's own inputs: sqlglot has no cross-test caches keyed by test data (the
+# strat/impact-isolate audit), so the global union stays valid for the others.
+_OFF = False
+_timer = [None]
+try:
+    with open(os.environ.get("BR_ORDER_FILE", ""), encoding="utf-8") as _fh:
+        _DURATIONS = json.load(_fh)
+except Exception:  # noqa: BLE001
+    _DURATIONS = {}
+CUT_FACTOR = float(os.environ.get("BR_RELPROF_CUT_FACTOR", "1.5"))
+CUT_FLOOR = float(os.environ.get("BR_RELPROF_CUT_FLOOR", "10"))
+
+
+def _cut(key: str) -> None:
+    global _OFF
+    _OFF = True
+    _spawned.add(key)
+
+
 def _begin(key: str):
     global _cur
     _cur = set()
     _phase_key[0] = key
+    if _DURATIONS and not key.startswith("collect::"):
+        import threading
+
+        budget = CUT_FACTOR * float(_DURATIONS.get(key, 0.0)) + CUT_FLOOR
+        timer = threading.Timer(budget, _cut, args=(key,))
+        timer.daemon = True
+        timer.start()
+        _timer[0] = timer
 
 
 def _end(key: str, phase: str):
-    global _cur
+    global _cur, _OFF
+    if _timer[0] is not None:
+        _timer[0].cancel()
+        _timer[0] = None
+    _OFF = False
     got = _cur
     _cur = _outside
     _phase_key[0] = None
@@ -455,7 +537,12 @@ def _end(key: str, phase: str):
         _index.setdefault(item, []).append(code)
 
 
-def pytest_configure(config):
+def pytest_collection_finish(session):
+    """After collection (sqlglot is imported by then): find Expression's structural
+    __eq__/__ne__. Done here rather than at configure so that the plugin never
+    imports sqlglot itself: in a pass shared with br_cov_plugin that would move
+    import-time work out of the collection phases. Comparisons evaluated before
+    this point treat Expression operands as unknown (conservative)."""
     global _EXPR_EQ, _EXPR_NE
     import sqlglot.expressions.core as core  # instrumented through the hook
 
@@ -474,6 +561,7 @@ def pytest_configure(config):
     if ok:
         _EXPR_EQ, _EXPR_NE = eq, ne
     _kinds.clear()
+    _pairs.clear()
 
 
 _EXPR_NE = None

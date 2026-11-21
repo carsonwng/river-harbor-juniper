@@ -255,24 +255,70 @@ def pytest_make_collect_report(collector):
         yield
 
 
+# ---- per-test cutoff (as in br_relprof_plugin): a phase that runs far longer than
+# the same test did in the coverage pass stops recording, and the test is listed
+# as cut, i.e. unsure: it is always selected when this profile narrows a change.
+# Memo caches are emptied before every phase, so a cut test leaves nothing that
+# another test's profile depends on.
+_cut: set = set()
+_timer = [None]
+try:
+    with open(os.environ.get("BR_ORDER_FILE", ""), encoding="utf-8") as _fh:
+        _DURATIONS = json.load(_fh)
+except Exception:  # noqa: BLE001
+    _DURATIONS = {}
+CUT_FACTOR = float(os.environ.get("BR_ATTR_CUT_FACTOR", "1.5"))
+CUT_FLOOR = float(os.environ.get("BR_ATTR_CUT_FLOOR", "10"))
+
+
+def _off(nodeid: str) -> None:
+    rt.on = False
+    _cut.add(nodeid)
+
+
+def _arm(nodeid: str) -> None:
+    if _DURATIONS:
+        import threading
+
+        timer = threading.Timer(CUT_FACTOR * float(_DURATIONS.get(nodeid, 0.0)) + CUT_FLOOR,
+                                _off, args=(nodeid,))
+        timer.daemon = True
+        timer.start()
+        _timer[0] = timer
+
+
+def _disarm() -> None:
+    if _timer[0] is not None:
+        _timer[0].cancel()
+        _timer[0] = None
+    if _fper is not None:
+        rt.on = True
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
     _begin()
+    _arm(item.nodeid)
     yield
+    _disarm()
     _flush(item.nodeid, "setup")
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item):
     _begin()
+    _arm(item.nodeid)
     yield
+    _disarm()
     _flush(item.nodeid, "call")
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_teardown(item, nextitem):
     _begin()
+    _arm(item.nodeid)
     yield
+    _disarm()
     _flush(item.nodeid, "teardown")
 
 
@@ -300,4 +346,5 @@ def pytest_unconfigure(config):
                    "iters": {str(t): v for t, v in _iter_index.items()},
                    "tables": {str(t): v for t, v in _table_names.items()},
                    "leaky": {str(t): v for t, v in _leaky.items()},
-                   "runtime_changes": changed, "outcomes": _outcomes}, handle)
+                   "runtime_changes": changed, "outcomes": _outcomes,
+                   "cut": sorted(_cut)}, handle)

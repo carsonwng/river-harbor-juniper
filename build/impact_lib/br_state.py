@@ -385,9 +385,12 @@ def build_state(root: Path, out: Path, runs: int = 6) -> dict:
 
     # the run-time diff loads one module from text: vary that too
     rels = [None, None] + [r for r in RELS if (root / r).exists()][: max(0, runs - 2)]
-    first = [one(set(), r) for r in rels]
-    unstable = {change_id(c) for s in first[1:] for c in diff(first[0], s)}
-    second = [one(unstable, r) for r in rels]
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(3) as pool:  # independent processes: run side by side
+        first = list(pool.map(lambda r: one(set(), r), rels))
+        unstable = {change_id(c) for s in first[1:] for c in diff(first[0], s)}
+        second = list(pool.map(lambda r: one(unstable, r), rels))
     volatile = {change_id(c) for s in second[1:] for c in diff(second[0], s)}
     state = second[0]
     state["volatile"] = sorted(volatile)
