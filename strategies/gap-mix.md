@@ -220,3 +220,33 @@ removes 600 s of misses.
   recall fix for about 1–5% of commits.
 - The **lambda-only rule** is independent and verified.
 - Fix the **cross-test cache hole** in the coverage build (section 3). It is a real miss class.
+
+## 9. Later additions
+
+- **Code readers (03fe6a1).** `tests/test_typing.py::test_no_redundant_expression_metadata`
+  compares annotator lambdas' `co_code`/`co_consts`/`co_names` across `sqlglot/typing/*`, so an
+  edited lambda can fail it without being called (found by gap-dialect). The build now writes
+  `maps/impact/code_readers.json`: tests that ran code loading `__code__`, `co_*` or the
+  inspect/dis/linecache source readers. It is derived from coverage name loads, with no test
+  names hardcoded, and today holds exactly that one test. The lambda rule always adds these
+  tests, and it is off without the map.
+- **Re-measured on one fresh Linux-built map set** (2120 code, `--reuse` of a `-n 2` docker
+  coverage run), base 53eff6e vs 03fe6a1:
+  - lambda cut: sample −0.37 s (1 commit), m1 (42) −10.82 s (2 commits), syn640 −155.65 s (24 commits).
+  - The only commit that grew is 047t (60 → 61 tests, the code reader, +0 s).
+  - import check: m1 +55.8 s (8owm, doay now select everything), syn640 +80.7 s (9 under-selected import failures).
+- **Labels re-done on a private clone** (`tmp/gapmix/sg`, after another agent clobbered the shared
+  tmp). All 8 narrowed commits show 0 missed (section 4 table). One 1c08 attempt came back
+  without junit output, probably killed by another agent, and was re-run cleanly. 1c08's 8
+  failures are in test_optimizer annotation tests plus `test_duckdb::test_min_max`, none in
+  test_typing.
+- **Flake, not a miss.** gap-dialect's u9nq (drill TimeToStr lambda) failed
+  `test_generator_memory` only inside a 33-test `-n 2` batch. Alone it passes pristine,
+  patched and pristine again: it is order-dependent (tracemalloc growth must stay under 1024).
+- **Independent confirmation from gap-dialect.** `parser.py:1162` `self._parse_types(` →
+  `self._parse_typesx(` is in a lambda called at import (duckdb parses at import). The base
+  selects 1522 tests and drops 98 collection failures. The lambda probe keeps such lambdas on
+  the old path, and the import check selects every test.
+- **Data for reuse:** `validation/sets/syn640/` (generation command in its README),
+  `validation/sets/syn-import16/` (selection-coverage acceptance set for import checks).
+- **Not done (stopped by the lead):** attrs/isolate per-edit savings; both are already in combo.
