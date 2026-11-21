@@ -248,6 +248,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
         return ctx.all_tests
     if not bits and maps.pruned and maps.always:
         return set(maps.always)  # tests the profile never ran
+    if bits:
+        bits = _replay_refine(changes, maps, ctx, bits)
     return maps.to_tests(bits) if bits else set()
 
 
@@ -1784,3 +1786,171 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
         _log(f"relprof: {key} proven inert (op {old_op}->{new_op}, literal "
              f"{edit.old_lit!r}->{edit.new_lit!r})")
     return bits & rp["unsure_bits"]
+
+
+# ---------------------------------------------------------------- record-replay gate
+#
+# (strat/r2-replay) test_execute_tpcds runs the whole optimizer and the Python executor
+# over 57 TPC-DS queries (21.5 s). build/replay.py records, on the pinned commit, which
+# sqlglot lines run in which stage of that test (each optimizer rule call is a stage)
+# and every rule call's input and output. When every edit is inside function bodies, and
+# every edited function ran only inside replayable rule stages, the patched run of the
+# test equals the pinned run up to the first call of an edited function, which happens
+# inside some rule stage on a recorded input. blast/replay_child.py replays every
+# recorded call of those stages with the patched code; if every output (return value and
+# arguments after the call, including cached hashes) and sqlglot's global state are
+# identical, by induction over the stages the whole run is the pinned run, so the test
+# passes as it does at the pin. Any doubt keeps the test.
+
+_REPLAY: dict[str, dict | None] = {}
+REPLAY_TIMEOUT = 8  # wall seconds per replay; on timeout the test is kept
+
+
+def _replay_meta(ctx: Context) -> dict | None:
+    root = ctx.layer_maps("replay")
+    key = str(root)
+    if key not in _REPLAY:
+        data = None
+        try:
+            if os.environ.get("BR_REPLAY", "1") == "1" and (root / "meta.json").exists():
+                data = json.loads((root / "meta.json").read_text("utf-8"))
+                if data.get("version") != 1:
+                    data = None
+                else:
+                    data["root"] = root
+        except Exception as exc:  # noqa: BLE001
+            _log(f"replay map unusable: {exc!r}")
+            data = None
+        _REPLAY[key] = data
+    return _REPLAY[key]
+
+
+def _body_function(tree, line: int):
+    """Innermost def whose body (first body statement .. end) contains line."""
+    best = None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.body[0].lineno <= line <= node.end_lineno:
+                if best is None or node.body[0].lineno > best.body[0].lineno:
+                    best = node
+    return best
+
+
+def _replay_refine(changes: list[FileChange], maps: Maps, ctx: Context, bits: int) -> int:
+    meta = _replay_meta(ctx)
+    if meta is None:
+        return bits
+    try:
+        index = maps.tests.index(meta["test"])
+    except ValueError:
+        return bits
+    bit = 1 << index
+    if not bits & bit:
+        return bits
+    try:
+        plan = _replay_plan(changes, maps, meta, bit)
+    except Exception as exc:  # noqa: BLE001
+        _log(f"replay: not eligible ({exc!r})")
+        return bits
+    if plan is None:
+        return bits
+    patches, stages = plan
+    try:
+        same = _replay_run(maps, meta, patches, stages)
+    except Exception as exc:  # noqa: BLE001
+        _log(f"replay: child failed ({exc!r})")
+        return bits
+    if same:
+        _log(f"replay: {meta['test']} dropped (stages {stages})")
+        return bits & ~bit
+    return bits
+
+
+def _replay_plan(changes, maps: Maps, meta: dict, bit: int):
+    """(patched sources, stages to replay), or None when the edit is not eligible."""
+    replayable = set(meta["stages"])
+    names = meta["cov_stages"]
+    patches: dict[str, str] = {}
+    stages: set[str] = set()
+    for change in changes:
+        path = change.path
+        if (change.binary or not change.old_path or change.old_path != change.new_path
+                or not path.startswith("sqlglot/") or not path.endswith(".py")):
+            return None
+        old_text = (maps.sqlglot / path).read_text("utf-8")
+        old_lines = old_text.splitlines()
+        new_lines, _ = _apply(old_lines, change)
+        new_text = "\n".join(new_lines) + "\n"
+        old_tree = astcache.parse(old_text)
+        new_tree = astcache.parse(new_text)
+        if astcache.same(old_tree, new_tree):
+            continue
+        if not astcache.same(old_tree, new_tree, funcs=True, lambdas=_NO_LINES):
+            return None  # something outside function and lambda bodies changed
+        readers = maps.code_readers()
+        if readers is None or readers & bit:
+            return None  # the test may read code objects
+        rel = path[len("sqlglot/"):]
+        cov = meta["cov"].get(rel, {})
+        lam_cov = meta["cov"].get(rel + "@lambda", {})
+        info = FileInfo(maps, path, old_text)
+        started = None
+        for hunk in change.hunks:
+            for line in hunk.old_lines_touched():
+                func = _body_function(old_tree, line)
+                mask = 0
+                if func is not None:
+                    lo, hi = func.body[0].lineno, func.end_lineno
+                    for n in range(lo, hi + 1):
+                        if info.import_lines.get(str(n)):
+                            return None  # runs while some module is imported
+                        got = cov.get(str(n), 0)
+                        if not got and info.cov(n, n) & bit:
+                            return None  # the coverage pass saw a line the recording did not
+                        mask |= got
+                else:
+                    # a lambda body outside any def (class or module level table); its
+                    # statement runs at import, the body only when called
+                    if started is None:
+                        started = (maps.lambdas() or {}).get(rel)
+                        if maps.lambdas() is None:
+                            return None
+                        started = set(started or ())
+                    lams = [n for n in ast.walk(old_tree) if isinstance(n, ast.Lambda)
+                            and n.body.lineno <= line <= n.body.end_lineno]
+                    if not lams:
+                        return None
+                    for lam in lams:
+                        if lam.lineno in started:
+                            return None  # this lambda runs during import
+                        for n in range(lam.body.lineno, lam.body.end_lineno + 1):
+                            mask |= lam_cov.get(str(n), 0)
+                if not mask:
+                    return None  # never ran in the recording
+                for i, name in enumerate(names):
+                    if mask >> i & 1:
+                        if name not in replayable:
+                            return None
+                        stages.add(name)
+        patches[path] = new_text
+    if not patches or not stages:
+        return None
+    return patches, sorted(stages)
+
+
+def _replay_run(maps: Maps, meta: dict, patches: dict, stages: list) -> bool:
+    child = Path(__file__).resolve().parent / "replay_child.py"
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env["PYTHONHASHSEED"] = "0"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    proc = subprocess.run([sys.executable, "-s", "-P", str(child), str(meta["root"]), str(maps.sqlglot)],
+                          input=json.dumps({"patches": patches, "stages": stages}), text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env,
+                          timeout=REPLAY_TIMEOUT, cwd="/" if os.path.isdir("/") else None)
+    if proc.returncode != 0:
+        _log(f"replay: child exit {proc.returncode}")
+        return False
+    verdict = json.loads(proc.stdout.strip().splitlines()[-1])
+    _log(f"replay: {verdict.get('same')} {verdict.get('reason', '')} "
+         f"({verdict.get('calls')} calls, {verdict.get('cpu')} s)")
+    return verdict.get("same") is True

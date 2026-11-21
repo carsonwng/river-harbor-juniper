@@ -39,3 +39,14 @@
 - Typing-metadata cut (strategies/r2-ledger.md): per-test (table, key) lookups of
   EXPRESSION_METADATA + entry-level import-state diff; m1 -32.8 s, syn640 -0.23 s/commit,
   0 misses, 42 run-verified cases.
+## 2026-11-21: r2-replay (record-replay gate for test_execute_tpcds; strat/r2-replay)
+
+- The build records all 798 optimizer-rule calls of the tpcds test (57 queries x 14 rules)
+  with per-stage line coverage, and self-checks them with a pinned replay (14/14 stages).
+- At run time, a body-only edit whose functions ran only inside rule stages is replayed in
+  a seed-0 child. #1106 is dropped only if every output and the global state are identical.
+- Verify PASS: m1 -17.7 s, local -47.5 s, sample unchanged. syn640 -248 s; 240 optimizer
+  mutants -758 s.
+- All 60 synthetic drops pass tpcds when run. Build +35 s (cold build 411 s, relprof
+  dominates). Function-level replay and pipeline continuation were dead ends. Details are in
+  strategies/r2-replay.md.
