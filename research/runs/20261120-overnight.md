@@ -76,3 +76,10 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
 - **Integrate:** `int/night-2120` = origin/main + origin/strat/impact-relprof (`53eff6e`), clean merge. It is the only
   draft above the provisional bar (>15% under 178.9, so < 152 s). attrs and isolate are below it, so they are not
   verified this cycle; they are worth combining once held-out data exists.
+- **Verify:** `int/night-2120` `53eff6e` **PASS** on the sample in docker: sim 131.728, CPU 1.965, **total 133.693 s, 0 misses**
+  (-25% vs 178.9; provisional, sample only). Docker sim is 8 s above relprof's local 123.7 s; check whether the
+  relprof profile pass hit its build time limit and fell back for part of it. CPU rose 1.2 to 2.0 s. Pushed.
+- **Submission 3 (21:27):** `int/night-2120` `53eff6e7380871fee1fdd96178854effaed31621`, receipt BB-C54059C4.
+  Reason: runbook 4.1 with the provisional rule (>15% better on the sample). Expected practice score at the
+  submission 2 practice/sample ratio of 1.37: about 183 s.
+  The page now also shows a "Pick as our final entry" button; never touch it.
