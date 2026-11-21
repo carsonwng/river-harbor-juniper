@@ -177,3 +177,11 @@ Followed from now on, on top of RUNBOOK.md.
   three sets; (2) **the ladder is paused**, with no 555/570 variants of 760d8bd; (3) combine's next version commits pinned maps
   (`maps-pinned/`, so the normal build runs no expensive pass) and adds `ENV BR_BUILD_DEADLINE_S`. When it lands and verifies, submit it at
   its default. Revisit the ladder only if its build is still near the limit.
+- **Verify (00:00):** `int/night-2354` `2dd8f15` **PASS, 0 misses on all three sets** (docker, loaded laptop):
+  sample 194.082 s (sim 184.771, CPU 9.311); local-20261120 176.629 s (sim 170.771, CPU 5.858); **m1 (70) 770.081 s
+  (sim 735.828, CPU 34.253)**. This is the first m1-safe candidate. The sample sim is worse than base (177.7), most likely because optional
+  passes were cut under load (see combo's v4 row). CPU is high (the attrs import check per import-time edit). Pushed.
+- **Submission 4 (00:01):** `int/night-2354` `2dd8f15bea79fda14cb64655048fe2541ecddc01`, receipt BB-0083E2D6, combo's 510
+  default. Reason: the lead's instruction (submit if 0 misses on all three sets) overrides runbook 4.1's 2% bar. The goal is an m1-safe
+  entry that builds on the scorer. Expected practice score: above 243.2 is possible because of the CPU, but the build-pass outcome on their
+  builder decides.
