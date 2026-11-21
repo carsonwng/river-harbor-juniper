@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/redshift.py b/sqlglot/parsers/redshift.py
+index 5faade4..df0f3df 100644
+--- a/sqlglot/parsers/redshift.py
++++ b/sqlglot/parsers/redshift.py
+@@ -150,7 +150,7 @@ class RedshiftParser(PostgresParser):
+         # EXCLUDE clause always comes at the end of the projection list and applies to it as a whole
+         exclude = (
+             self._parse_wrapped_csv(self._parse_expression, optional=True)
+-            if self._match_text_seq("EXCLUDE")
++            if self._match_text_seq("EXCLUDEX")
+             else []
+         )
+ 

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..91a9049 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -177,7 +177,7 @@ def _serial_to_generated(expression: exp.Expr) -> exp.Expr:
+     if not kind:
+         return expression
+ 
+-    if kind.this == exp.DType.SERIAL:
++    if kind.this != exp.DType.SERIAL:
+         data_type = exp.DataType(this=exp.DType.INT)
+     elif kind.this == exp.DType.SMALLSERIAL:
+         data_type = exp.DataType(this=exp.DType.SMALLINT)

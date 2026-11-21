@@ -258,5 +258,11 @@
  ],
  "ym61": [
   "fixture tests/fixtures/optimizer/qualify_columns_ddl.sql: line 6: insert ','"
+ ],
+ "yzt8": [
+  "code sqlglot/generators/postgres.py: == -> !="
+ ],
+ "z6pg": [
+  "code sqlglot/parsers/redshift.py: string \"EXCLUDE\" -> \"EXCLUDEX\""
  ]
 }
