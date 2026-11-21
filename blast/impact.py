@@ -117,6 +117,24 @@ class Maps:
             self._relprof = data
         return self._relprof
 
+    def instr(self) -> dict | None:
+        """Instruction coverage of the profiled tests (build/impact.py run_instr)."""
+        if not hasattr(self, "_instr"):
+            data = None
+            try:
+                path = self.root / "instr.json"
+                if path.exists():
+                    data = json.loads(path.read_text("utf-8"))
+                    if data.get("version") != 1:
+                        data = None
+            except Exception:  # noqa: BLE001
+                data = None
+            if data is not None:
+                pos = {t: i for i, t in enumerate(self.tests)}
+                data["bit"] = [pos.get(t) for t in data["tests"]]
+            self._instr = data
+        return self._instr
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -442,6 +460,11 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         if refined is not None:
             maps.pruned = True
             return refined
+    if bits:
+        try:
+            bits = _instr_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"{path}: instr error {exc!r}")
     return bits
 
 
@@ -1011,3 +1034,172 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
         _log(f"relprof: {key} proven inert (op {old_op}->{new_op}, literal "
              f"{edit.old_lit!r}->{edit.new_lit!r})")
     return bits & rp["unsure_bits"]
+
+
+# ---------------------------------------------------------------- instruction coverage
+#
+# Line coverage says a test ran a statement; build/impact.py run_instr records, for
+# a few expensive tests (each alone in a fresh pytest process, imports and
+# collection included), which bytecode instructions of sqlglot executed, by source
+# position. An edit that only replaces expressions inside function bodies (same
+# statements, no new bindings, no generator/await changes) changes a run only at
+# an evaluation of an old expression: until then the new program executes the
+# same instructions. If none of the old expression's instructions ran in a
+# profiled test, that test cannot see the edit, whichever rule selected it.
+
+_SCOPE_CHANGING = (ast.NamedExpr, ast.Yield, ast.YieldFrom, ast.Await)
+_TEST_FIELDS = {(ast.If, "test"), (ast.While, "test"), (ast.Assert, "test"),
+                (ast.IfExp, "test"), (ast.comprehension, "ifs")}
+
+
+def _same_leaf(x, y) -> bool:
+    return type(x) is type(y) and repr(x) == repr(y)
+
+
+def _min_diff(a, b, skip_blocks: bool):
+    """Smallest differing node pairs between two ASTs of the same shape."""
+    if type(a) is not type(b):
+        return [(a, b)]
+    out = []
+    for name, va in ast.iter_fields(a):
+        if skip_blocks and name in BLOCK_FIELDS:
+            continue
+        vb = getattr(b, name, None)
+        if isinstance(va, list):
+            if not isinstance(vb, list) or len(va) != len(vb):
+                return [(a, b)]
+            for x, y in zip(va, vb):
+                if isinstance(x, ast.AST) and isinstance(y, ast.AST):
+                    if ast.dump(x) != ast.dump(y):
+                        if not isinstance(x, (ast.expr, ast.stmt, ast.keyword, ast.arg,
+                                              ast.comprehension, ast.arguments)):
+                            return [(a, b)]
+                        out += _min_diff(x, y, False)
+                elif isinstance(x, ast.AST) or isinstance(y, ast.AST) or not _same_leaf(x, y):
+                    return [(a, b)]
+        elif isinstance(va, ast.AST) and isinstance(vb, ast.AST):
+            if ast.dump(va) != ast.dump(vb):
+                if not isinstance(va, (ast.expr, ast.keyword, ast.arguments, ast.comprehension)):
+                    return [(a, b)]  # operator, context, ...: the node itself changed
+                out += _min_diff(va, vb, False)
+        elif isinstance(va, ast.AST) or isinstance(vb, ast.AST) or not _same_leaf(va, vb):
+            return [(a, b)]
+    return out
+
+
+def _const_like(node) -> bool:
+    return all(isinstance(n, (ast.Constant, ast.UnaryOp, ast.BinOp, ast.Tuple, ast.unaryop,
+                              ast.operator, ast.Load))
+               for n in ast.walk(node))
+
+
+def _expr_edits(old_tree, new_tree, old_lines, new_lines, parents):
+    """Old expressions an edit replaces, when the edit is confined to expressions
+    evaluated inside function bodies; None otherwise."""
+    parts = []
+    if not _differing(old_tree.body, new_tree.body, old_lines, new_lines, parts):
+        return None
+    edits = []
+    for pa, pb, header in parts:
+        for x, y in _min_diff(pa, pb, header):
+            if not (isinstance(x, ast.expr) and isinstance(y, ast.expr)):
+                return None
+            for n in (*ast.walk(x), *ast.walk(y)):
+                if isinstance(n, _SCOPE_CHANGING) or (isinstance(n, ast.Name) and n.id == "__debug__"):
+                    return None
+            # where is it evaluated: a function body (not import time), and not
+            # somewhere the compiler folds a constant into control flow
+            const = _const_like(x) or _const_like(y)
+            child, node, ok = x, parents.get(x), False
+            while node is not None:
+                field = next((f for f, v in ast.iter_fields(node)
+                              if v is child or (isinstance(v, list) and any(e is child for e in v))), None)
+                if const:
+                    # a constant that reaches a conditional jump, directly or through
+                    # and/or/not/if-else, is compiled into control flow, not evaluated
+                    if (type(node), field) in _TEST_FIELDS:
+                        return None
+                    if not isinstance(node, (ast.BoolOp, ast.IfExp, ast.UnaryOp, ast.BinOp,
+                                             ast.Tuple, ast.Subscript)):
+                        const = False
+                if isinstance(node, (ast.match_case, ast.pattern)):
+                    return None
+                if isinstance(child, ast.stmt):
+                    const = False  # folding stops at the statement
+                    if isinstance(child, ast.Expr) and _is_docstring(child, node):
+                        return None
+                if isinstance(node, FUNC) and field == "body":
+                    ok = True
+                    break
+                if isinstance(node, ast.Lambda) and field == "body":
+                    ok = True
+                    break
+                if isinstance(node, (ast.ClassDef, ast.Module)):
+                    return None
+                child, node = node, parents.get(node)
+            if not ok:
+                return None
+            stmt = x
+            while stmt is not None and not isinstance(stmt, ast.stmt):
+                stmt = parents.get(stmt)
+            edits.append((x, stmt))
+    return edits or None
+
+
+def _overlaps(spans, node) -> bool:
+    lo = (node.lineno, node.col_offset)
+    hi = (node.end_lineno, node.end_col_offset)
+    for l1, c1, l2, c2 in spans:
+        if (l1, c1) < hi and lo < (l2, c2):
+            return True
+    return False
+
+
+def _static_spans(code) -> list:
+    out, stack = [], [code]
+    while stack:
+        co = stack.pop()
+        for p in co.co_positions():
+            if p[0] is not None:
+                out.append((p[0], -1 if p[2] is None else p[2],
+                            p[0] if p[1] is None else p[1], 1 << 20 if p[3] is None else p[3]))
+        stack.extend(c for c in co.co_consts if hasattr(c, "co_code"))
+    return out
+
+
+def _instr_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines, new_lines) -> int:
+    """`bits` without the profiled tests that never evaluated an edited expression."""
+    ins = info.maps.instr()
+    if ins is None:
+        return bits
+    profiled = [(i, b) for i, b in enumerate(ins["bit"]) if b is not None and bits >> b & 1
+                and ins["usable"][i]]
+    if not profiled:
+        return bits
+    edits = _expr_edits(old_tree, new_tree, old_lines, new_lines, _parents(old_tree))
+    if not edits:
+        return bits
+    static = _static_spans(compile("\n".join(old_lines) + "\n", info.rel, "exec", dont_inherit=True))
+    for x, _stmt in edits:
+        if not _overlaps(static, x):
+            _log(f"instr: {info.rel}:{x.lineno}:{x.col_offset} has no instruction of its own")
+            return bits
+    spans_by_test = ins["files"].get(info.rel, {})
+    for i, b in profiled:
+        spans = [ins["spans"][k] for k in spans_by_test.get(str(i), ())]
+        evaluated = False
+        for x, stmt in edits:
+            if _overlaps(spans, x):
+                evaluated = True
+                break
+            # consistency with line coverage: a test the coverage map says ran the
+            # statement must have executed some instruction of it here
+            if stmt is not None and info.cov(stmt.lineno, stmt.lineno) >> b & 1 \
+                    and not _overlaps(spans, stmt):
+                evaluated = True
+                _log(f"instr: {ins['tests'][i]} covers {info.rel}:{stmt.lineno} but never ran it")
+                break
+        if not evaluated:
+            _log(f"instr: drop {ins['tests'][i]} ({info.rel}: edited expressions never evaluated)")
+            bits &= ~(1 << b)
+    return bits
