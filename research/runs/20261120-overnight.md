@@ -280,3 +280,5 @@ Followed from now on, on top of RUNBOOK.md.
   little. So relprof (or coverage-map variance between builds) was contributing about 1.6 s on the scorer. **Submission 6 (`ae47472`, 213.9) stays
   the best and the final entry.** The trade-off for the final is still open for the human: submission 7 builds in 228.5 s (vs 371.3 s for sub 6) for
   about 1.9 s worse, which gives more margin if the final's builder is slower. Both are m1-safe.
+- **Agent:** started `runcpu2` (Opus, runbook task 4) on `strat/runcpu2` from `ae47472`. Goal: cut run CPU (about 3.55 s on practice) with byte-identical
+  stdout on the sample and every held-out set, porting `strat/runcpu`'s unmerged work where it still applies. Never submits.
