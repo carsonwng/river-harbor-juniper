@@ -498,7 +498,7 @@ def _pid_alive(pid: int) -> bool:
 
 
 def _cpu_dir() -> Path:
-    path = harness_state_dir() / "cpu"
+    path = Path(os.environ["BR_CPU_DIR"]) if os.environ.get("BR_CPU_DIR") else harness_state_dir() / "cpu"
     path.mkdir(exist_ok=True)
     return path
 
@@ -525,11 +525,19 @@ def cmd_cpu(options) -> int:
         held = _cpu_held()
         print(f"budget {budget}, held {sum(n for _, n in held)}: " +
               ", ".join(f"{f.stem.split('-', 2)[-1]}={n}" for f, n in held))
+        waiting = sorted(_cpu_dir().glob("*.wait"))
+        if waiting:
+            print("queue: " + ", ".join(w.stem.split("-", 1)[1] for w in waiting))
         return 0
     n = max(1, min(options.n, budget))
     cmd = options.cmd[1:] if options.cmd[0] == "--" else options.cmd
     lock = _cpu_dir() / "mutex"
-    me = _cpu_dir() / f"{os.getpid()}-{n}-{(options.label or Path(cmd[0]).name)[:40]}.slot"
+    tag = f"{os.getpid()}-{n}-{(options.label or Path(cmd[0]).name)[:40]}"
+    me = _cpu_dir() / f"{tag}.slot"
+    # FIFO ticket: a job may start only when every earlier live waiter has started,
+    # so a large job (e.g. -n 6) cannot be starved by a stream of small ones.
+    ticket = _cpu_dir() / f"{time.time_ns():020d}-{tag}.wait"
+    ticket.write_text(" ".join(cmd), "utf-8")
     waited = 0.0
     while True:
         try:
@@ -541,8 +549,20 @@ def cmd_cpu(options) -> int:
             continue
         try:
             used = sum(k for _, k in _cpu_held())
-            if used + n <= budget:
+            first = None
+            for w in sorted(_cpu_dir().glob("*.wait")):
+                try:
+                    pid = int(w.stem.split("-")[1])
+                except (IndexError, ValueError):
+                    w.unlink(missing_ok=True)
+                    continue
+                if _pid_alive(pid):
+                    first = w
+                    break
+                w.unlink(missing_ok=True)  # waiter died
+            if first == ticket and used + n <= budget:
                 me.write_text(" ".join(cmd), "utf-8")
+                ticket.unlink(missing_ok=True)
                 break
         finally:
             os.close(fd)
