@@ -503,7 +503,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
                  f"(base {bin(bits).count('1')})")
             if alt == maps.ALL:
                 return alt
-            return bits & alt
+            bits &= alt  # the relation profile below may narrow it further
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
