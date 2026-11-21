@@ -281,9 +281,9 @@ def _track_check() -> list[str]:
 
 TRACK_META = os.environ.get("BR_TRACK_META", "1") == "1"
 META_NAME = "EXPRESSION_METADATA"
-_mcur: set = set()      # key names read in this phase; "*" = whole table
+_mcur: set = set()      # (table serial, key name) read in this phase; key "*" = whole table
 _msink: set = set()
-_mindex: dict[str, list] = {}
+_mindex: dict[tuple, list] = {}
 _mproblems: list[str] = []
 
 
@@ -293,19 +293,30 @@ def _mkey(k) -> str:
     return "*"  # a key we cannot name: counts as reading the whole table
 
 
+_mserial = [0]
+
+
 class _MetaDict(dict):
-    __slots__ = ()
+    """A recording table. `sn` numbers every table ever made, so a record names the
+    table it was read from even after a temporary copy is gone (ids are reused)."""
+
+    __slots__ = ("sn",)
+
+    def __init__(self, items=()):
+        dict.__init__(self, items)
+        _mserial[0] += 1
+        self.sn = _mserial[0]
 
     def get(self, key, default=None):
-        _mcur.add(_mkey(key))
+        _mcur.add((getattr(self, "sn", 0), _mkey(key)))
         return dict.get(self, key, default)
 
     def __getitem__(self, key):
-        _mcur.add(_mkey(key))
+        _mcur.add((getattr(self, "sn", 0), _mkey(key)))
         return dict.__getitem__(self, key)
 
     def __contains__(self, key):
-        _mcur.add(_mkey(key))
+        _mcur.add((getattr(self, "sn", 0), _mkey(key)))
         return dict.__contains__(self, key)
 
     def copy(self):
@@ -313,12 +324,12 @@ class _MetaDict(dict):
 
     def __setitem__(self, key, value):
         _mproblems.append(f"set {_mkey(key)}")
-        _mcur.add("*")
+        _mcur.add((getattr(self, "sn", 0), "*"))
         dict.__setitem__(self, key, value)
 
     def __delitem__(self, key):
         _mproblems.append(f"del {_mkey(key)}")
-        _mcur.add("*")
+        _mcur.add((getattr(self, "sn", 0), "*"))
         dict.__delitem__(self, key)
 
 
@@ -326,7 +337,7 @@ def _whole(name):
     base = getattr(dict, name)
 
     def method(self, *args, **kwargs):
-        _mcur.add("*")
+        _mcur.add((getattr(self, "sn", 0), "*"))
         return base(self, *args, **kwargs)
 
     method.__name__ = name
@@ -340,7 +351,7 @@ for _name in ("__iter__", "__reversed__", "keys", "values", "items", "__eq__", "
 for _name in ("pop", "popitem", "setdefault", "update", "clear", "__ior__"):
     def _mutator(self, *args, _n=_name, **kwargs):
         _mproblems.append(_n)
-        _mcur.add("*")
+        _mcur.add((getattr(self, "sn", 0), "*"))
         return getattr(dict, _n)(self, *args, **kwargs)
     setattr(_MetaDict, _name, _mutator)
 _MetaDict.__hash__ = None  # type: ignore[assignment]
@@ -403,6 +414,26 @@ def _meta_setup() -> None:
                 type.__setattr__(owner, attr, w)
             else:
                 setattr(owner, attr, w)
+
+
+def _binding_name(owner, attr) -> str:
+    if isinstance(owner, type):
+        return f"c|{owner.__module__}:{owner.__qualname__}|{attr}"
+    return f"m|{owner.__name__}|{attr}"
+
+
+def _meta_out() -> dict:
+    """{"reads": {"binding|key": codes}, "problems": [...]}. A table bound nowhere
+    (a copy a test made) is named "?": its reads count for every table."""
+    names: dict[int, list[str]] = {}
+    for owner, attr, v in _meta_bindings():
+        if type(v) is _MetaDict:
+            names.setdefault(v.sn, []).append(_binding_name(owner, attr))
+    reads: dict[str, list] = {}
+    for (sn, key), codes in _mindex.items():
+        for binding in names.get(sn, ["?"]):
+            reads.setdefault(f"{binding}|{key}", []).extend(codes)
+    return {"version": 2, "reads": reads, "problems": _meta_check()}
 
 
 def _meta_check() -> list[str]:
@@ -495,5 +526,5 @@ def pytest_unconfigure(config):
                                 "tracked": sorted({f"{_class_key(k)}|{a}" for k, a, _ in _installed
                                                    if _class_key(k)}) if TRACK_EXPR else [],
                                 "unsafe": _track_check() if TRACK_EXPR else ["*"]},
-                   "metaread": {"reads": _mindex, "problems": _meta_check()} if TRACK_META
+                   "metaread": _meta_out() if TRACK_META
                    else None}, handle)

@@ -528,7 +528,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 target[int(line)] = acc
 
         mr = w.get("metaread")
-        if mr is None:
+        if mr is None or mr.get("version") != 2:
             mr_problems.append("worker without metaread")
         else:
             mr_problems.extend(mr["problems"])
@@ -803,10 +803,14 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     (out / "metaread.json").unlink(missing_ok=True)
     if workers and not mr_problems:
         (out / "metaread.json").write_text(json.dumps(
-            {"version": 1, "reads": {k: sets.add(v) for k, v in sorted(mr_reads.items())}},
+            {"version": 2, "reads": {k: sets.add(v) for k, v in sorted(mr_reads.items())}},
             separators=(",", ":")), "utf-8")
-        log(f"typing metadata reads: {len(mr_reads)} keys, whole-table readers "
-            f"{bin(mr_reads.get('*', 0)).count('1')}")
+        whole = 0
+        for k, v in mr_reads.items():
+            if k.endswith("|*"):
+                whole |= v
+        log(f"typing metadata reads: {len(mr_reads)} entries, whole-table readers "
+            f"{bin(whole).count('1')}")
     else:
         log(f"typing metadata reads unusable: {sorted(set(mr_problems))[:5]}")
     (out / "sets.json").write_text(json.dumps(

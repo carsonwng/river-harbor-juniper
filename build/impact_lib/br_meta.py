@@ -61,10 +61,13 @@ def tables(names: dict[type, str]) -> dict[str, dict]:
         for attr, v in list(vars(mod).items()):
             if id(v) in objs:
                 out[f"m|{n}|{attr}"] = v
-    for klass, ckey in names.items():
+    for klass in names:
+        # named "module:qualname" as br_cov_plugin names it; two classes with one name
+        # share it (their reads and changes are then pooled: never narrower)
+        simple = f"{klass.__module__}:{klass.__qualname__}"
         for attr, v in list(klass.__dict__.items()):
             if id(v) in objs:
-                out[f"c|{ckey}|{attr}"] = v
+                out[f"c|{simple}|{attr}"] = v
     return out
 
 
@@ -121,14 +124,20 @@ def main() -> int:
     state = br_state.snapshot(names, unordered=set(old.get("unordered", ())), old=old)
     now = key_state(names)
     bindings = set(pristine["tables"]) | set(now)
+    # state-diff entries that are table bindings (br_state names classes canonically)
+    table_entries = set()
+    for klass, ckey in names.items():
+        for attr, v in list(klass.__dict__.items()):
+            if f"c|{klass.__module__}:{klass.__qualname__}|{attr}" in bindings:
+                table_entries.add(("class", ckey, attr))
     foreign = []
     for ch in br_state.diff(old, state):
-        if ch[0] == "class" and f"c|{ch[1]}|{ch[2]}" in bindings:
+        if ch[0] == "class" and ("class", ch[1], ch[2]) in table_entries:
             continue
         if ch[0] == "module" and f"m|{ch[1]}|{ch[2]}" in bindings:
             continue
         foreign.append(ch)
-    keys: set[str] = set()
+    changed: set[tuple[str, str]] = set()
     bad = False
     for binding in sorted(bindings):
         a, b = pristine["tables"].get(binding), now.get(binding)
@@ -137,8 +146,9 @@ def main() -> int:
             continue
         for k in set(a) | set(b):
             if a.get(k) != b.get(k):
-                keys.add(k)
-    print(json.dumps({"import_failed": False, "foreign": foreign, "keys": sorted(keys),
+                changed.add((binding, k))
+    print(json.dumps({"import_failed": False, "foreign": foreign,
+                      "changed": sorted(changed), "keys": sorted({k for _, k in changed}),
                       "bad_keys": bad}))
     return 0
 

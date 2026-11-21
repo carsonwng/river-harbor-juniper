@@ -498,9 +498,12 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     if bits and path.startswith(TYPING) and _outside_functions(change, old_tree, new_tree):
         alt = _typing_meta_bits(maps, path, new_text)
         if alt is not None:
+            # both are sound supersets of the tests the edit can change: keep the overlap
             _log(f"{path}: typing metadata diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
-            return alt
+            if alt == maps.ALL:
+                return alt
+            return bits & alt
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -1053,7 +1056,7 @@ def _metaread(maps: Maps) -> dict | None:
             path = maps.root / "metaread.json"
             if path.exists():
                 raw = json.loads(path.read_text("utf-8"))
-                if raw.get("version") == 1:
+                if raw.get("version") == 2:
                     data = raw["reads"]
         except Exception:  # noqa: BLE001
             data = None
@@ -1088,13 +1091,18 @@ def _typing_meta_bits(maps: Maps, rel: str, new_text: str) -> int | None:
     if result.get("import_failed"):
         _log(f"{rel}: {result.get('error')}: every test")
         return maps.ALL
-    if result.get("foreign") or result.get("bad_keys") or "keys" not in result:
+    if result.get("foreign") or result.get("bad_keys") or "changed" not in result:
         _log(f"{rel}: typing metadata diff not confined to tables: {result.get('foreign', [])[:4]}")
         return None
-    _log(f"{rel}: typing metadata keys changed {result['keys'][:8]}")
+    _log(f"{rel}: typing metadata entries changed {result['changed'][:8]}")
+    # whole-table reads of a table no binding names ("?": a copy a test made) count
+    # for every table; so does every read of a changed key through such a copy
+    entries = {"?|*"}
+    for binding, key in result["changed"]:
+        entries.update((f"{binding}|{key}", f"{binding}|*", f"?|{key}"))
     bits = readers
-    for key in ["*"] + list(result["keys"]):
-        index = reads.get(key)
+    for entry in entries:
+        index = reads.get(entry)
         if index is not None:
             bits |= maps.bits(index)
     return bits
