@@ -354,7 +354,7 @@ def classify(change: FileChange, ctx: Context) -> Decision:
     in_tests = [p.startswith("tests/") for p in paths]
     if all(in_tests):
         if any(_is_fixture(p) for p in paths) and not any(p.endswith(".py") for p in paths):
-            return _fixture_change(maps, change, ctx)
+            return Decision.defer("probe: fixture rules off")
         if all(p.endswith(".py") for p in paths):
             return _test_py_change(maps, change, ctx)
         return Decision.defer("mixed test path kinds")
