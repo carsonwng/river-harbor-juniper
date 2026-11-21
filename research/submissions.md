@@ -15,6 +15,12 @@ skip), and a miss adds 300 s. Without the commit count or mix, 868.3 s fits abou
 7 fixture commits with 0 misses, and also a sample-like mix with 1 miss. The suspect rules are
 triage's comment-only skip and the fixture map.
 
+## Final-pick safety
+
+**Final-pick safety requires 0 misses on the held-out set m1** (`validation/sets/m1`). Submissions 2 (`1a5f961`) and
+3 (`53eff6e`) miss m1 commit `8owm` (import crash in `dialects/hive.py`), so neither is a safe final pick, even
+though both had 0 misses on practice. Never submit a candidate that fails m1.
+
 ## Probes retired
 
 The track page shows missed-commit counts per run. Submission 1 had 0 misses, so the comment-skip

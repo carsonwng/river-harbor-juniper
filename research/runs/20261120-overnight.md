@@ -103,3 +103,15 @@ Followed from now on, on top of RUNBOOK.md.
 - Compare variants by practice score. 570 must beat 555 by more than 1 s, otherwise prefer 555 (margin for the final rebuild).
 - Record each variant's deadline, receipt, score and per-run lines in research/submissions.md.
 - Hold relprof-based submissions (other than combo under this ladder) unless they're clearly better on held-out data.
+
+## Held-out set m1 and the final-pick safety rule (lead, about 22:00)
+
+- `origin/validation/m1` now has `validation/sets/m1/` (28 labelled commits, still growing). It is copied untracked
+  into main's checkout `validation/sets/m1` so `br.py verify` includes it.
+- Lead reports that **`int/night-1948` and `int/night-2120` both miss m1 commit `8owm`**: an import-time edit in
+  `sqlglot/dialects/hive.py` makes the module raise at import, 1161 tests fail, and 355 are selected. A local eval without maps was
+  inconclusive (it selects everything); a docker verify of `int/night-2120` on sample + m1 is running to confirm.
+- **Rule from now on: final-pick safety requires 0 misses on m1.** No further submission of any candidate that fails m1.
+  An unused slot is preferred. Submissions 2 and 3 stay on the board but are **not safe final picks**.
+- The fix is expected in `strat/impact-combo` (isolate crash-users rule + attrs import check), which is pushed only once
+  the sample and m1 both show 0 misses.
