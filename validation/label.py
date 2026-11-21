@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import queue
+import shlex
 import shutil
 import subprocess
 import sys
@@ -35,7 +36,7 @@ ROOT = HERE.parent  # worktree root
 MAIN = Path(subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute",
                             "--git-common-dir"], capture_output=True, text=True).stdout.strip()).parent
 CACHE = MAIN / ".cache"
-WORK = CACHE / "mutants" / "work"
+WORK = Path(os.environ.get("BR_LABEL_WORK", CACHE / "mutants" / "work"))  # scratch clones
 SAMPLE_TESTS = MAIN / "sample" / "tests.json"
 
 
@@ -69,6 +70,7 @@ def reset(d: Path) -> None:
 
 
 DOCKER_IMAGE: str | None = None  # set by --docker
+DOCKER_CPUS = os.environ.get("BR_LABEL_CPUS")  # container CPU cap; default = workers (tests start own pools)
 
 
 def run_suite(d: Path, workers: int, timeout: int, report: Path,
@@ -83,12 +85,17 @@ def run_suite(d: Path, workers: int, timeout: int, report: Path,
     if workers > 1:
         args += ["-n", str(workers)]
     if DOCKER_IMAGE:
-        cmd = ["docker", "run", "--rm", "--network", "none",
-               "-v", f"{d}:/work", "-v", f"{HERE}:/plug:ro", "-v", f"{report.parent}:/labels",
-               "-v", f"{SAMPLE_TESTS}:/tests.json:ro", "-w", "/work",
+        # The patched clone is mounted read-only and copied into the container first:
+        # on Docker Desktop for Windows a bind-mounted tree runs the suite ~1.4x slower.
+        cpus = DOCKER_CPUS or str(max(workers, 1))
+        inner = "cp -a /host /work && cd /work && exec nice -n 10 python " + " ".join(
+            shlex.quote(a) for a in args)
+        cmd = ["docker", "run", "--rm", "--network", "none", "--cpus", cpus,
+               "-v", f"{d}:/host:ro", "-v", f"{HERE}:/plug:ro", "-v", f"{report.parent}:/labels",
+               "-v", f"{SAMPLE_TESTS}:/tests.json:ro",
                "-e", "SKIP_INTEGRATION=0", "-e", "PYTHONDONTWRITEBYTECODE=1",
                "-e", f"BR_REPORT=/labels/{report.name}", "-e", "BR_TESTS=/tests.json",
-               "-e", "PYTHONPATH=/work:/plug", DOCKER_IMAGE, "python", *args]
+               "-e", "PYTHONPATH=/work:/plug", DOCKER_IMAGE, "sh", "-c", inner]
     else:
         env.update(SKIP_INTEGRATION="0", PYTHONDONTWRITEBYTECODE="1", BR_REPORT=str(report),
                    BR_TESTS=str(SAMPLE_TESTS), PYTHONPATH=os.pathsep.join([str(d), str(HERE)]))
