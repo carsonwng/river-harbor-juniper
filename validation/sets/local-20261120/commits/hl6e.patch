@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..1b6777a 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -1103,7 +1103,7 @@ SELECT
+   "y"."b" AS "b",
+   "y"."c" AS "c"
+ FROM (
+-  "x" AS "x"
++  "" AS "x"
+     JOIN "y" AS "y"
+       ON "x"."a" = "y"."c"
+ );

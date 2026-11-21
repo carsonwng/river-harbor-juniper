@@ -106,6 +106,16 @@
    "failing": [],
    "kind": "comment"
   },
+  "6bhm": {
+   "failing": [
+    1107,
+    1123,
+    1382,
+    1441,
+    1454
+   ],
+   "kind": "multi"
+  },
   "6ku0": {
    "failing": [
     414
@@ -202,6 +212,12 @@
    ],
    "kind": "code"
   },
+  "c6z4": {
+   "failing": [
+    1302
+   ],
+   "kind": "multi"
+  },
   "d4s6": {
    "failing": [],
    "kind": "fixture"
@@ -218,7 +234,88 @@
    ],
    "kind": "code"
   },
+  "g9ct": {
+   "failing": [],
+   "kind": "code"
+  },
+  "h12g": {
+   "failing": [
+    1378
+   ],
+   "kind": "code"
+  },
+  "hl6e": {
+   "failing": [
+    1355
+   ],
+   "kind": "fixture"
+  },
+  "i0ru": {
+   "failing": [
+    365,
+    1293,
+    1295,
+    1318,
+    1319,
+    1373,
+    1398,
+    1413
+   ],
+   "kind": "code"
+  },
+  "k1ra": {
+   "failing": [
+    1454
+   ],
+   "kind": "fixture"
+  },
+  "kghr": {
+   "failing": [],
+   "kind": "code"
+  },
   "kryt": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "nu29": {
+   "failing": [],
+   "kind": "code"
+  },
+  "o0d4": {
+   "failing": [
+    1295,
+    1302
+   ],
+   "kind": "code"
+  },
+  "osg5": {
+   "failing": [
+    1355
+   ],
+   "kind": "fixture"
+  },
+  "p4xq": {
+   "failing": [
+    1128,
+    1140
+   ],
+   "kind": "code"
+  },
+  "s31h": {
+   "failing": [],
+   "kind": "code"
+  },
+  "triu": {
+   "failing": [
+    1314
+   ],
+   "kind": "fixture"
+  },
+  "u8sx": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "uwn6": {
    "failing": [],
    "kind": "comment"
   }

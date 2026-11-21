@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..6b5a26c 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -552,7 +552,7 @@ class PostgresGenerator(generator.Generator):
+         return super().unnest_sql(expression)
+ 
+     def bracket_sql(self, expression: exp.Bracket) -> str:
+-        """Forms like ARRAY[1, 2, 3][3] aren't allowed; we need to wrap the ARRAY."""
++        """Forms like ARRAY[1, 2, 3][3] aren't allowed; we needs to wrap the ARRAY."""
+         if isinstance(expression.this, exp.Array):
+             expression.set("this", exp.paren(expression.this, copy=False))
+ 

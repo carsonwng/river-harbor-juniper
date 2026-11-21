@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/resolver.py b/sqlglot/optimizer/resolver.py
+index 53dba11..8a270d3 100644
+--- a/sqlglot/optimizer/resolver.py
++++ b/sqlglot/optimizer/resolver.py
+@@ -318,7 +318,7 @@ class Resolver:
+     def _get_table_name_from_sources(
+         self, column_name: str, source_columns: dict[str, Sequence[str]] | None = None
+     ) -> str | None:
+-        if source_columns is None:
++        if source_columns == None:
+             # If not supplied, get all sources to calculate unambiguous columns
+             if self._unambiguous_columns is None:
+                 self._unambiguous_columns = self._get_unambiguous_columns(

@@ -22,8 +22,8 @@ python harness/br.py eval --docker --data validation/sets/local-20261120 -m "...
 - Subset: labelling turned out to be slow (below), so I labelled a subset of the 63
   generated patches. I chose it **without looking at outcomes**: within each kind, sorted by
   id, alternate entries. Batch A is the 16 below. Batch B is the other 16 alternates (8 code,
-  4 fixture, 1 comment, 1 docstring, 2 multi). It is labelling now and will be appended when it
-  finishes.
+  4 fixture, 1 comment, 1 docstring, 2 multi). Both batches are in the set: **32 commits**.
+  The remaining 31 generated patches stay unlabelled in `.cache/validation-local/v1/pending`.
 - Labelling environment: `validation/Dockerfile.label`, which is
   `python:3.13-slim@sha256:e48f59cd…` (the submission Dockerfile's digest) plus
   `requirements.lock` (pytest 9.2.0, xdist 3.8.0, timeout 2.4.0). Each run is the full suite,
@@ -47,7 +47,9 @@ I relabelled 5 sample commits with the same Docker recipe: `2haz` (0 failing), `
 `2vdj` (1), `rszg` (3) and `3utz` (37). **All 5 failing sets equal `sample/answers.json`
 exactly.**
 
-## Set composition (batch A, 16 commits)
+## Set composition (32 commits)
+
+Batch A:
 
 | id | kind | failing | edit |
 | --- | --- | --- | --- |
@@ -68,13 +70,50 @@ exactly.**
 | f7kz | code | 1 | sqlglot/parsers/base.py: drop element line 13: TokenType.LOCALTIMESTAMP: exp.Localtimestamp |
 | kryt | comment | 0 | sqlglot/optimizer/canonicalize_internal_names.py: trailing comment at line 129 |
 
-Label stats: 16 commits. 5 break nothing: 3 comment/docstring, 1 code, 1 fixture. Failing-set
-sizes range from 0 to 59, with a median of 1. All 16 runs completed cleanly: a full pytest
-summary, rc 0 or 1, all 1620 numbered tests seen, no timeouts retried, no unknown ids, no
-collection errors. The oracle floor on this set is 93.4 s. Running every test costs
-16 × 36.8 = 589 s.
+Batch B:
 
-## int/night-1948 (`1a5f961`) on the held-out set
+| id | kind | failing | edit |
+| --- | --- | --- | --- |
+| 6bhm | multi | 5 | 3 fixtures: qualify_columns_ddl.sql insert '('; tpc-h/tpc-h.sql insert '42'; unnest_subqueries.sql case JOIN |
+| c6z4 | multi | 1 | tests/fixtures/optimizer/annotate_types.sql: line 14: delete 'O'; sqlglot/typing/databricks.py: comment before line 30 |
+| g9ct | code | 0 | sqlglot/optimizer/merge_subqueries.py: True -> False |
+| h12g | code | 1 | sqlglot/optimizer/helpers.py: is -> is not |
+| hl6e | fixture | 1 | tests/fixtures/optimizer/optimizer.sql: line 1106: delete 'x' |
+| i0ru | code | 8 | sqlglot/typing/__init__.py: is not -> is |
+| k1ra | fixture | 1 | tests/fixtures/optimizer/unnest_subqueries.sql: line 355: split word |
+| kghr | code | 0 | sqlglot/dialects/materialize.py: string "v" -> "V" |
+| nu29 | code | 0 | sqlglot/typing/hive.py: is not -> != |
+| o0d4 | code | 2 | sqlglot/typing/hive.py: string "this" -> "thisX" |
+| osg5 | fixture | 1 | tests/fixtures/optimizer/optimizer.sql: line 183: insert 'NULL' |
+| p4xq | code | 2 | sqlglot/generators/python.py: drop not |
+| s31h | code | 0 | sqlglot/optimizer/resolver.py: is -> == |
+| triu | fixture | 1 | tests/fixtures/optimizer/canonicalize_internal_names.sql: line 43: delete '"' |
+| u8sx | comment | 0 | sqlglot/typing/clickhouse.py: comment before line 20 |
+| uwn6 | comment (docstring) | 0 | sqlglot/generators/postgres.py: docstring line 555: need -> needs |
+
+Label stats: 32 commits (16 code, 8 fixture, 5 comment including 2 docstring, 3 multi).
+**11 break nothing** (5 comment/docstring, 5 code, 1 fixture). The sample has 12 of 30.
+Failing-set sizes range from 0 to 59, with a median of 1. All 32 runs completed cleanly: a
+full pytest summary, rc 0 or 1, all 1620 numbered tests seen, no timeouts retried, no unknown
+ids, no collection errors. The oracle floor is 126.0 s over 32 commits (93.4 s for batch A).
+Running every test costs 32 × 36.8 = 1178 s.
+
+## int/night-0147 (`24f5e6d`) on the full 32-commit set
+
+The detached worktree and `br.py eval --docker --data` give **0 misses**: simulated 326.4 s,
+cgroup CPU 3.2 s, **total 329.5 s** (oracle 126.0 s). In batch B, the most over-selected
+commits are s31h (178 tests selected, 0 failing, 25.5 s), g9ct (25.5 s, 0 failing) and i0ru
+(25.5 s for 8 failing). nu29 (`is not -> !=` in `typing/hive.py`, 0 failing) was skipped
+entirely.
+
+`python harness/br.py verify int/night-0147` from the repo root: **VERIFY PASS**. Its sets are
+sample, 0 misses, total 135.0 s; local-20261120, 0 misses, 172.8 s (this ran the 16-commit
+batch A copy that sits untracked in the main checkout, not the 32-commit set on this branch);
+m1, 0 misses, 507.2 s; m1-extra, 0 misses, 259.8 s; and syn-import16, 0 misses, 593.0 s.
+To make verify see all 32 commits, copy this branch's `validation/sets/local-20261120/`
+over the main checkout's copy, or merge PR #4.
+
+## int/night-1948 (`1a5f961`) on batch A
 
 `br.py verify` only finds sets in the ref's tree or in the main checkout, so I ran the
 equivalent by hand: a detached worktree at `1a5f961`, then
@@ -102,16 +141,19 @@ The lead reported that another agent killed up to 4 `br-label` containers by mou
 checked every batch A label. Each has a completed pytest summary in its `.report.out`, rc in
 {0, 1}, `seen == 1620` and no retries. All 16 label files were written between 21:12 and 22:00,
 before the kill window, and the labelling process had exited. **No batch A commit was
-affected, and none needed relabelling.** Batch B started after the report. Its labels get the
-same check before they are appended.
+affected, and none needed relabelling.** Batch B ran from about 23:14 to 00:46, so its first round (g9ct, h12g, 6bhm and c6z4,
+23:14 to 23:38) overlapped the reported window. A killed container would exit 137 or 143 with no
+pytest summary. All 16 batch B runs have a complete summary (`... passed ... in NNNs`),
+rc 0 or 1, 1620 seen and no retries, so none were killed and none needed relabelling.
 
 ## Caveats
 
 - These are synthetic single-site mutants, not real commits. Fixtures are all under
   `tests/fixtures/optimizer/`, because that is where the generator finds `.sql` files. The
   generator only draws a fixture's line, not whether it is a test-input or a metadata line.
-- 16 commits is small. With 0 misses here, the false-negative rate could still be
-  above zero.
+- 32 commits is small. With 0 misses here, the false-negative rate could still be above zero.
+- Batch B ran at about 1450 s per commit per container, against about 950 s for batch A,
+  because other agents' `br-label` containers were sharing the machine.
 - Sample timings in `tests.json` are about 3.3× faster than this laptop under load
   (`test_max_nodes` takes 28.8 s nominal and 94 s here), so this labels about 15 commits per hour
   at 4 processes.

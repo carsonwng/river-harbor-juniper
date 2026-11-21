@@ -1,0 +1,39 @@
+diff --git a/tests/fixtures/optimizer/qualify_columns_ddl.sql b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+index 05149c4..d385109 100644
+--- a/tests/fixtures/optimizer/qualify_columns_ddl.sql
++++ b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+@@ -8,7 +8,7 @@ WITH cte1 AS (SELECT y.b AS b FROM y AS y) CREATE TABLE s AS WITH cte2 AS (SELEC
+ 
+ # title: Create without CTE
+ # schema: {"tbl": {"a": "INT"}}
+-CREATE TABLE foo AS SELECT a FROM tbl;
++CREATE TABLE foo AS SELECT ( a FROM tbl;
+ CREATE TABLE foo AS SELECT tbl.a AS a FROM tbl AS tbl;
+ 
+ # title: Create with complex CTE with derived table
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..2d75d8b 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -581,7 +581,7 @@ where
+         and l_returnflag = 'R'
+         and c_nationkey = n_nationkey
+ group by
+-        c_custkey,
++ 42        c_custkey,
+         c_name,
+         c_acctbal,
+         c_phone,
+diff --git a/tests/fixtures/optimizer/unnest_subqueries.sql b/tests/fixtures/optimizer/unnest_subqueries.sql
+index b55a5d5..1824701 100644
+--- a/tests/fixtures/optimizer/unnest_subqueries.sql
++++ b/tests/fixtures/optimizer/unnest_subqueries.sql
+@@ -461,7 +461,7 @@ SELECT SUM(x.a) AS total FROM x CROSS JOIN (SELECT MAX(y.b) AS b FROM y) AS _u_0
+ # title: Scalar subquery outside a HAVING aggregate
+ # execute: true
+ SELECT x.b FROM x GROUP BY x.b HAVING SUM(x.a) > (SELECT MAX(y.b) AS b FROM y) ORDER BY x.b;
+-SELECT x.b FROM x CROSS JOIN (SELECT MAX(y.b) AS b FROM y) AS _u_0 GROUP BY x.b HAVING SUM(x.a) > MAX(_u_0.b) ORDER BY x.b;
++SELECT x.b FROM x CROSS join (SELECT MAX(y.b) AS b FROM y) AS _u_0 GROUP BY x.b HAVING SUM(x.a) > MAX(_u_0.b) ORDER BY x.b;
+ 
+ # title: Aggregate ancestor search stops at the current query
+ # execute: true
