@@ -291,3 +291,5 @@ Followed from now on, on top of RUNBOOK.md.
   both images). Docker verify: 0 misses, simulated identical, CPU sample 4.3 to 2.4, m1 12.1 to 4.8, m1-extra 3.5 to 2.2, local 3.2 to 1.5.
 - **Submission 8 (06:58):** `f89594d0f1b6c3d91478670c8a37b208ffc3eb09`, receipt BB-AC138D27. This is an exception to 4.1's 2% sample bar (sample is 1.5%
   better), justified because the output is byte-identical: zero selection risk and a pure CPU gain. Expected: about 212 s (210.365 + about 1.8 CPU).
+- **Submission 8 score: 212.9 s** (BB-AC138D27, wait 74 ms). Runs: 210.365 s simulated (identical to sub 6, as byte-identical output predicts),
+  2.51 / 2.51 / 2.50 s CPU, 0 commits missed. **New best** (-1.0 vs 213.9), and the page shows "Entered in the final (your best score)".
