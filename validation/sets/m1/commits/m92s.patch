@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/singlestore.py b/sqlglot/generators/singlestore.py
+index 1220c30..1bfd48f 100644
+--- a/sqlglot/generators/singlestore.py
++++ b/sqlglot/generators/singlestore.py
+@@ -1616,6 +1616,7 @@ class SingleStoreGenerator(MySQLGenerator):
+ 
+     def computedcolumnconstraint_sql(self, expression: exp.ComputedColumnConstraint) -> str:
+         this = self.sql(expression, "this")
++        # Cheap check first
+         not_null = " NOT NULL" if expression.args.get("not_null") else ""
+         type = self.sql(expression, "data_type") or "AUTO"
+         return f"AS {this} PERSISTED {type}{not_null}"

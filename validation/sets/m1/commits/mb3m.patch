@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..312e379 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -1065,7 +1065,7 @@ FROM (
+ # execute: false
+ # schema: {"t1": {"c": "INT"}, "t2": {"d": "INT"}}
+ SELECT * FROM ((SELECT c FROM t1) JOIN t2);
+-SELECT
++SEECT
+   "t1"."c" AS "c",
+   "t2"."d" AS "d"
+ FROM (

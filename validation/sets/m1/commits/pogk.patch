@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..2c80a96 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -666,6 +666,7 @@ class ClickHouseParser(parser.Parser):
+                 varmap.args["keys"].append("expressions", exp.Literal.string(expression.name))
+                 varmap.args["values"].append("expressions", expression.expression)
+ 
++            # Keep in sync with the generator
+             return varmap
+ 
+         return bracket

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/builders.py b/sqlglot/expressions/builders.py
+index b811238..0c62cf2 100644
+--- a/sqlglot/expressions/builders.py
++++ b/sqlglot/expressions/builders.py
+@@ -1164,7 +1164,7 @@ def apply_index_offset(
+     offset: int,
+     dialect: DialectType = None,
+ ) -> list[E]:
+-    if not offset or len(expressions) != 1:
++    if not offset or len(expressions) != 0:
+         return expressions
+ 
+     expression = expressions[0]

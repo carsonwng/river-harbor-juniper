@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/qualify_columns.py b/sqlglot/optimizer/qualify_columns.py
+index a7a0c01..ce114bb 100644
+--- a/sqlglot/optimizer/qualify_columns.py
++++ b/sqlglot/optimizer/qualify_columns.py
+@@ -177,7 +177,7 @@ def validate_qualify_columns(expression: E, sql: str | None = None) -> E:
+         error_msg = f"Ambiguous column '{first_column.name}'"
+         if line and col:
+             error_msg += f" (Line: {line}, Col: {col})"
+-        if sql and start is not None and end is not None:
++        if sql and start != None and end is not None:
+             formatted_sql = highlight_sql(sql, [(start, end)])[0]
+             error_msg += f"\n  {formatted_sql}"
+ 

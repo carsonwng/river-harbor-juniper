@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..197a9b9 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -3155,7 +3155,7 @@ FROM "catalog_sales" AS "catalog_sales"
+ JOIN "date_dim" AS "date_dim"
+   ON "catalog_sales"."cs_sold_date_sk" = "date_dim"."d_date_sk"
+   AND CAST("date_dim"."d_date" AS DATE) <= CAST('2001-03-05' AS DATE)
+-  AND CAST("date_dim"."d_date" AS DATE) >= CAST('2001-02-03' AS DATE)
++  and CAST("date_dim"."d_date" AS DATE) >= CAST('2001-02-03' AS DATE)
+ JOIN "item" AS "item"
+   ON "catalog_sales"."cs_item_sk" = "item"."i_item_sk"
+   AND "item"."i_category" IN ('Children', 'Women', 'Electronics')
