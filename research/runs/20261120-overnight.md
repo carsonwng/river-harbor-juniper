@@ -65,3 +65,14 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
 - **Submission 2 score (reported by the human): 245.2 s** (868.3 to 245.2, -72%). It is below 300, so there are 0 misses.
   The practice/sample ratio is 1.37 (submission 1: 1.21), so the impact selection is relatively larger on practice commits.
   Worth a look for the cloud impact cluster: precision on practice, not recall.
+
+## Cycle 3 (21:19 EST)
+
+- **Orient:** slot reopens 21:20. Three cloud draft PRs (all sample-only, local numbers, no held-out data):
+  #2 `strat/impact-relprof` 123.7 s (-30%), #1 `strat/impact-attrs` 156.0 s (-12%; also fixes 4 import-failure probe
+  misses), #3 `strat/impact-isolate` 176.9 s (closes 5 probed miss classes, safety). A local `strat/impact-combo`
+  (dirty, 179.4 s docker) exists from another session and was left alone. `label-local` is still labelling
+  (`validation/local-20261120` `e72f246`, no `validation/sets/` yet).
+- **Integrate:** `int/night-2120` = origin/main + origin/strat/impact-relprof (`53eff6e`), clean merge. It is the only
+  draft above the provisional bar (>15% under 178.9, so < 152 s). attrs and isolate are below it, so they are not
+  verified this cycle; they are worth combining once held-out data exists.
