@@ -281,6 +281,7 @@ for _i, _name in enumerate(OPS):
 # values of the other side (exact builtin scalars and small tuples of them), so a
 # changed literal can be re-evaluated against everything the site ever saw.
 VALUE_CAP = 256
+IN_MARK = 0xFFFE  # `in` sites: per-test attribution only (no operator signature)
 _values: dict[int, set] = {}
 _opaque: set = set()   # sites that saw a value we cannot record, or too many
 
@@ -333,7 +334,7 @@ def _make_value(op: int, which: int):
         "        _opaque.add(sid)\n"
         "        raise\n"
         "    try:\n"
-        + (sig or "        pass\n") +
+        + (sig or f"        _cur.add((sid << 16) | {IN_MARK})\n") +
         "    except Exception:\n"
         "        _cur.add((sid << 16) | 0xFFFF)\n"
         "    return r\n"
