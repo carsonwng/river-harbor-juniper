@@ -1017,6 +1017,69 @@ def _tables(maps: Maps) -> dict | None:
     return maps._tables
 
 
+_DIFF_SERVER: dict = {"proc": None, "cmd": None,
+                      "disabled": os.name != "posix" or not hasattr(os, "fork")
+                      or os.environ.get("BR_STATE_SERVER", "1") != "1"}
+
+
+def _diff_server_stop() -> None:
+    proc = _DIFF_SERVER["proc"]
+    _DIFF_SERVER["proc"] = None
+    _DIFF_SERVER["disabled"] = True
+    if proc is not None:
+        try:
+            os.killpg(proc.pid, 9)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            proc.wait(timeout=5)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _diff_server_close() -> None:
+    proc = _DIFF_SERVER["proc"]
+    if proc is None:
+        return
+    try:
+        proc.stdin.close()
+        proc.wait(timeout=5)
+        _DIFF_SERVER["proc"] = None
+    except Exception:  # noqa: BLE001
+        _diff_server_stop()
+
+
+def _diff_server(cmd: list, env: dict, cwd: str, overrides: dict) -> dict | None:
+    """The state diff from a fork of a server that has done a fresh diff child's
+    setup and its `import sqlglot` (br_state.serve); None = run a fresh child
+    (server off, or an edited module is part of the pristine core import)."""
+    if _DIFF_SERVER["disabled"]:
+        return None
+    from .impact_import import _read_reply, _send
+
+    proc = _DIFF_SERVER["proc"]
+    if proc is not None and _DIFF_SERVER["cmd"] != cmd:
+        _diff_server_close()
+        proc = None
+    if proc is None:
+        import atexit
+
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, env=env, cwd=cwd,
+                                start_new_session=True)
+        _DIFF_SERVER["proc"], _DIFF_SERVER["cmd"] = proc, cmd
+        atexit.register(_diff_server_close)
+        if not _read_reply(proc, 120).get("ready"):
+            raise RuntimeError("diff server: pristine sqlglot does not import")
+    _send(proc, {"overrides": overrides})
+    reply = _read_reply(proc, 120)
+    if reply.get("conflict"):
+        return None
+    if "error" in reply and "import_failed" not in reply:
+        raise RuntimeError(f"diff server: {reply['error']}")
+    return reply
+
+
 def _state_diff(maps: Maps, rel: str, new_text: str) -> dict | None:
     """The import-time state diff of the whole commit (cached per commit)."""
     if getattr(maps, "state_result", None) is not None:
@@ -1034,19 +1097,30 @@ def _state_diff(maps: Maps, rel: str, new_text: str) -> dict | None:
         args, stdin, covered = ["--rel", "-"], json.dumps(sources), set(sources)
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    base_cmd = [sys.executable, "-W", "ignore", str(script)]
+    tail = ["--sqlglot", str(maps.sqlglot.resolve()), "--state", str(state.resolve())]
+    cwd = str(state.parent.resolve())
+    result = None
+    overrides = sources if args[1] == "-" else {rel: stdin}
     try:
-        proc = subprocess.run(
-            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot",
-             str(maps.sqlglot.resolve()), "--state", str(state.resolve())] + args,
-            input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=120,
-            env=env, cwd=str(state.parent.resolve()))
-        lines = proc.stdout.strip().splitlines()
-        if not lines:
-            raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
-        result = json.loads(lines[-1])
+        result = _diff_server(base_cmd + ["serve"] + tail, env, cwd, overrides)
     except Exception as exc:  # noqa: BLE001
-        _log(f"{rel}: state diff failed ({exc!r})")
-        return None
+        _log(f"{rel}: diff server failed ({exc!r}); fresh child")
+        _diff_server_stop()
+        result = None
+    if result is None:
+        try:
+            proc = subprocess.run(
+                base_cmd + ["diff"] + tail + args,
+                input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                env=env, cwd=cwd)
+            lines = proc.stdout.strip().splitlines()
+            if not lines:
+                raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
+            result = json.loads(lines[-1])
+        except Exception as exc:  # noqa: BLE001
+            _log(f"{rel}: state diff failed ({exc!r})")
+            return None
     maps.state_result = result
     if result.get("changes") is not None and not result.get("import_failed"):
         maps.state_imported = covered

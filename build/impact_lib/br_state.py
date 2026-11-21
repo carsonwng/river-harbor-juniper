@@ -500,7 +500,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["snapshot", "diff", "tracked"])
+    parser.add_argument("mode", choices=["snapshot", "diff", "tracked", "serve"])
     parser.add_argument("--sqlglot", required=True, type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--state", type=Path, help="pristine snapshot (diff mode)")
@@ -511,6 +511,9 @@ def main() -> int:
         print("PYTHONHASHSEED must be 0", file=sys.stderr)
         return 2
     root = opts.sqlglot.resolve()
+    if opts.mode == "serve":
+        serve(root, opts.state)
+        return 0
     sys.path.insert(0, str(root))
     if opts.rel:
         text = sys.stdin.read()
@@ -536,17 +539,113 @@ def main() -> int:
         opts.out.write_text(json.dumps(state, separators=(",", ":")), "utf-8")
         return 0
     old = json.loads(opts.state.read_text("utf-8"))
+    print(json.dumps(run_diff(root, old)))
+    return 0
+
+
+def run_diff(root: Path, old: dict) -> dict:
     failed = import_all(root)
     state = snapshot(unordered=set(old.get("unordered", ())), old=old)
     if old.get("failed") != failed:
-        print(json.dumps({"error": f"import failures differ: {failed}", "import_failed": True}))
-        return 0
+        return {"error": f"import failures differ: {failed}", "import_failed": True}
     volatile = set(old.get("volatile", ()))
     changes = diff(old, state)
-    print(json.dumps({"changes": changes,
-                      "volatile": [c for c in changes if change_id(c) in volatile],
-                      "keys": key_details(old, state)}))
-    return 0
+    return {"changes": changes,
+            "volatile": [c for c in changes if change_id(c) in volatile],
+            "keys": key_details(old, state)}
+
+
+def _module_of(rel: str) -> str:
+    parts = list(Path(rel).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def serve(root: Path, state_path: Path) -> None:
+    """Diff server (POSIX): the setup a fresh `diff` child does before its first
+    import (sys.path, warnings off, pristine state loaded), then `import sqlglot`
+    once, recording every module the import looks up. Each request line
+    {"overrides": {rel: text}} is answered from a fork that installs the overrides
+    and runs the rest of the diff exactly as a fresh child does after its own
+    `import sqlglot` (import_all imports "sqlglot" first, then the rest in sorted
+    order). If the pristine import looked up or loaded an edited module, the fork
+    answers {"conflict": true} and the caller runs a fresh child."""
+    import importlib
+    import importlib.abc
+    import warnings
+
+    sys.path.insert(0, str(root))
+    warnings.simplefilter("ignore")
+    old = json.loads(state_path.read_text("utf-8"))
+    asked: set = set()
+
+    class Recorder(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path=None, target=None):
+            asked.add(fullname)
+            return None
+
+    rec = Recorder()
+    sys.meta_path.insert(0, rec)
+    out = sys.stdout.fileno()
+    sys.stdout = sys.stderr
+
+    def reply(value: dict) -> None:
+        data = (json.dumps(value) + "\n").encode("utf-8")
+        while data:
+            data = data[os.write(out, data):]
+
+    try:
+        importlib.import_module("sqlglot")
+    except BaseException:  # noqa: BLE001
+        reply({"ready": False})
+        return
+    sys.meta_path.remove(rec)
+    seen = frozenset(asked) | frozenset(sys.modules)
+    reply({"ready": True})
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            return
+        if not line.strip():
+            continue
+        req = json.loads(line)
+        r, w = os.pipe()
+        sys.stderr.flush()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.close(r)
+                overrides = req["overrides"]
+                if any(_module_of(rel) in seen for rel in overrides):
+                    value = {"conflict": True}
+                else:
+                    for rel, body in sorted(overrides.items()):
+                        sys.meta_path.insert(0, _Override(_module_of(rel), str(root / rel), body))
+                    try:
+                        value = run_diff(root, old)
+                    except BaseException as exc:  # noqa: BLE001
+                        value = {"error": f"server child: {exc!r}"}
+                data = json.dumps(value).encode("utf-8")
+                while data:
+                    data = data[os.write(w, data):]
+                sys.stderr.flush()
+            finally:
+                os._exit(0)
+        os.close(w)
+        chunks = []
+        while True:
+            chunk = os.read(r, 1 << 16)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        os.close(r)
+        _, status = os.waitpid(pid, 0)
+        data = b"".join(chunks)
+        if status != 0 or not data:
+            reply({"error": f"forked child status {status}"})
+        else:
+            reply(json.loads(data.decode("utf-8")))
 
 
 if __name__ == "__main__":
