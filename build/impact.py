@@ -448,6 +448,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
     file_exec: dict[str, int] = {}  # rel -> tests running any function line
     trees: dict[str, ast.AST] = {}
     func_lines: dict[tuple[str, str], set[int]] = {}
+    func_loads: dict[tuple[str, str], set[str]] = {}
     for rel in files:
         source = (root / rel).read_text("utf-8")
         try:
@@ -477,6 +478,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
                     key = (rel, co.co_qualname)
                     qual_exec[key] = qual_exec.get(key, 0) | bits
                     func_lines.setdefault(key, set()).update(lines)
+                    func_loads.setdefault(key, set()).update(loads)
                     file_exec[rel] = file_exec.get(rel, 0) | bits
                     if any(l in il for l in lines):
                         name_import.update(loads)
@@ -492,29 +494,33 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
                 for name in attr:
                     attr_readers[name] = attr_readers.get(name, 0) | bits
 
-    # ---- state-dependent lines (needs an in-process and a forked pass)
-    # A line some test ran in the shared process but not when it ran alone depends
-    # on state another test left behind (Dialect._try_load after
-    # TestDialectEntryPoints cleared Dialect._classes). Which tests run it in the
-    # labelling run depends on that run's order and layout, which we do not know,
-    # so such a line counts for every test that ran its function in any pass.
+    # ---- state-dependent functions (needs an in-process and a forked pass)
+    # A function with a line some test ran in the shared process but not when it
+    # ran alone depends on state other tests leave behind: Dialect._try_load runs
+    # for every dialect lookup after TestDialectEntryPoints cleared
+    # Dialect._classes, in whichever tests follow it in that process. The labelling
+    # run's order and layout are unknown, so every line of such a function counts
+    # for every test that ran it, or ran a function that calls it by name (the
+    # callers take the polluted branch: Dialect.get, __getitem__, classes).
     if fork_line_bits and has_ref:
-        widened = 0
+        dependent = []
         for (rel, qual), lines in func_lines.items():
             ref, fork = ref_line_bits.get(rel, {}), fork_line_bits.get(rel, {})
-            target = line_bits.get(rel)
-            if target is None:
-                continue
             il = imp_lines.get(rel, {})
-            for l in lines:
-                # lines that also run at import: the shared process attributes them
-                # to the first importer, the forked pass to nobody (probe maps them)
-                if l not in il and ref.get(l, 0) & ~fork.get(l, 0):
-                    target[l] = target.get(l, 0) | qual_exec.get((rel, qual), 0)
-                    widened += 1
-                    if os.environ.get("BR_IMPACT_DEBUG"):
-                        log(f"  widened {rel}:{l} ({qual})")
-        log(f"state-dependent lines widened to their function: {widened}")
+            # lines that also run at import: the shared process attributes them to
+            # the first importer, the forked pass to nobody (the probe maps them)
+            if any(l not in il and ref.get(l, 0) & ~fork.get(l, 0) for l in lines):
+                dependent.append((rel, qual))
+        for rel, qual in dependent:
+            name = qual.rsplit(".", 1)[-1]
+            bits = qual_exec.get((rel, qual), 0)
+            for key, loads in func_loads.items():
+                if name in loads and key != (rel, qual):
+                    bits |= qual_exec.get(key, 0)
+            target = line_bits.setdefault(rel, {})
+            for l in func_lines[(rel, qual)]:
+                target[l] = target.get(l, 0) | bits
+            log(f"state-dependent function {rel}:{qual}: {bin(bits).count('1')} tests")
 
     # ---- classes
     sys.path.insert(0, str(root))
