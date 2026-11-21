@@ -61,20 +61,43 @@ class _Rewrite(ast.NodeTransformer):
 
     def visit_Compare(self, node):
         self.generic_visit(node)
-        if len(node.ops) != 1 or type(node.ops[0]) not in AST_OPS:
+        if len(node.ops) != 1:
+            return node
+        kind = type(node.ops[0])
+        if kind not in AST_OPS and kind not in (ast.In, ast.NotIn):
+            return node
+        # a literal on exactly one side: also record the other side's values
+        lit_left, lit_right = _literal(node.left), _literal(node.comparators[0])
+        which = 0 if lit_right and not lit_left else 1 if lit_left and not lit_right else None
+        if kind in (ast.In, ast.NotIn) and which != 0:
             return node
         key = f"{self.rel}:{node.lineno}:{node.col_offset}"
         sid = _site_ids.get(key)
         if sid is None:
             sid = _site_ids[key] = len(_sites)
             _sites.append(key)
-        op = AST_OPS[type(node.ops[0])]
-        func = ast.Name(id=f"_br_rp_{OPS[op]}", ctx=ast.Load())
+        if which is not None:
+            _values.setdefault(sid, set())  # a value site, evaluated or not
+        if kind in (ast.In, ast.NotIn):
+            name = "_br_rpv_in" if kind is ast.In else "_br_rpv_notin"
+        elif which is None:
+            name = f"_br_rp_{OPS[AST_OPS[kind]]}"
+        else:
+            name = f"_br_rpv_{OPS[AST_OPS[kind]]}{which}"
+        func = ast.Name(id=name, ctx=ast.Load())
         call = ast.Call(func=func, args=[ast.Constant(sid), node.left, node.comparators[0]],
                         keywords=[])
         for n in (call, func, call.args[0]):
             ast.copy_location(n, node)
         return call
+
+
+def _literal(node) -> bool:
+    try:
+        ast.literal_eval(node)
+    except Exception:  # noqa: BLE001
+        return False
+    return True
 
 
 class _Loader(importlib.machinery.SourceFileLoader):
@@ -254,6 +277,79 @@ for _i, _name in enumerate(OPS):
     setattr(builtins, f"_br_rp_{_name}", _make(_i))
 
 
+# ---- value records: comparisons with a literal on one side keep the distinct
+# values of the other side (exact builtin scalars and small tuples of them), so a
+# changed literal can be re-evaluated against everything the site ever saw.
+VALUE_CAP = 256
+_values: dict[int, set] = {}
+_opaque: set = set()   # sites that saw a value we cannot record, or too many
+
+
+class _Opaque(Exception):
+    pass
+
+
+_SCALARS = {str: "str", int: "int", float: "float", bool: "bool", type(None): "none"}
+
+
+def _enc(x, depth=0):
+    tag = _SCALARS.get(type(x))
+    if tag is not None:
+        return (tag, x)
+    if type(x) is tuple and depth < 2 and len(x) <= 8:
+        return ("tuple", tuple(_enc(i, depth + 1) for i in x))
+    raise _Opaque
+
+
+def _record_value(sid: int, x) -> None:
+    if sid in _opaque:
+        return
+    try:
+        key = _enc(x)
+    except _Opaque:
+        _opaque.add(sid)
+        return
+    bucket = _values.get(sid)
+    if bucket is None:
+        bucket = _values[sid] = set()
+    if key not in bucket:
+        if len(bucket) >= VALUE_CAP:
+            _opaque.add(sid)
+            return
+        bucket.add(key)
+
+
+def _make_value(op: int, which: int):
+    expr = ("a is b", "a is not b", "a == b", "a != b", "a < b", "a <= b", "a > b",
+            "a >= b", "a in b", "a not in b")[op]
+    sig = (f"        _cur.add((sid << 16) | _signature({op}, r, a, b))\n" if op < 8 else "")
+    src = (
+        "def helper(sid, a, b):\n"
+        f"    _record_value(sid, {'ab'[which]})\n"
+        "    try:\n"
+        f"        r = {expr}\n"
+        "    except BaseException:\n"
+        "        _record_error(sid)\n"
+        "        _opaque.add(sid)\n"
+        "        raise\n"
+        "    try:\n"
+        + (sig or "        pass\n") +
+        "    except Exception:\n"
+        "        _cur.add((sid << 16) | 0xFFFF)\n"
+        "    return r\n"
+    )
+    ns: dict = {}
+    exec(src, globals(), ns)  # noqa: S102
+    return ns["helper"]
+
+
+for _i, _name in enumerate(OPS):
+    for _w in (0, 1):
+        setattr(builtins, f"_br_rpv_{_name}{_w}", _make_value(_i, _w))
+builtins._br_rpv_in = _make_value(8, 0)
+builtins._br_rpv_notin = _make_value(9, 0)
+
+
 # ---------------------------------------------------------------- process pools
 
 
@@ -429,4 +525,14 @@ def pytest_unconfigure(config):
     with open(os.path.join(OUT, f"relprof-{worker}.json"), "w", encoding="utf-8") as handle:
         json.dump({"tests": _tests, "sites": _sites, "records": records,
                    "outside": sorted(_outside), "outcomes": _outcomes,
-                   "spawned": sorted(_spawned)}, handle)
+                   "spawned": sorted(_spawned),
+                   "values": {str(k): sorted(v, key=repr) for k, v in _values.items()
+                              if k not in _opaque},
+                   "opaque": sorted(_opaque)}, handle)
+
+
+def pytest_collection_modifyitems(session, config, items):
+    # experiment hook: BR_RELPROF_REVERSE=1 runs the suite in reverse order, to
+    # check that the profile does not depend on test order
+    if os.environ.get("BR_RELPROF_REVERSE") == "1":
+        items.reverse()

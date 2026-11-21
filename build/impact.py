@@ -151,6 +151,8 @@ def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> 
     outcomes: dict[str, str] = {}
     sigs: dict[str, set[int]] = {}
     evals: dict[str, int] = {}
+    values: dict[str, set[str]] = {}
+    opaque: set[str] = set()
     for w in rp_workers:
         wtests = w["tests"]
         sites = w["sites"]
@@ -178,6 +180,15 @@ def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> 
         for item in w["outside"]:
             site = sites[item >> 16]
             sigs.setdefault(site, set()).add(item & 0xFFFF)
+        for sid, vals in w.get("values", {}).items():
+            site = sites[int(sid)]
+            if site in opaque:
+                continue
+            bucket = values.setdefault(site, set())
+            bucket.update(json.dumps(v) for v in vals)
+        for sid in w.get("opaque", []):
+            opaque.add(sites[sid])
+            values.pop(sites[sid], None)
         for item, codes in w["records"].items():
             item = int(item)
             site = sites[item >> 16]
@@ -186,6 +197,9 @@ def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> 
             for code in codes:
                 acc |= bits_for(code)
             evals[site] = acc
+    for site in [s for s, v in values.items() if len(v) > 256]:
+        opaque.add(site)  # too many distinct values to be worth re-evaluating
+        del values[site]
     cov_outcomes: dict[str, str] = {}
     for w in cov_workers:
         cov_outcomes.update(w["outcomes"])
@@ -218,6 +232,11 @@ def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> 
     data = {"version": 1, "complete": not missing, "missing": missing[:50],
             "unsure": unsure,
             "sites": {s: [sorted(v), add(evals.get(s, 0))] for s, v in sorted(sigs.items())},
+            # literal-comparison sites: distinct values of the non-literal side
+            # (tagged [type, value]); null when some value was not recordable
+            "values": {**{s: None for s in sorted(opaque)},
+                       **{s: [json.loads(x) for x in sorted(v)]
+                          for s, v in sorted(values.items()) if s not in opaque}},
             "sets": set_items}
     (out / "relprof.json").write_text(json.dumps(data, separators=(",", ":")), "utf-8")
     log(f"relprof: {len(sigs)} evaluated sites, {len(missing)} tests missing, "

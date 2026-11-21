@@ -699,34 +699,132 @@ _OP_INDEX = {ast.Is: 0, ast.IsNot: 1, ast.Eq: 2, ast.NotEq: 3, ast.Lt: 4, ast.Lt
 _T, _F = 1, 0
 
 
-def _op_swaps(old_tree, new_tree):
-    """[(old Compare node, old op index, new op index)] when the new tree is the old
-    one with only the operators of single-operator comparisons replaced; else None."""
+_IN, _NOT_IN = 8, 9
+
+
+def _op_index(op) -> int | None:
+    if type(op) in _OP_INDEX:
+        return _OP_INDEX[type(op)]
+    return {ast.In: _IN, ast.NotIn: _NOT_IN}.get(type(op))
+
+
+def _literal(node):
+    """(True, value) for a literal expression, else (False, None)."""
+    try:
+        return True, ast.literal_eval(node)
+    except Exception:  # noqa: BLE001
+        return False, None
+
+
+class _Edit:
+    """One edited single-operator comparison: old node, old/new operator, and for a
+    changed literal the side holding it and its old/new values."""
+
+    def __init__(self, node, old_op, new_op, side=None, old_lit=None, new_lit=None):
+        self.node, self.old_op, self.new_op = node, old_op, new_op
+        self.side, self.old_lit, self.new_lit = side, old_lit, new_lit
+
+
+def _compare_edits(old_tree, new_tree):
+    """Edits when the new tree is the old one with only the operator and/or a
+    literal operand of single-operator comparisons changed; None otherwise."""
     old_cmp = [n for n in ast.walk(old_tree) if isinstance(n, ast.Compare)]
     new_cmp = [n for n in ast.walk(new_tree) if isinstance(n, ast.Compare)]
     if len(old_cmp) != len(new_cmp):
         return None
-    swaps = []
+    edits = []
     for a, b in zip(old_cmp, new_cmp):
-        ta = [type(o) for o in a.ops]
-        tb = [type(o) for o in b.ops]
-        if ta == tb:
+        if ast.dump(a) == ast.dump(b):
             continue
-        if len(ta) != 1 or len(tb) != 1 or ta[0] not in _OP_INDEX or tb[0] not in _OP_INDEX:
-            return None  # chained comparisons and in/not in are not profiled
-        swaps.append((a, _OP_INDEX[ta[0]], _OP_INDEX[tb[0]]))
-    if not swaps:
+        if len(a.ops) != 1 or len(b.ops) != 1:
+            return None  # chained comparisons are not profiled
+        o, n = _op_index(a.ops[0]), _op_index(b.ops[0])
+        if o is None or n is None:
+            return None
+        sides = [(a.left, b.left), (a.comparators[0], b.comparators[0])]
+        changed = [i for i, (x, y) in enumerate(sides) if ast.dump(x) != ast.dump(y)]
+        if not changed:
+            if o >= _IN or n >= _IN:
+                return None  # in <-> not in always disagree when evaluated
+            edits.append(_Edit(a, o, n))
+            continue
+        if len(changed) != 1:
+            return None
+        side = changed[0]
+        other = sides[1 - side]
+        ok_old, old_lit = _literal(sides[side][0])
+        ok_new, new_lit = _literal(sides[side][1])
+        if not (ok_old and ok_new) or _literal(other[0])[0]:
+            return None  # only a literal facing a non-literal is value-profiled
+        if (o >= _IN) != (n >= _IN) or (o >= _IN and side != 1):
+            return None
+        edits.append(_Edit(a, o, n, side, old_lit, new_lit))
+    if not edits:
         return None
-    saved = [(node, node.ops) for node, _o, _n in swaps]
-    rev = {v: k for k, v in _OP_INDEX.items()}
-    for node, _o, n in swaps:
-        node.ops = [rev[n]()]
+    # the new tree must be exactly the old one with those comparisons replaced
+    pairs = {id(a): b for a, b in zip(old_cmp, new_cmp)}
+    saved = [(e.node, e.node.left, e.node.ops, e.node.comparators) for e in edits]
+    for e in edits:
+        b = pairs[id(e.node)]
+        e.node.left, e.node.ops, e.node.comparators = b.left, b.ops, b.comparators
     try:
         same = ast.dump(old_tree) == ast.dump(new_tree)
     finally:
-        for node, ops in saved:
-            node.ops = ops
-    return swaps if same else None
+        for node, left, ops, comparators in saved:
+            node.left, node.ops, node.comparators = left, ops, comparators
+    return edits if same else None
+
+
+_SINGLETONS = (None, True, False, Ellipsis)
+_APPLY = (lambda x, y: x is y, lambda x, y: x is not y, lambda x, y: x == y,
+          lambda x, y: x != y, lambda x, y: x < y, lambda x, y: x <= y,
+          lambda x, y: x > y, lambda x, y: x >= y, lambda x, y: x in y,
+          lambda x, y: x not in y)
+
+
+def _decode(tagged):
+    tag, value = tagged
+    if tag == "str" and type(value) is str:
+        return value
+    if tag == "int" and type(value) is int:
+        return value
+    if tag == "float" and type(value) in (int, float):
+        return float(value)
+    if tag == "bool" and type(value) is bool:
+        return value
+    if tag == "none" and value is None:
+        return None
+    if tag == "tuple" and type(value) is list:
+        return tuple(_decode(v) for v in value)
+    raise Unsafe(f"bad value record {tagged!r}")
+
+
+def _is_safe_literal(value) -> bool:
+    return any(value is s for s in _SINGLETONS)
+
+
+def _values_agree(edit: _Edit, values) -> bool:
+    """Every recorded value of the non-literal side gives the same boolean result
+    under the old comparison and the new one."""
+    if values is None:
+        return False
+    if edit.old_op in (0, 1) or edit.new_op in (0, 1):
+        # identity against a literal is only decided by value for singletons
+        if not (_is_safe_literal(edit.old_lit) and _is_safe_literal(edit.new_lit)):
+            return False
+    old_f, new_f = _APPLY[edit.old_op], _APPLY[edit.new_op]
+    for tagged in values:
+        v = _decode(tagged)
+        try:
+            if edit.side == 1:
+                old, new = old_f(v, edit.old_lit), new_f(v, edit.new_lit)
+            else:
+                old, new = old_f(edit.old_lit, v), new_f(edit.new_lit, v)
+        except Exception:  # noqa: BLE001
+            return False
+        if type(old) is not bool or old is not new:
+            return False
+    return True
 
 
 def _parents(tree):
@@ -774,38 +872,39 @@ def _unconditional(node, parents):
         node = parent
 
 
-_LITERAL_WARN = (str, bytes, int, float, complex, tuple)
-
-
 def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int) -> int | None:
     """Bits to keep when the profile proves the edit inert, else None."""
+    edits = _compare_edits(old_tree, new_tree)
+    if not edits:
+        return None
     rp = info.maps.relprof()
     if rp is None:
         return None
-    swaps = _op_swaps(old_tree, new_tree)
-    if not swaps:
-        return None
     sites = rp["sites"]
     parents = _parents(old_tree)
-    for node, old_op, new_op in swaps:
-        if new_op in (0, 1):
-            # `x is <literal>` is a SyntaxWarning at compile time
-            for side in (node.left, node.comparators[0]):
-                if isinstance(side, ast.Constant) and isinstance(side.value, _LITERAL_WARN) \
-                        and not isinstance(side.value, bool):
-                    return None
+    for edit in edits:
+        node, old_op, new_op = edit.node, edit.old_op, edit.new_op
+        # `x is <literal>` only adds a SyntaxWarning when the module is compiled:
+        # printed to stderr, never an error (the pinned suite has no warning
+        # filters, no -W error and no pytest config turning warnings into errors).
         key = f"{info.rel}:{node.lineno}:{node.col_offset}"
         entry = sites.get(key)
         if entry is None:
             _log(f"relprof: {key} not instrumented")
             return None
         sigs, eval_index = entry
-        for sig in sigs:
-            a = (sig >> (2 * old_op)) & 3
-            b = (sig >> (2 * new_op)) & 3
-            if a != b or a not in (_T, _F):
-                _log(f"relprof: {key} diverges ({sig:#06x})")
+        if edit.side is not None:
+            values = rp.get("values", {})
+            if key not in values or not _values_agree(edit, values[key]):
+                _log(f"relprof: {key} literal change not proven by recorded values")
                 return None
+        else:
+            for sig in sigs:
+                a = (sig >> (2 * old_op)) & 3
+                b = (sig >> (2 * new_op)) & 3
+                if a != b or a not in (_T, _F):
+                    _log(f"relprof: {key} diverges ({sig:#06x})")
+                    return None
         # consistency with the coverage pass: a comparison every execution of its
         # statement evaluates must have been evaluated by every test covering it
         stmt, always = _unconditional(node, parents)
@@ -822,5 +921,6 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int) -> int | None
             if covered & ~evaluated & ~rp["unsure_bits"]:
                 _log(f"relprof: {key} covered by tests that never evaluated it")
                 return None
-        _log(f"relprof: {key} {len(sigs)} signatures agree under op {old_op}->{new_op}")
+        _log(f"relprof: {key} proven inert (op {old_op}->{new_op}, literal "
+             f"{edit.old_lit!r}->{edit.new_lit!r})")
     return bits & rp["unsure_bits"]
