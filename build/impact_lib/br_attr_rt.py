@@ -40,7 +40,65 @@ _dict_get = dict.get
 _dict_contains = dict.__contains__
 
 
+_ocache: dict = {}   # (class or type, name, is_class) -> (owner, data descriptor)
+
+
+def clear_cache() -> None:
+    """Emptied at every phase start (br_prof.begin): a test that rebinds class
+    attributes at run time can only leave a stale owner within its own phase,
+    and the owner is re-validated on every hit."""
+    _ocache.clear()
+
+
 def _owner(obj, name):
+    """Cached _owner_slow: the MRO walk is the hot part of the profile (tokenizer
+    loops). A hit is re-validated (the owner still defines the name)."""
+    tp = type(obj)
+    if tp is super:
+        return _owner_slow(obj, name)
+    is_class = isinstance(obj, type)
+    key = (obj if is_class else tp, name, is_class)
+    try:
+        hit = _ocache.get(key)
+    except TypeError:
+        return _owner_slow(obj, name)
+    if hit is None:
+        return _owner_fill(obj, name, key, is_class)
+    k, data = hit
+    if k is None or name not in k.__dict__:
+        return _owner_fill(obj, name, key, is_class)
+    if is_class or data:
+        return k
+    try:
+        inst = object.__getattribute__(obj, "__dict__")
+    except Exception:  # noqa: BLE001
+        inst = None
+    if isinstance(inst, dict) and name in inst:
+        return None
+    return k
+
+
+def _owner_fill(obj, name, key, is_class):
+    if is_class:
+        k = _owner_slow(obj, name)
+        if k is not None:
+            _ocache[key] = (k, True)
+        return k
+    kk = _owner_slow_cls(type(obj), name)
+    if kk is not None:
+        vt = type(kk.__dict__[name])
+        _ocache[key] = (kk, hasattr(vt, "__set__") or hasattr(vt, "__delete__"))
+    return _owner_slow(obj, name)
+
+
+def _owner_slow_cls(tp, name):
+    for k in tp.__mro__:
+        if name in k.__dict__:
+            return k
+    return None
+
+
+def _owner_slow(obj, name):
     if isinstance(obj, type):
         for k in obj.__mro__:
             if name in k.__dict__:
@@ -79,9 +137,12 @@ def _owner(obj, name):
     return None
 
 
+SKIP_IDS: set = set()  # opaque classes (enums ...): their changes never use the profile
+
+
 def rd(obj, name):
     value = _getattr(obj, name)
-    if on:
+    if on and id(obj) not in SKIP_IDS:
         if name == "__dict__":
             if isinstance(obj, type):
                 attrs.add((obj, "*"))
@@ -100,7 +161,7 @@ def ga(obj, name, *default):
             return default[0]
     else:
         value = _getattr(obj, name)
-    if on and type(name) is str and (name in TRACKED or name == "__dict__"):
+    if on and type(name) is str and (name in TRACKED or name == "__dict__") and id(obj) not in SKIP_IDS:
         if name == "__dict__":
             if isinstance(obj, type):
                 attrs.add((obj, "*"))

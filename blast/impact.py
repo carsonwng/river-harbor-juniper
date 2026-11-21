@@ -21,6 +21,21 @@ Per changed sqlglot .py file:
        that ran code loading the name, intersected with the scope's users.
      - lambda bodies inside class-level tables: the tests that ran the lambda.
   Anything unexpected selects every test.
+
+strat/impact-combo adds two refinements on top of that (isolate) selection; each
+returns a subset that keeps the source-text readers, process-starting tests and
+whole-function changes, and select() always adds the unsure/unknown tests:
+  - BR_IMPACT_ATTRS (default 1): an edit confined to import-time code is imported
+    (edited sqlglot, a subprocess); a failing import selects every test. For an
+    edit confined to class-level assignments, each changed (class, attribute[,
+    key]) selects its readers in the forked attribute profile, plus every test of
+    a state-dependent function that may read it, plus the users of the class
+    among tests run without the profile.
+  - BR_IMPACT_RELPROF (default 1): an edit confined to operators / literals of
+    single-operator comparisons is dropped when every recorded evaluation agrees
+    under the old and new comparison (shared-process relation profile), no site
+    is in a state-dependent function, and every covering test evaluated it.
+With both off, the result is the strat/impact-isolate selection.
 """
 
 from __future__ import annotations
@@ -115,6 +130,11 @@ class Maps:
                     if t in pos:
                         unsure |= 1 << pos[t]
                 data["unsure_bits"] = unsure
+                unprof = 0
+                for t in data.get("unprofiled", []):
+                    if t in pos:
+                        unprof |= 1 << pos[t]
+                data["unprofiled_bits"] = unprof
             self._relprof = data
         return self._relprof
 
@@ -148,6 +168,17 @@ class Maps:
             except Exception as exc:  # noqa: BLE001
                 _log(f"no attribute profile: {exc!r}")
         return self._attrs
+
+    def dependent(self) -> list | None:
+        """State-dependent functions (build: lines some test ran in the shared
+        process but not alone): [{rel, qual, lo, hi, loads, dynamic, bits}], or
+        None when the build had no in-process + forked pair to find them."""
+        if not hasattr(self, "_dependent"):
+            try:
+                self._dependent = self._json("dependent.json")
+            except Exception:  # noqa: BLE001
+                self._dependent = None
+        return self._dependent
 
     def opaque(self) -> set[str]:
         if not hasattr(self, "_opaque"):
@@ -472,11 +503,14 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     info.new_tree = new_tree
     old_to_new = {o: n for n, o in new_to_old.items()}
     # tests that read this file's source text (ast.parse, inspect, linecache):
-    # recorded as line 0 by the build; any AST change can change what they see
-    bits = info.cov(0, 0)
-    bits |= _semantic_bits(info, new_code)
+    # recorded as line 0 by the build; any AST change can change what they see.
+    # These, whole-function semantics and process-starting tests are kept by every
+    # refinement below (they do not depend on what the edited code evaluates).
+    keep = info.cov(0, 0)
+    keep |= _semantic_bits(info, new_code)
     if _touches_import_time(info, old_tree, new_tree, change):
-        bits |= _subprocess_bits(info)
+        keep |= _subprocess_bits(info)
+    bits = keep
     for hunk in change.hunks:
         for number, text in hunk.removed:
             bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
@@ -484,23 +518,29 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
-    if bits:
+    if bits == maps.ALL:
+        return bits
+    # ---- refinements (strat/impact-combo): each returns a sound subset of `bits`
+    # or None (keep `bits`). The always-set (unsure / unknown tests) is added by
+    # select() whatever they return.
+    if bits != keep and os.environ.get("BR_IMPACT_ATTRS", "1") == "1":
+        kind = _import_kind(change, old_tree, new_tree)
+        if kind:
+            alt = _diff_bits(maps, path, new_text, use_profile=kind == "assign")
+            if alt == maps.ALL:
+                return alt  # the edited sqlglot no longer imports
+            if alt is not None:
+                _log(f"{path}: import-time state diff selects {bin(alt).count('1')} "
+                     f"(isolate {bin(bits).count('1')})")
+                bits = alt | keep
+    if bits != keep and os.environ.get("BR_IMPACT_RELPROF", "1") == "1":
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
         except Exception as exc:  # noqa: BLE001
             _log(f"{path}: relprof error {exc!r}")
             refined = None
         if refined is not None:
-            maps.pruned = True
-            return refined
-    # ATTRS-MERGE
-    kind = _import_kind(change, old_tree, new_tree) if bits and bits != maps.ALL else None
-    if kind:
-        alt = _diff_bits(maps, path, new_text, use_profile=kind == "assign")
-        if alt is not None:
-            _log(f"{path}: import-time state diff selects {bin(alt).count('1')} "
-                 f"(base {bin(bits).count('1')})")
-            return alt
+            bits = refined | keep
     return bits
 
 
@@ -543,8 +583,6 @@ def _line_kind(tree, line: int) -> str | None:
 def _import_kind(change: FileChange, old_tree, new_tree) -> str | None:
     """"assign" when every edited line is in a class-level assignment, "import"
     when every one runs at import time, else None."""
-    if os.environ.get("BR_IMPACT_DIFF", "1") != "1":
-        return None
     kinds = set()
     for hunk in change.hunks:
         for number, _ in hunk.removed:
@@ -554,6 +592,12 @@ def _import_kind(change: FileChange, old_tree, new_tree) -> str | None:
     if not kinds or None in kinds:
         return None
     return "assign" if kinds == {"assign"} else "import"
+
+
+# one diff costs about 0.6 s CPU (charged); a run has 180 s for 30 commits
+_DIFF_TIMEOUT = float(os.environ.get("BR_IMPACT_DIFF_TIMEOUT", "20"))
+_DIFF_BUDGET = float(os.environ.get("BR_IMPACT_DIFF_BUDGET", "60"))
+_DIFF_SPENT = 0.0
 
 
 def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) -> int | None:
@@ -567,23 +611,32 @@ def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) ->
     script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
     if not script.exists() or not (adir / "state.json").exists():
         return None
+    global _DIFF_SPENT
+    if _DIFF_SPENT > _DIFF_BUDGET:
+        _log(f"{rel}: state diff budget spent; isolate selection")
+        return None
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
     if (adir / "pyc").is_dir():
         env["PYTHONPYCACHEPREFIX"] = str((adir / "pyc").resolve())
+    import time
+
+    started = time.monotonic()
     try:
         proc = subprocess.run(
             [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot", str(maps.sqlglot.resolve()),
              "--state", str(adir / "state.json"), "--rel", rel],
-            input=new_text, capture_output=True, text=True, timeout=120, env=env,
+            input=new_text, capture_output=True, text=True, timeout=_DIFF_TIMEOUT, env=env,
             cwd=str(adir))
         lines = proc.stdout.strip().splitlines()
         if not lines:
             raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
         result = json.loads(lines[-1])
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001  (timeout, crash, bad output: isolate selection)
         _log(f"{rel}: state diff failed ({exc!r})")
         return None
+    finally:
+        _DIFF_SPENT += time.monotonic() - started
     if result.get("import_failed"):
         # the edited sqlglot no longer imports some module: whatever imports it fails
         _log(f"{rel}: {result.get('error')}: every test")
@@ -611,6 +664,10 @@ def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) ->
         return b
 
     bits = get(profile["unsure"])
+    unprofiled = get(profile.get("unprofiled"))
+    dependent = maps.dependent()
+    if dependent is None:
+        return None  # cannot tell which reads a polluted shared process adds
 
     for ch in changes:
         if ch[0] != "class":
@@ -632,6 +689,19 @@ def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) ->
             b |= get(attrs.get(f"{ckey}|{attr}"))
         else:
             return None
+        # the profile comes from the forked pass (every test from the pristine
+        # post-collection state). A state-dependent function takes other paths in
+        # a shared process, in whichever tests follow the polluting one: every
+        # test that runs it (or a caller by name) may read there what it loads
+        for d in dependent:
+            if d.get("kind") == "state":
+                continue  # relation-profile only
+            if d["dynamic"] or attr in d["loads"]:
+                b |= maps.bits(d["bits"])
+        if unprofiled:
+            # tests run without attribute instrumentation: every one that uses the class
+            module, _, qual = ckey.partition("@")[0].partition(":")
+            b |= unprofiled & maps.class_users(module, qual)
         bits |= b
     return bits
 
@@ -1314,6 +1384,9 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
     if rp is None:
         return None
     sites = rp["sites"]
+    dependent = info.maps.dependent()
+    if dependent is None:
+        return None
     for edit in edits:
         node, old_op, new_op = edit.node, edit.old_op, edit.new_op
         part, header = edit.part
@@ -1327,6 +1400,11 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
         # printed to stderr, never an error (the pinned suite has no warning
         # filters, no -W error and no pytest config turning warnings into errors).
         key = f"{info.rel}:{node.lineno}:{node.col_offset}"
+        if any(d["rel"] == info.rel and d["lo"] <= node.lineno <= d["hi"] for d in dependent):
+            # in a state-dependent function: a shared process evaluates it in states
+            # the forked profile never saw
+            _log(f"relprof: {key} in a state-dependent function")
+            return None
         entry = sites.get(key)
         if entry is None:
             _log(f"relprof: {key} not instrumented")
@@ -1348,6 +1426,14 @@ def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int, old_lines=Non
         # statement evaluates must have been evaluated by every test covering it
         stmt, always = _unconditional(node, parents)
         if stmt is None:
+            return None
+        # tests run without the relation instrumentation: their evaluations are
+        # not in the profile, so no site they reach can be proven inert
+        first = _first_body_line(stmt)
+        head_hi = first - 1 if first is not None and first > stmt.lineno else stmt.end_lineno
+        reach = info.cov(min(stmt.lineno, node.lineno), max(head_hi, node.end_lineno))
+        if reach & rp.get("unprofiled_bits", 0):
+            _log(f"relprof: {key} reached by tests without a relation profile")
             return None
         if always:
             lo = stmt.lineno

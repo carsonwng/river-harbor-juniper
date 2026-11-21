@@ -61,6 +61,40 @@ def _is_sqlglot(obj) -> bool:
     return isinstance(mod, str) and (mod == "sqlglot" or mod.startswith("sqlglot."))
 
 
+def _walk_round(name, mod, attrs, stack, path_of, order, registries: bool = True) -> None:
+    for attr in sorted(attrs, reverse=True):
+        stack.append((f"{name}:{attr}", vars(mod)[attr], 0))
+    while stack:
+        path, obj, depth = stack.pop()
+        if isinstance(obj, type):
+            if id(obj) in path_of or not _is_sqlglot(obj):
+                continue
+            path_of[id(obj)] = path
+            order.append(obj)
+            d = obj.__dict__
+            for attr in sorted(d, reverse=True):
+                if attr not in SKIP_ATTRS and attr != "__mro__":
+                    stack.append((f"{path}.{attr}", d[attr], 0))
+        elif depth == 0 and registries and type(obj) is dict:
+            # registries ({name: class}); deeper containers (tries, tables of
+            # tables) are not walked: anything missed is found by gc below
+            items = list(obj.items())
+            if all(type(k) in (str, int) for k, _ in items):
+                # by key, not insertion order: a registry that tests clear and
+                # refill (_Dialect._classes) must name the same classes the same
+                items.sort(key=lambda kv: (type(kv[0]).__name__, repr(kv[0])))
+            for i in range(len(items) - 1, -1, -1):
+                k, v = items[i]
+                if isinstance(v, type) or isinstance(k, type):
+                    label = repr(k) if type(k) in (str, int) else str(i)
+                    stack.append((f"{path}[{label}]", v, 1))
+                    stack.append((f"{path}[{label}k]", k, 1))
+        elif depth == 0 and registries and type(obj) in (list, tuple):
+            for i in range(len(obj) - 1, -1, -1):
+                if isinstance(obj[i], type):
+                    stack.append((f"{path}[{i}]", obj[i], 1))
+
+
 def canonical_classes() -> dict[type, str]:
     """Every live class defined by sqlglot code -> a deterministic unique name.
 
@@ -71,34 +105,18 @@ def canonical_classes() -> dict[type, str]:
     path_of: dict[int, str] = {}
     order: list[type] = []
     stack: list[tuple[str, object, int]] = []
+    # two rounds: first every class from the module that defines it (stable), then
+    # whatever else modules hold (imports, lazily cached PEP 562 attributes, which
+    # depend on what ran before); a class keeps the first path found
+    rounds = []
     for name, mod in mods:
-        for attr in sorted(vars(mod), reverse=True):
-            stack.append((f"{name}:{attr}", vars(mod)[attr], 0))
-        while stack:
-            path, obj, depth = stack.pop()
-            if isinstance(obj, type):
-                if id(obj) in path_of or not _is_sqlglot(obj):
-                    continue
-                path_of[id(obj)] = path
-                order.append(obj)
-                d = obj.__dict__
-                for attr in sorted(d, reverse=True):
-                    if attr not in SKIP_ATTRS and attr != "__mro__":
-                        stack.append((f"{path}.{attr}", d[attr], 0))
-            elif depth == 0 and type(obj) is dict:
-                # registries ({name: class}); deeper containers (tries, tables of
-                # tables) are not walked: anything missed is found by gc below
-                items = list(obj.items())
-                for i in range(len(items) - 1, -1, -1):
-                    k, v = items[i]
-                    if isinstance(v, type) or isinstance(k, type):
-                        label = repr(k) if type(k) in (str, int) else str(i)
-                        stack.append((f"{path}[{label}]", v, 1))
-                        stack.append((f"{path}[{label}k]", k, 1))
-            elif depth == 0 and type(obj) in (list, tuple):
-                for i in range(len(obj) - 1, -1, -1):
-                    if isinstance(obj[i], type):
-                        stack.append((f"{path}[{i}]", obj[i], 1))
+        own = [a for a in vars(mod) if isinstance(vars(mod)[a], type)
+               and getattr(vars(mod)[a], "__module__", None) == name]
+        rounds.append((name, mod, own))
+    for name, mod, own in rounds:
+        _walk_round(name, mod, own, stack, path_of, order, registries=False)
+    for name, mod, own in rounds:
+        _walk_round(name, mod, list(vars(mod)), stack, path_of, order)
     # classes nothing reachable names (rare): by gc, ordered by key
     gc.collect()
     extra = [o for o in gc.get_objects() if isinstance(o, type) and _is_sqlglot(o)
@@ -118,9 +136,12 @@ def canonical_classes() -> dict[type, str]:
 
 
 class Fingerprinter:
-    def __init__(self, names: dict[type, str], ordered: bool = True) -> None:
+    def __init__(self, names: dict[type, str], ordered: bool = True, shallow: bool = False) -> None:
         self.names = names
         self.ordered = ordered
+        # shallow: functions and code by name only (the run-time state check of an
+        # instrumented pass, where every code object differs from the pristine one)
+        self.shallow = shallow
         self.memo: dict[int, int] = {}
         self.keep: list = []  # keep fingerprinted objects alive (ids stay unique)
 
@@ -173,6 +194,11 @@ class Fingerprinter:
         if isinstance(obj, dict) and t.__module__ in ("builtins", "collections"):
             items = tuple((fp(k), fp(v)) for k, v in dict.items(obj))
             return hash(("dict", t.__name__, items if self.ordered else tuple(sorted(items))))
+        if t is types.FunctionType and self.shallow:
+            return hash(("fn", obj.__qualname__, obj.__module__, fp(obj.__defaults__),
+                         fp(obj.__kwdefaults__), fp(dict(obj.__dict__))))
+        if t is types.CodeType and self.shallow:
+            return hash(("code", obj.co_qualname))
         if t is types.FunctionType:
             cells = tuple(fp(c.cell_contents) if _cell_full(c) else 0 for c in (obj.__closure__ or ()))
             return hash(("fn", obj.__qualname__, obj.__module__, fp(obj.__code__),
@@ -248,15 +274,15 @@ def _cell_full(cell) -> bool:
 
 
 def snapshot(names: dict[type, str] | None = None, unordered: set[str] = frozenset(),
-             old: dict | None = None) -> dict:
+             old: dict | None = None, shallow: bool = False) -> dict:
     """{"classes": {ckey: {attr: [fp, {keyfp: valfp} | None]}}, "modules": {mod: {name: fp}}}
 
     Entries named in `unordered` ("c|ckey|attr", "m|module|attr") are fingerprinted
     without container order: their order differs between processes on the pinned
     code itself (built by iterating sets of classes), so order is not a signal."""
     names = names if names is not None else canonical_classes()
-    fo = Fingerprinter(names)
-    fu = Fingerprinter(names, ordered=False)
+    fo = Fingerprinter(names, shallow=shallow)
+    fu = Fingerprinter(names, ordered=False, shallow=shallow)
     classes: dict[str, dict] = {}
     for klass, ckey in sorted(names.items(), key=lambda kv: kv[1]):
         attrs = {}
@@ -362,7 +388,7 @@ RELS = ["sqlglot/dialects/tsql.py", "sqlglot/expressions/core.py", "sqlglot/pars
         "sqlglot/generator.py", "sqlglot/tokens.py"]
 
 
-def build_state(root: Path, out: Path, runs: int = 6) -> dict:
+def build_state(root: Path, out: Path, runs: int = 6, pyc: Path | None = None) -> dict:
     """Pristine snapshot, with entries whose order is not reproducible across
     processes fingerprinted unordered, and entries that still are not
     reproducible listed as volatile (a change there is never trusted)."""
@@ -370,6 +396,10 @@ def build_state(root: Path, out: Path, runs: int = 6) -> dict:
     import tempfile
 
     env = dict(os.environ, PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    if pyc is not None:
+        # the bytecode the run-time diff imports (set constants iterate in a
+        # different order from a module compiled from source)
+        env["PYTHONPYCACHEPREFIX"] = str(pyc)
 
     def one(unordered: set[str], rel: str | None = None) -> dict:
         with tempfile.TemporaryDirectory() as tmp:
@@ -385,9 +415,12 @@ def build_state(root: Path, out: Path, runs: int = 6) -> dict:
 
     # the run-time diff loads one module from text: vary that too
     rels = [None, None] + [r for r in RELS if (root / r).exists()][: max(0, runs - 2)]
-    first = [one(set(), r) for r in rels]
-    unstable = {change_id(c) for s in first[1:] for c in diff(first[0], s)}
-    second = [one(unstable, r) for r in rels]
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(min(len(rels), os.cpu_count() or 1)) as pool:
+        first = list(pool.map(lambda r: one(set(), r), rels))
+        unstable = {change_id(c) for s in first[1:] for c in diff(first[0], s)}
+        second = list(pool.map(lambda r: one(unstable, r), rels))
     volatile = {change_id(c) for s in second[1:] for c in diff(second[0], s)}
     state = second[0]
     state["volatile"] = sorted(volatile)
@@ -413,7 +446,11 @@ class _Override(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         return None
 
     def exec_module(self, module):
-        code = compile(self.text, self.path, "exec", dont_inherit=True)
+        # through marshal, as a .pyc is: constant sets/frozensets then iterate in
+        # the order a bytecode-loaded module has (it differs from a fresh compile)
+        import marshal
+
+        code = marshal.loads(marshal.dumps(compile(self.text, self.path, "exec", dont_inherit=True)))
         exec(code, module.__dict__)
 
 
@@ -427,6 +464,7 @@ def main() -> int:
     parser.add_argument("--state", type=Path, help="pristine snapshot (diff mode)")
     parser.add_argument("--rel", help="edited file, relative to --sqlglot (diff mode)")
     parser.add_argument("--unordered", type=Path, help="JSON list of entries to fingerprint unordered")
+    parser.add_argument("--shallow", action="store_true", help="functions by name only")
     opts = parser.parse_args()
     if os.environ.get("PYTHONHASHSEED") != "0":
         print("PYTHONHASHSEED must be 0", file=sys.stderr)
@@ -450,7 +488,7 @@ def main() -> int:
     if opts.mode == "snapshot":
         unordered = set(json.loads(opts.unordered.read_text("utf-8"))) if opts.unordered else set()
         failed = import_all(root)
-        state = snapshot(unordered=unordered)
+        state = snapshot(unordered=unordered, shallow=opts.shallow)
         state["failed"] = failed
         opts.out.write_text(json.dumps(state, separators=(",", ":")), "utf-8")
         return 0

@@ -263,7 +263,7 @@ def _make(op: int):
         "        _record_error(sid)\n"
         "        raise\n"
         "    try:\n"
-        f"        _cur.add((sid << 16) | _signature({op}, r, a, b))\n"
+        + _FAST_SRC.format(op=op) +
         "    except Exception:\n"
         "        _cur.add((sid << 16) | 0xFFFF)\n"
         "    return r\n"
@@ -271,6 +271,55 @@ def _make(op: int):
     ns: dict = {}
     exec(src, globals(), ns)  # noqa: S102
     return ns["helper"]
+
+
+# Fast path (strat/impact-combo): operands of exact builtin scalar types are
+# value kind (V); their signature depends only on (type, value) of both sides
+# plus identity, exactly as _signature computes it (cached there too), so it is
+# memoised here without the call layers. Identity is still taken per evaluation.
+_FAST_TYPES = frozenset((str, int, float, bool, type(None)))
+_NUM = frozenset((int, float, bool))
+_fc: dict = {}
+# For two exact strs, or two exact numbers, the eight results follow from three:
+# != is not ==, <= is < or ==, >= is > or == (NaN included: all three False). So
+# the signature is a function of (types, ==, <, >) (all pure for these types),
+# which keeps distinct values (loop counters) from needing a fresh signature each.
+_otab: dict = {}
+_FAST_SRC = (
+    "        ta = type(a)\n"
+    "        tb = type(b)\n"
+    "        if (ta is tb and ta is str) or (ta in _NUM and tb in _NUM):\n"
+    "            k = (ta, tb, a == b, a < b, a > b)\n"
+    "            s = _otab.get(k)\n"
+    "            if s is None:\n"
+    "                s = _otab[k] = _signature({op}, r, a, b) & ~0xF\n"
+    "            _cur.add((sid << 16) | s | (1 if a is b else 4))\n"
+    "        elif ta in _FAST_TYPES and tb in _FAST_TYPES:\n"
+    "            k = (ta, a, tb, b)\n"
+    "            s = _fc.get(k)\n"
+    "            if s is None:\n"
+    "                s = _signature({op}, r, a, b) & ~0xF\n"
+    "                if len(_fc) > 500_000:\n"
+    "                    _fc.clear()\n"
+    "                _fc[k] = s\n"
+    "            _cur.add((sid << 16) | s | (1 if a is b else 4))\n"
+    "        else:\n"
+    "            ka = _kinds.get(ta)\n"
+    "            kb = _kinds.get(tb)\n"
+    "            if ka and kb and (ka != 1 or kb != 1):\n"
+    "                k = ({op}, ta, tb, a is b, 1 if r is True else 0 if r is False else 2)\n"
+    "                s = _gcache.get(k)\n"
+    "                if s is None:\n"
+    "                    s = _gcache[k] = _signature({op}, r, a, b)\n"
+    "                _cur.add((sid << 16) | s)\n"
+    "            else:\n"
+    "                _cur.add((sid << 16) | _signature({op}, r, a, b))\n"
+)
+# Any pair that is not value/value, of types whose kind is known and not decided
+# per value (tuple, frozenset have kind 0): _signature then depends only on the
+# operator, the two types, identity and the operator's own result (object-default
+# comparisons, Expr inference, unknowns), so it is memoised on exactly those.
+_gcache: dict = {}
 
 
 for _i, _name in enumerate(OPS):
@@ -323,10 +372,17 @@ def _record_value(sid: int, x) -> None:
 def _make_value(op: int, which: int):
     expr = ("a is b", "a is not b", "a == b", "a != b", "a < b", "a <= b", "a > b",
             "a >= b", "a in b", "a not in b")[op]
-    sig = (f"        _cur.add((sid << 16) | _signature({op}, r, a, b))\n" if op < 8 else "")
+    sig = (_FAST_SRC.format(op=op) if op < 8 else "")
     src = (
         "def helper(sid, a, b):\n"
-        f"    _record_value(sid, {'ab'[which]})\n"
+        f"    x = {'ab'[which]}\n"
+        "    tag = _SCALARS.get(type(x))\n"
+        "    if tag is not None:\n"
+        "        bucket = _values.get(sid)\n"
+        "        if (bucket is None or (tag, x) not in bucket) and sid not in _opaque:\n"
+        "            _record_value(sid, x)\n"   # new value: the full path (cap, opaque)
+        "    else:\n"
+        "        _record_value(sid, x)\n"
         "    try:\n"
         f"        r = {expr}\n"
         "    except BaseException:\n"
@@ -383,7 +439,10 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-sys.meta_path.insert(0, _Finder())
+# as a library of br_prof (one combined import hook in the forked coverage pass)
+# the finder is installed by br_prof instead
+if os.environ.get("BR_PROF_COMBINED") != "1":
+    sys.meta_path.insert(0, _Finder())
 
 # Child processes run sqlglot uninstrumented: the tests that start one are listed
 # so the selector never prunes them on the strength of this profile.
@@ -456,6 +515,10 @@ def _end(key: str, phase: str):
 
 
 def pytest_configure(config):
+    setup_expr()
+
+
+def setup_expr():
     global _EXPR_EQ, _EXPR_NE
     import sqlglot.expressions.core as core  # instrumented through the hook
 

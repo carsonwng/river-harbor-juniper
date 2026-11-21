@@ -94,58 +94,44 @@ def run_probes(root: Path, work: Path, env: dict, jobs: int) -> dict[str, dict]:
     return results
 
 
-def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none") -> list[dict]:
+def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none",
+                 extra: dict | None = None, deadline: float = 0.0) -> list[dict]:
     """One instrumented suite pass. mode "fork": every test in its own fork of the
-    post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE)."""
+    post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE). `extra`: more
+    environment (BR_IMPACT_PROFILE=1 adds the relation and attribute profiles,
+    br_prof.py; BR_IMPACT_STATE checks the state tests leave behind). Past
+    `deadline` (epoch seconds) the remaining tests are reported failed without
+    running, so the pass still ends with usable results (they become unsure)."""
     cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
+    if cov_dir.exists():
+        shutil.rmtree(cov_dir)
     cov_dir.mkdir(parents=True, exist_ok=True)
     env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir),
-               BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none")
+               BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none",
+               BR_IMPACT_DEADLINE=str(deadline or 0), **(extra or {}))
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
-               "-n", str(jobs), "--dist", "load", "tests"]
+               "-n", str(jobs), "--dist", "load"]
+    if env.get("BR_IMPACT_ORDER"):
+        command += ["--maxschedchunk", "1"]
+    if env.get("BR_IMPACT_PROFILE") == "1":
+        command.append("--assert=plain")  # test modules must come through br_prof's import hook
+    command.append("tests")
     start = time.time()
-    proc = subprocess.run(command, cwd=str(root), env=env, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True, errors="replace")
+    # hard stop well after the deadline (a hung worker): no results from this pass
+    hard = max(60.0, deadline - time.time() + 120) if deadline else None
+    try:
+        proc = subprocess.run(command, cwd=str(root), env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True, errors="replace", timeout=hard)
+    except subprocess.TimeoutExpired:
+        log(f"pytest ({mode}) killed after {time.time() - start:.1f}s: no results")
+        return []
     tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
     log(f"pytest ({mode}) exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
     return [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
 
 
-def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
-    """Suite pass on a throwaway copy of the checkout with every single-operator
-    comparison in sqlglot/ recorded by br_relprof_plugin (source files unchanged;
-    the plugin rewrites the AST at import)."""
-    rp_dir = work / "relprof"
-    if rp_dir.exists():
-        shutil.rmtree(rp_dir)
-    rp_dir.mkdir(parents=True)
-    copy = Path(tempfile.mkdtemp(prefix="br-relprof-src-")) / "sqlglot"
-    shutil.copytree(root, copy, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc",
-                                                              ".pytest_cache"))
-    try:
-        env = dict(env, BR_IMPACT_ROOT=str(copy), BR_IMPACT_OUT=str(rp_dir),
-                   PYTHONPATH=os.pathsep.join([str(copy), str(LIB)]))
-        command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p",
-                   "br_relprof_plugin", "-q", "-n", str(jobs), "--dist", "load", "tests"]
-        start = time.time()
-        # the image build has 10 minutes: past this, give up on the profile (the
-        # selector then keeps the coverage behaviour)
-        limit = float(os.environ.get("BR_RELPROF_TIMEOUT", 420 if jobs >= 4 else 1500))
-        try:
-            proc = subprocess.run(command, cwd=str(copy), env=env, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, text=True, errors="replace",
-                                  timeout=limit)
-        except subprocess.TimeoutExpired:
-            log(f"relprof pass exceeded {limit:.0f}s; no relprof map")
-            return []
-        tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
-        log(f"relprof pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
-    finally:
-        shutil.rmtree(copy.parent, ignore_errors=True)
-    return [json.loads(p.read_text("utf-8")) for p in sorted(rp_dir.glob("relprof-*.json"))]
-
-
-def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> None:
+def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict],
+                 unprofiled: list[str] | None = None) -> None:
     """relprof.json: per comparison site "rel:line:col" the union of relation
     signatures over every evaluation in the whole pass (tests, collection, and
     outside any test), and the tests that evaluated it (bitset over meta tests)."""
@@ -242,6 +228,9 @@ def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> 
 
     data = {"version": 1, "complete": not missing, "missing": missing[:50],
             "unsure": unsure,
+            # tests run without the relation instrumentation (over their time
+            # budget): no site they cover can be proven inert
+            "unprofiled": sorted(unprofiled or ()),
             "sites": {s: [sorted(v), add(evals.get(s, 0))] for s, v in sorted(sigs.items())},
             # literal-comparison sites: distinct values of the non-literal side
             # (tagged [type, value]); null when some value was not recordable
@@ -333,11 +322,24 @@ def run_test_imports(root: Path, work: Path, env: dict) -> dict[str, list[str] |
         mods.append(".".join(parts))
     if not hasattr(os, "fork"):
         return {}
-    try:
-        subprocess.run([sys.executable, str(LIB / "br_test_imports.py"), str(root), str(out)] + mods,
+    jobs = max(1, int(os.environ.get("BR_IMPACT_JOBS", "4")))
+    chunks = [mods[i::jobs] for i in range(jobs) if mods[i::jobs]]
+
+    def one(i_chunk):
+        i, chunk = i_chunk
+        part = work / f"test_imports-{i}.json"
+        subprocess.run([sys.executable, str(LIB / "br_test_imports.py"), str(root), str(part)] + chunk,
                        cwd=str(root), env=env, stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, timeout=300)
-        return json.loads(out.read_text("utf-8"))
+        return json.loads(part.read_text("utf-8"))
+
+    try:
+        merged: dict = {}
+        with ThreadPoolExecutor(len(chunks)) as pool:
+            for got in pool.map(one, enumerate(chunks)):
+                merged.update(got)
+        out.write_text(json.dumps(merged), "utf-8")
+        return merged
     except Exception as exc:  # noqa: BLE001
         log(f"test import probe failed: {exc!r}")
         return {}
@@ -417,6 +419,7 @@ class Sets:
 
 
 def main() -> int:
+    build_start = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument("--sqlglot", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
@@ -426,17 +429,30 @@ def main() -> int:
     parser.add_argument("--isolate", choices=("none", "fork", "both"),
                         default=os.environ.get("BR_IMPACT_ISOLATE", "both"),
                         help="coverage pass(es): in-process, forked per test, or the union")
+    parser.add_argument("--profile", choices=("0", "1"),
+                        default=os.environ.get("BR_IMPACT_PROFILE", "1"),
+                        help="record the relation and attribute profiles in the forked pass")
+    # wall-clock budget of the whole impact build (the image build has 10 min for
+    # everything): the in-process pass must end by 45% of it, the forked pass by
+    # 85%; tests not run by then are reported failed (unsure, always selected)
+    parser.add_argument("--budget", type=float,
+                        default=float(os.environ.get("BR_IMPACT_BUDGET", "400")))
     options = parser.parse_args()
     root = options.sqlglot.resolve()
-    out = options.out
+    out = options.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
-    work = options.work or Path(tempfile.mkdtemp(prefix="br-impact-"))
+    work = (options.work or Path(tempfile.mkdtemp(prefix="br-impact-"))).resolve()
     work.mkdir(parents=True, exist_ok=True)
+    profile = options.profile == "1" and options.isolate in ("fork", "both") and hasattr(os, "fork")
 
     env = dict(os.environ)
     env.update(PYTHONDONTWRITEBYTECODE="1", SKIP_INTEGRATION="0",
                PYTHONPATH=os.pathsep.join([str(root), str(LIB)]))
     env.pop("PYTEST_ADDOPTS", None)
+    for stale in ("relprof.json", "dependent.json"):
+        (out / stale).unlink(missing_ok=True)
+    if (out / "attrs").exists():
+        shutil.rmtree(out / "attrs")
 
     start = time.time()
     if options.reuse and (work / "probe.json").exists():
@@ -446,18 +462,71 @@ def main() -> int:
         (work / "probe.json").write_text(json.dumps(probes), "utf-8")
     log(f"import probe: {len(probes)} modules in {time.time() - start:.1f}s")
 
+    sys.path.insert(0, str(LIB))
+    import br_attr_build
+
+    tracked = None
+    if profile:
+        start = time.time()
+        try:
+            tracked = br_attr_build.prepare(root, work, out, env)
+        except Exception as exc:  # noqa: BLE001  attribute profile off, relprof still on
+            log(f"attribute state failed: {exc!r}")
+            shutil.rmtree(out / "attrs", ignore_errors=True)
+        log(f"attribute state and tracked names in {time.time() - start:.1f}s")
+
+    # the per-test-module import probe runs alongside the suite passes
+    def _imports() -> dict:
+        t0 = time.time()
+        if options.reuse and (work / "test_imports.json").exists():
+            got = json.loads((work / "test_imports.json").read_text("utf-8"))
+        else:
+            got = run_test_imports(root, work, env)
+        log(f"test import probe: {len(got)} test modules in {time.time() - t0:.1f}s")
+        return got
+
+    imports_pool = ThreadPoolExecutor(1)
+    imports_future = imports_pool.submit(_imports)
     workers = []
     modes = ["none", "fork"] if options.isolate == "both" else [options.isolate]
     for mode in modes:
         start = time.time()
         cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
+        share = 0.5 if mode == "none" and len(modes) == 2 else 0.85
+        deadline = build_start + options.budget * share
+        extra = {}
+        if mode == "none":
+            extra["PYTHONHASHSEED"] = "0"  # the state check compares with build fingerprints
+            if tracked is not None:
+                extra["BR_IMPACT_STATE"] = str(work / "state-check.json")
+            if profile and len(modes) == 2:
+                # relation profile in the shared-process pass: its verdict is global
+                # (every evaluation of the site in the whole suite), so a cache filled
+                # by one test is still seen evaluated by that test (the check against
+                # a forked relation profile is in strategies/impact-combo.md)
+                extra.update(BR_IMPACT_PROFILE="1", BR_PROF_RELPROF="1")
+        elif profile and tracked is not None:
+            # attribute profile in the forked pass: per-test readers need isolation
+            extra.update(BR_IMPACT_PROFILE="1", BR_PROF_RELPROF="0", PYTHONHASHSEED="0")
+        if mode == "fork":
+            seconds: dict = {}
+            for w in workers:
+                for nodeid, d in (w.get("durations") or {}).items():
+                    seconds[nodeid] = max(seconds.get(nodeid, 0.0), d)
+            if seconds:
+                (work / "order.json").write_text(json.dumps(seconds), "utf-8")
+                extra["BR_IMPACT_ORDER"] = str(work / "order.json")
+            if tracked is not None and profile:
+                extra["BR_ATTR_TRACKED"] = str(tracked)
         if options.reuse and list(cov_dir.glob("cov-*.json")):
             got = [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
         else:
-            got = run_coverage(root, work, env, options.jobs, mode)
+            got = run_coverage(root, work, env, options.jobs, mode, extra, deadline)
         log(f"coverage ({mode}): {len(got)} workers in {time.time() - start:.1f}s")
         if not got:
             log(f"coverage ({mode}) produced nothing; using the other passes only")
+            if mode == "fork":
+                profile = False
             continue
         for w in got:
             w["mode"] = mode
@@ -466,57 +535,68 @@ def main() -> int:
         log("no coverage results; writing no maps (selector falls back to all tests)")
         return 0
 
-    attr_workers = None
-    if os.environ.get("BR_IMPACT_ATTRS", "1") == "1":
-        start = time.time()
-        sys.path.insert(0, str(LIB))
-        import br_attr_build
-
-        try:
-            attr_workers = br_attr_build.run(root, work, out, env, options.jobs, options.reuse)
-        except Exception as exc:  # noqa: BLE001
-            log(f"attribute profile failed: {exc!r}")
-        log(f"attribute profile in {time.time() - start:.1f}s")
-
+    test_imports = imports_future.result()
     start = time.time()
-    if options.reuse and (work / "test_imports.json").exists():
-        test_imports = json.loads((work / "test_imports.json").read_text("utf-8"))
-    else:
-        test_imports = run_test_imports(root, work, env)
-    log(f"test import probe: {len(test_imports)} test modules in {time.time() - start:.1f}s")
-    start = time.time()
-    postprocess(root, out, probes, workers, test_imports, attr_workers)
+    shape = postprocess(root, out, probes, workers, test_imports)
     log(f"postprocess in {time.time() - start:.1f}s")
 
-    # relation profile of comparison sites (second, separate suite pass)
-    start = time.time()
-    try:
-        if options.reuse and list((work / "relprof").glob("relprof-*.json")):
-            rp_workers = [json.loads(p.read_text("utf-8"))
-                          for p in sorted((work / "relprof").glob("relprof-*.json"))]
-        else:
-            rp_workers = run_relprof(root, work, env, options.jobs)
-        log(f"relprof pass: {len(rp_workers)} workers in {time.time() - start:.1f}s")
-        if not rp_workers:
-            raise RuntimeError("no relprof results")
+    fork_dir = work / "cov-fork"
+    unprofiled: dict[str, int] = {}
+    for w in workers:
+        if w.get("mode") == "fork":
+            for t, lv in (w.get("unprofiled") or {}).items():
+                unprofiled[t] = max(unprofiled.get(t, 0), lv)
+    if unprofiled:
+        log(f"tests profiled at a lower level (over budget): {unprofiled}")
+    if profile:
+        # relation profile of comparison sites, recorded in the forked pass
         start = time.time()
-        relprof_post(out, workers, rp_workers)
-        log(f"relprof postprocess in {time.time() - start:.1f}s")
-    except Exception as exc:  # noqa: BLE001  the selector works without it
-        log(f"relprof failed, no relprof map: {exc!r}")
-        (out / "relprof.json").unlink(missing_ok=True)
+        try:
+            rp_workers = [json.loads(p.read_text("utf-8"))
+                          for p in sorted((work / "cov").glob("relprof-*.json"))]
+            if not rp_workers:
+                raise RuntimeError("no relprof results")
+            if any(w.get("state_changes") is None for w in workers if w.get("mode") == "none"):
+                # the run-time state check finds the registries whose comparisons
+                # depend on test order; without it there is no sound relation map
+                raise RuntimeError("no run-time state check in the in-process pass")
+            relprof_post(out, [w for w in workers if w.get("mode") == "fork"] or workers, rp_workers)
+            log(f"relprof postprocess in {time.time() - start:.1f}s")
+        except Exception as exc:  # noqa: BLE001  the selector works without it
+            log(f"relprof failed, no relprof map: {exc!r}")
+            (out / "relprof.json").unlink(missing_ok=True)
+        # attribute profile, recorded in the forked pass
+        if tracked is not None:
+            start = time.time()
+            try:
+                at_workers = [json.loads(p.read_text("utf-8")) for p in sorted(fork_dir.glob("attr-*.json"))]
+                state_changes: list = []
+                for w in workers:
+                    if w.get("mode") == "none":
+                        got = w.get("state_changes")
+                        state_changes.extend(got if got is not None else [["no state check"]])
+                if not any(w.get("mode") == "none" for w in workers):
+                    state_changes.append(["no in-process pass: no state check"])
+                pos, by_class, by_module, ALL = shape
+                br_attr_build.postprocess(out, at_workers or None, pos, by_class, by_module, ALL,
+                                          state_changes,
+                                          [t for t, lv in unprofiled.items() if lv >= 2])
+                log(f"attribute profile postprocess in {time.time() - start:.1f}s")
+            except Exception as exc:  # noqa: BLE001
+                log(f"attribute profile failed: {exc!r}")
+                shutil.rmtree(out / "attrs", ignore_errors=True)
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
     for dirpath, _dirs, files in os.walk(out):
         os.chmod(dirpath, 0o755)
         for name in files:
             os.chmod(os.path.join(dirpath, name), 0o644)
+    log(f"impact build in {time.time() - build_start:.1f}s")
     return 0
 
 
 def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
-                test_imports: dict | None = None,
-                attr_workers: list[dict] | None = None) -> None:
+                test_imports: dict | None = None):
     # ---- tests and per-line test sets
     nodeids: set[str] = set()
     outcomes: dict[str, str] = {}
@@ -676,6 +756,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
     # run's order and layout are unknown, so every line of such a function counts
     # for every test that ran it, or ran a function that calls it by name (the
     # callers take the polluted branch: Dialect.get, __getitem__, classes).
+    dependent_out: list = []  # for the profiles: what a polluted run may evaluate
     if fork_line_bits and has_ref:
         dependent = []
         for (rel, qual), lines in func_lines.items():
@@ -695,6 +776,27 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
             for l in func_lines[(rel, qual)]:
                 target[l] = target.get(l, 0) | bits
             log(f"state-dependent function {rel}:{qual}: {bin(bits).count('1')} tests")
+            dependent_out.append(_dependent_entry(trees.get(rel), rel, qual, func_lines, func_loads,
+                                                  bits))
+    # Class attributes the in-process pass found changed at its end (registries that
+    # tests clear and refill, _Dialect._classes): a function that loads one may
+    # evaluate its comparisons on operands that depend on the order of tests (the
+    # one site where a forked relation profile saw a relation the shared-process
+    # one did not: `len(DIALECT_MODULE_NAMES) != len(cls._classes)`). Their sites
+    # are "state" entries: no relation verdict there.
+    state_names = set()
+    for w in workers:
+        for change in w.get("state_changes") or ():
+            if change and change[0] == "class" and not str(change[2]).startswith("__"):
+                state_names.add(change[2])
+    if state_names:
+        for (rel, qual), loads in func_loads.items():
+            if loads & state_names and (rel, qual) not in {(d["rel"], d["qual"]) for d in dependent_out}:
+                entry = _dependent_entry(trees.get(rel), rel, qual, func_lines, func_loads, 0)
+                entry["kind"] = "state"
+                dependent_out.append(entry)
+        log(f"run-time changed class attributes {sorted(state_names)}: "
+            f"{sum(1 for d in dependent_out if d.get('kind') == 'state')} functions without relation verdicts")
 
     # ---- classes
     sys.path.insert(0, str(root))
@@ -852,16 +954,87 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
          "importers": {k: sets.add(v | module_users.get(k, 0))
                        for k, v in sorted(importers.items())},
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
-    if (out / "attrs").is_dir():
-        import br_attr_build
-
-        br_attr_build.postprocess(out, attr_workers, pos, by_class, by_module, ALL, sets)
-    (out / "sets.json").write_text(json.dumps(
-        [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(
         {"version": VERSION, "sqlglot": str(root), "tests": tests, "unsure": unsure,
          "python": sys.version}, separators=(",", ":")), "utf-8")
+    (out / "dependent.json").write_text(json.dumps(
+        [dict(d, bits=sets.add(d["bits"])) for d in dependent_out]
+        if fork_line_bits and has_ref else None, separators=(",", ":")), "utf-8")
+    (out / "sets.json").write_text(json.dumps(
+        [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     log(f"{len(sets.items)} distinct sets, {len(names)} names, {len(class_users)} classes")
+    return pos, by_class, by_module, ALL
+
+
+def _dependent_entry(tree, rel: str, qual: str, func_lines: dict, func_loads: dict, bits: int) -> dict:
+    """A state-dependent function for the profile rules of blast/impact.py: its
+    line span (nested code included), the names it loads, and whether it reads
+    attributes dynamically (getattr/vars/__dict__/hasattr on something that is not
+    provably a module object), in which case any attribute may be read."""
+    lines: set[int] = set()
+    loads: set[str] = set()
+    for (r, q), ls in func_lines.items():
+        if r == rel and (q == qual or q.startswith(qual + ".")):
+            lines |= ls
+            loads |= func_loads.get((r, q), set())
+    node = _find_def(tree, qual) if tree is not None else None
+    lo, hi = (node.lineno, node.end_lineno) if node is not None else (min(lines), max(lines))
+    dynamic = node is None or _dynamic_reads(node)
+    return {"rel": rel, "qual": qual, "lo": lo, "hi": hi, "loads": sorted(loads),
+            "dynamic": dynamic, "bits": bits}
+
+
+def _find_def(tree, qual: str):
+    parts = qual.split(".")
+    nodes = tree.body
+    found = None
+    i = 0
+    while i < len(parts):
+        part = parts[i]
+        if part == "<locals>":
+            i += 1
+            continue
+        found = next((n for n in nodes if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                                          ast.ClassDef)) and n.name == part), None)
+        if found is None:
+            return None
+        nodes = found.body
+        i += 1
+    return found if isinstance(found, (ast.FunctionDef, ast.AsyncFunctionDef)) else None
+
+
+def _dynamic_reads(func) -> bool:
+    """vars, `.__dict__`, or getattr/hasattr with a computed name on anything but a
+    local bound only to importlib.import_module(...) (a module: its globals are
+    not class attributes)."""
+    modules: set[str] = set()
+    others: set[str] = set()
+    for node in ast.walk(func):
+        if isinstance(node, ast.Assign):
+            is_mod = (isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute)
+                      and node.value.func.attr == "import_module")
+            for t in node.targets:
+                for sub in ast.walk(t):
+                    if isinstance(sub, ast.Name):
+                        (modules if is_mod and isinstance(t, ast.Name) else others).add(sub.id)
+        elif isinstance(node, (ast.For, ast.AugAssign, ast.AnnAssign, ast.withitem, ast.NamedExpr)):
+            target = getattr(node, "target", None) or getattr(node, "optional_vars", None)
+            for sub in ast.walk(target) if target is not None else ():
+                if isinstance(sub, ast.Name):
+                    others.add(sub.id)
+    safe = modules - others
+    for node in ast.walk(func):
+        if isinstance(node, ast.Attribute) and node.attr == "__dict__":
+            return True
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                and node.func.id in ("getattr", "hasattr", "vars"):
+            first = node.args[0] if node.args else None
+            if not (isinstance(first, ast.Name) and first.id in safe):
+                name = node.args[1] if len(node.args) > 1 else None
+                if node.func.id == "vars" or not (isinstance(name, ast.Constant)
+                                                  and isinstance(name.value, str)):
+                    return True  # a constant name is a plain load (code_loads has it)
+    return False
 
 
 if __name__ == "__main__":

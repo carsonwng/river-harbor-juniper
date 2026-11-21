@@ -27,7 +27,10 @@ import br_state  # noqa: E402
 #   cached in the module namespace; the dialect registry (_Dialect._classes) that
 #   test-defined dialects join; the default schema object tests rebind (its memo
 #   caches are emptied before every phase by the plugin); copyreg's __slotnames__.
-BENIGN_MODULE_ATTRS = {("sqlglot", "schema")}
+# UNITTEST is bound at import from `"pytest" in sys.modules`: it differs between
+# the build's pristine import and any pytest process, without any test changing it
+BENIGN_MODULE_ATTRS = {("sqlglot", "schema"), ("sqlglot.expressions", "UNITTEST"),
+                       ("sqlglot.expressions.core", "UNITTEST")}
 LAZY_MODULES = {"sqlglot.dialects", "sqlglot.optimizer"}
 BENIGN_CLASS_ATTRS = {("sqlglot.dialects.dialect:_Dialect", "_classes")}
 
@@ -45,42 +48,48 @@ def log(message: str) -> None:
     print(f"[impact-attrs] {message}", file=sys.stderr, flush=True)
 
 
-def run(root: Path, work: Path, out: Path, env: dict, jobs: int, reuse: bool) -> list[dict] | None:
+def prepare(root: Path, work: Path, out: Path, env: dict) -> Path | None:
+    """Pristine fingerprints (attrs/state.json), opaque classes and tracked names.
+    Returns the tracked-names file for the profiled pass (br_prof)."""
     adir = out / "attrs"
     adir.mkdir(parents=True, exist_ok=True)
+    compile_pyc(root, out, env)
     start = time.time()
-    state = br_state.build_state(root, adir / "state.json")
+    state = br_state.build_state(root, adir / "state.json", pyc=(adir / "pyc").resolve())
     (adir / "opaque.json").write_text(json.dumps(state["opaque"]), "utf-8")
     log(f"state in {time.time() - start:.1f}s")
-    penv = dict(env, PYTHONHASHSEED="0")
+    penv = dict(env, PYTHONHASHSEED="0", PYTHONPYCACHEPREFIX=str((adir / "pyc").resolve()))
     tracked = work / "tracked.json"
     subprocess.run([sys.executable, "-W", "ignore", str(HERE / "br_state.py"), "tracked",
                     "--sqlglot", str(root), "--out", str(tracked)], env=penv, check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     shutil.copy(tracked, adir / "tracked.json")
-    raw = work / "attr"
-    if not (reuse and list(raw.glob("attr-*.json"))):
-        raw.mkdir(parents=True, exist_ok=True)
-        for p in raw.glob("attr-*.json"):
-            p.unlink()
-        start = time.time()
-        penv.update(BR_ATTR_ROOT=str(root), BR_ATTR_OUT=str(raw), BR_ATTR_TRACKED=str(tracked))
-        command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_attr_plugin",
-                   "--assert=plain", "-q", "-n", str(jobs), "--dist", "load", "tests"]
-        proc = subprocess.run(command, cwd=str(root), env=penv, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, text=True, errors="replace")
-        tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
-        log(f"profile pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
-    workers = [json.loads(p.read_text("utf-8")) for p in sorted(raw.glob("attr-*.json"))]
+    # pristine state for the in-process pass's end-of-run check, with functions by
+    # name only (that pass runs relation-instrumented code), compiled from source
+    # like the modules of that pass
+    check = work / "state-check.json"
+    unordered = work / "unordered.json"
+    unordered.write_text(json.dumps(state.get("unordered", [])), "utf-8")
+    subprocess.run([sys.executable, "-W", "ignore", str(HERE / "br_state.py"), "snapshot",
+                    "--sqlglot", str(root), "--out", str(check), "--unordered", str(unordered),
+                    "--shallow"], env=dict(env, PYTHONHASHSEED="0"), check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    data = json.loads(check.read_text("utf-8"))
+    data["volatile"] = state.get("volatile", [])
+    check.write_text(json.dumps(data), "utf-8")
+    return tracked
+
+
+def compile_pyc(root: Path, out: Path, env: dict) -> None:
+    """Bytecode of the pinned sqlglot for the run-time diff (read-only disk)."""
     start = time.time()
-    pyc = adir / "pyc"
+    pyc = out / "attrs" / "pyc"
     if pyc.exists():
         shutil.rmtree(pyc)
     subprocess.run([sys.executable, "-m", "compileall", "-q", str(root / "sqlglot")],
                    env=dict(env, PYTHONPYCACHEPREFIX=str(pyc.resolve()), PYTHONDONTWRITEBYTECODE=""),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     log(f"pyc in {time.time() - start:.1f}s")
-    return workers or None
 
 
 class Sets:
@@ -114,7 +123,8 @@ class Sets:
 
 
 def postprocess(out: Path, workers: list[dict] | None, pos: dict[str, int], by_class: dict,
-                by_module: dict, ALL: int, _shared_sets=None) -> None:
+                by_module: dict, ALL: int, extra_problems: list | None = None,
+                unprofiled: list | None = None) -> None:
     adir = out / "attrs"
     sets = Sets()
     result: dict = {"ok": False}
@@ -187,6 +197,9 @@ def postprocess(out: Path, workers: list[dict] | None, pos: dict[str, int], by_c
                 problems.append(change)
         if w.get("leaky"):
             problems.append(["leaky", w["leaky"]])
+    for change in extra_problems or ():
+        if not _benign(change):
+            problems.append(change)
     missing = sorted(t for t in pos if t not in seen)
     unsure |= set(missing)
     usure_bits = 0
@@ -202,6 +215,9 @@ def postprocess(out: Path, workers: list[dict] | None, pos: dict[str, int], by_c
         "star": {t: sets.add(v) for t, v in star.items()},
         "iters": {t: sets.add(v) for t, v in iters.items()},
         "tables": tables,
+        # tests run without attribute instrumentation (over their time budget):
+        # the selector adds them to every verdict about a class they use
+        "unprofiled": sets.add(sum(1 << pos[t] for t in set(unprofiled or ()) if t in pos)),
     }
     (adir / "attrs.json").write_text(json.dumps(result, separators=(",", ":")), "utf-8")
     (adir / "sets.json").write_text(json.dumps(sets.dump(), separators=(",", ":")), "utf-8")
