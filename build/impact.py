@@ -374,6 +374,19 @@ def main() -> int:
     postprocess(root, out, probes, workers)
     log(f"postprocess in {time.time() - start:.1f}s")
 
+    # import graph for the run-time import check (strat/gap-mix): which sqlglot
+    # modules each module loads when imported after `import sqlglot`
+    try:
+        (out / "imports.json").write_text(json.dumps({
+            "version": 1, "core": sorted(probes.get("core", {}).get("loaded", [])),
+            "loaded": {m: sorted(p.get("loaded", [])) for m, p in sorted(probes.items())
+                       if m != "core" and not p.get("error")},
+            "errors": sorted(m for m, p in probes.items() if p.get("error"))},
+            separators=(",", ":")), "utf-8")
+    except Exception as exc:  # noqa: BLE001
+        log(f"imports map failed: {exc!r}")
+        (out / "imports.json").unlink(missing_ok=True)
+
     # lambdas that run during import, and pinned import failures (strat/gap-mix;
     # blast/impact.py _lambda_only_bits, _imports_cleanly)
     start = time.time()

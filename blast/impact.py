@@ -132,6 +132,14 @@ class Maps:
             self._lambdas = data
         return self._lambdas
 
+    def import_graph(self) -> dict | None:
+        """{"core": [...], "loaded": {module: [...]}, "errors": [...]} or None."""
+        try:
+            raw = json.loads((self.root / "imports.json").read_text("utf-8"))
+            return raw if raw.get("version") == 1 else None
+        except Exception:  # noqa: BLE001
+            return None
+
     def import_errors(self) -> set[str] | None:
         """Modules that fail to import at the pin (lambda probe), or None."""
         try:
@@ -525,8 +533,20 @@ def _imports_cleanly(maps: Maps) -> bool:
     sources (blast/impact_import.py). False, and so every test, on any doubt."""
     from . import impact_import
 
+    modules = None
+    graph = maps.import_graph()
+    if graph is not None:
+        edited = set()
+        for rel in maps.import_sources:
+            parts = rel[:-3].split("/")
+            if parts[-1] == "__init__":
+                parts = parts[:-1]
+            edited.add(".".join(parts))
+        if not edited & set(graph["core"]):
+            modules = sorted(edited | set(graph["errors"]) |
+                             {m for m, loaded in graph["loaded"].items() if edited & set(loaded)})
     try:
-        failed = impact_import.check(maps.sqlglot, maps.import_sources)
+        failed = impact_import.check(maps.sqlglot, maps.import_sources, modules)
     except Exception as exc:  # noqa: BLE001
         _log(f"import check failed: {exc!r}")
         return False

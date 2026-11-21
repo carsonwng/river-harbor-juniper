@@ -6,7 +6,11 @@ and every test that imports it, directly or through another module, fails: the
 names- and class-users rules of blast/impact.py cannot see that. check() imports
 every sqlglot module (build/impact.py's sorted order) in a fresh child
 interpreter with the edited files' sources swapped in, and returns the modules
-that fail. The build records the pinned failures (maps/impact/lambdas.json
+that fail. With the build's import graph (maps/impact/imports.json) only the
+edited modules and the modules whose import loads them are imported: a module
+that does not load an edited one at import cannot stop importing because of it
+(assuming import-time code does not read state another module's import left
+behind). The build records the pinned failures (maps/impact/lambdas.json
 "errors", from build/impact_lib/br_lambda_probe.py), so only new failures count.
 
 Run as a script it reads {"root": ..., "overrides": {rel: source}} on stdin and
@@ -24,13 +28,15 @@ from pathlib import Path
 TIMEOUT_S = 90
 
 
-def check(root: Path, overrides: dict[str, str]) -> dict[str, str]:
-    """{module: error} for modules that fail to import. Raises if the child fails."""
+def check(root: Path, overrides: dict[str, str], modules: list[str] | None = None) -> dict[str, str]:
+    """{module: error} for modules that fail to import (all sqlglot modules, or
+    `sqlglot` plus `modules`). Raises if the child fails."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env["PYTHONHASHSEED"] = "0"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     proc = subprocess.run([sys.executable, "-I", str(Path(__file__).resolve())],
-                          input=json.dumps({"root": str(root), "overrides": overrides}),
+                          input=json.dumps({"root": str(root), "overrides": overrides,
+                                            "modules": modules}),
                           capture_output=True, text=True, encoding="utf-8", env=env,
                           timeout=TIMEOUT_S)
     if proc.returncode != 0:
@@ -86,11 +92,17 @@ def _child() -> None:
     real_stdout = sys.stdout
     sys.stdout = sys.stderr
     failed = {}
-    for path in sorted((root / "sqlglot").rglob("*.py")):
-        parts = list(path.relative_to(root).with_suffix("").parts)
-        if parts[-1] == "__init__":
-            parts = parts[:-1]
-        name = ".".join(parts)
+    names = request.get("modules")
+    if names is None:
+        names = []
+        for path in sorted((root / "sqlglot").rglob("*.py")):
+            parts = list(path.relative_to(root).with_suffix("").parts)
+            if parts[-1] == "__init__":
+                parts = parts[:-1]
+            names.append(".".join(parts))
+    else:
+        names = ["sqlglot"] + sorted(names)
+    for name in names:
         if name == "sqlglot.__main__":
             continue
         try:
