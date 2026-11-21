@@ -106,7 +106,7 @@ def run_coverage(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
     cov_dir.mkdir(parents=True, exist_ok=True)
     env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir))
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
-               "-n", str(jobs), "--dist", "load", "tests"]
+               "-n", str(jobs), "--dist", "load", f"--junitxml={work / 'cov-junit.xml'}", "tests"]
     start = time.time()
     proc = subprocess.run(command, cwd=str(root), env=env, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True, errors="replace")
@@ -147,6 +147,92 @@ def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
     finally:
         shutil.rmtree(copy.parent, ignore_errors=True)
     return [json.loads(p.read_text("utf-8")) for p in sorted(rp_dir.glob("relprof-*.json"))]
+
+
+def test_seconds(work: Path, tests: list[str]) -> dict[str, float]:
+    """Per-test time (setup + call + teardown) in the coverage pass, from its junit xml."""
+    import xml.etree.ElementTree as ET
+
+    key = {}
+    for t in tests:
+        parts = t.split("::")
+        mod = parts[0][:-3].replace("/", ".") if parts[0].endswith(".py") else parts[0]
+        key[(".".join([mod] + parts[1:-1]), parts[-1])] = t
+    out: dict[str, float] = {}
+    try:
+        root = ET.parse(work / "cov-junit.xml").getroot()
+    except Exception as exc:  # noqa: BLE001
+        log(f"no junit times: {exc!r}")
+        return out
+    for case in root.iter("testcase"):
+        t = key.get((case.get("classname", ""), case.get("name", "")))
+        if t is not None:
+            out[t] = out.get(t, 0.0) + float(case.get("time") or 0)
+    return out
+
+
+def run_instr(root: Path, work: Path, env: dict, jobs: int, chosen: list[str],
+              deadline: float) -> list[dict]:
+    """Instruction coverage (br_instr_plugin) of each chosen test, alone in a fresh
+    pytest process. Results for tests that did not finish by `deadline` are absent."""
+    in_dir = work / "instr"
+    if in_dir.exists():
+        shutil.rmtree(in_dir)
+    in_dir.mkdir(parents=True)
+    env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(in_dir))
+
+    def one(item):
+        i, nodeid = item
+        left = deadline - time.time()
+        if left < 30:
+            return
+        command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p",
+                   "br_instr_plugin", "-q", "-p", "no:xdist", "tests"]
+        try:
+            subprocess.run(command, cwd=str(root),
+                           env=dict(env, BR_INSTR_TAG=str(i), BR_INSTR_ONLY=nodeid),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=left)
+        except subprocess.TimeoutExpired:
+            log(f"instr: {nodeid} not finished before the deadline")
+
+    with ThreadPoolExecutor(max(1, jobs)) as pool:
+        list(pool.map(one, enumerate(chosen)))
+    results = []
+    for i, nodeid in enumerate(chosen):
+        path = in_dir / f"instr-{i}.json"
+        if path.exists():
+            data = json.loads(path.read_text("utf-8"))
+            data["nodeid"] = nodeid
+            results.append(data)
+    return results
+
+
+def instr_post(out: Path, results: list[dict]) -> None:
+    """instr.json: per profiled test and sqlglot file, the source positions of the
+    instructions that executed (indices into one shared span table)."""
+    spans: dict[tuple, int] = {}
+    table: list = []
+    files: dict[str, dict[str, list[int]]] = {}
+    tests, usable = [], []
+    for i, r in enumerate(results):
+        tests.append(r["nodeid"])
+        # usable only when exactly this test ran and passed
+        usable.append(r.get("items") == [r["nodeid"]]
+                      and r.get("outcomes", {}).get(r["nodeid"]) == "passed"
+                      and not r.get("source_reads", True))
+        for rel, items in r["files"].items():
+            idx = []
+            for s in items:
+                s = tuple(s)
+                k = spans.get(s)
+                if k is None:
+                    k = spans[s] = len(table)
+                    table.append(list(s))
+                idx.append(k)
+            files.setdefault(rel, {})[str(i)] = idx
+    data = {"version": 1, "tests": tests, "usable": usable, "spans": table, "files": files}
+    (out / "instr.json").write_text(json.dumps(data, separators=(",", ":")), "utf-8")
+    log(f"instr: {sum(usable)}/{len(tests)} tests usable, {len(table)} spans")
 
 
 def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> None:
@@ -348,6 +434,7 @@ def main() -> int:
     parser.add_argument("--work", type=Path, help="keep raw results here (default: temp)")
     parser.add_argument("--reuse", action="store_true", help="reuse raw results in --work")
     options = parser.parse_args()
+    began = time.time()
     root = options.sqlglot.resolve()
     out = options.out
     out.mkdir(parents=True, exist_ok=True)
@@ -423,6 +510,35 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001  the selector works without it
         log(f"relprof failed, no relprof map: {exc!r}")
         (out / "relprof.json").unlink(missing_ok=True)
+    # instruction coverage of the most expensive tests, each in a fresh process
+    start = time.time()
+    try:
+        meta = json.loads((out / "meta.json").read_text("utf-8"))
+        unsure = set(meta.get("unsure", []))
+        seconds = test_seconds(work, meta["tests"])
+        floor = float(os.environ.get("BR_INSTR_MIN_SECONDS", "1.5"))
+        chosen = sorted((t for t, s in seconds.items() if s >= floor and t not in unsure),
+                        key=lambda t: -seconds[t])
+        # optional pass: its own budget, and never past the impact step's overall
+        # deadline (the whole image build has 10 minutes; relprof goes first)
+        budget = float(os.environ.get("BR_INSTR_BUDGET", "150"))
+        overall = float(os.environ.get("BR_IMPACT_DEADLINE", "450"))
+        deadline = min(start + budget, began + overall)
+        # whole-build deadline (combine's convention): BR_BUILD_DEADLINE_S seconds after
+        # BR_BUILD_START (epoch seconds; default: when this impact step began)
+        if os.environ.get("BR_BUILD_DEADLINE_S"):
+            build_start = float(os.environ.get("BR_BUILD_START") or began)
+            deadline = min(deadline, build_start + float(os.environ["BR_BUILD_DEADLINE_S"]))
+        if deadline - time.time() < 40:
+            raise RuntimeError(f"no time left ({time.time() - began:.0f}s into the impact build)")
+        results = run_instr(root, work, env, options.jobs, chosen, deadline)
+        log(f"instr pass: {len(results)}/{len(chosen)} tests in {time.time() - start:.1f}s")
+        if not results:
+            raise RuntimeError("no instr results")
+        instr_post(out, results)
+    except Exception as exc:  # noqa: BLE001  the selector works without it
+        log(f"instr failed, no instr map: {exc!r}")
+        (out / "instr.json").unlink(missing_ok=True)
     # bytecode for the pinned sources, after every suite pass: the run-time import
     # check (blast/impact_import.py) then only compiles the edited files. A stale
     # or missing .pyc only costs time, never correctness.
