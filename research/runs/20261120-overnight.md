@@ -223,3 +223,11 @@ Followed from now on, on top of RUNBOOK.md.
   (docker 329.5 s, oracle 126.0 s), and a re-verify passes on every set. The local copy in main's `validation/sets/` is updated to 32.
   Most wasteful selections: s31h (178 tests, 0 failing), g9ct (25.5 s, 0 failing), f7kz (771 tests for 1 failing). I declined the offer to label 31 more
   patches (2.5-3 h of CPU on a shared laptop): the held-out sets now total 64 + 22 + 32. Agent closed.
+
+## Cycle 12 (04:03 EST)
+
+- Slot OPEN. Nothing has been pushed to candidate branches since about 00:45. No m1-safe candidate beats submission 5. **Slot unused.**
+- **Agent:** started `gap-integrate` (Opus strategist). It stacks the lead's unmerged `strat/gap-tests`, `gap-expr` and `gap-heavy` onto
+  `int/night-0147` one at a time, verifies each on sample + m1 (64) + m1-extra (22) + local-20261120 (32), watches build time, and pushes the
+  passing `int/night-<HHMM>-<tag>` branches. It never submits. Reason: the sample/practice gap shows relprof's gains don't transfer, but triage
+  fixture narrowing (gap-tests) and run-time checks should.
