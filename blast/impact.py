@@ -233,6 +233,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
     maps.pruned = False
     maps.import_sources = {}
     maps.state_result = None
+    maps.state_imported = set()
     maps.commit_sources = _commit_sources(changes, maps)
     for change in changes:
         try:
@@ -245,6 +246,10 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
+    if maps.import_sources and set(maps.import_sources) <= maps.state_imported:
+        # (strat/gap-expr) the state diff already imported every sqlglot module with
+        # these sources and found the same import failures as the pin
+        maps.import_sources = {}
     if maps.import_sources and not _imports_cleanly(maps):
         return ctx.all_tests
     if not bits and maps.pruned and maps.always:
@@ -1022,9 +1027,11 @@ def _state_diff(maps: Maps, rel: str, new_text: str) -> dict | None:
         return None
     sources = getattr(maps, "commit_sources", None)
     if not sources or rel not in sources:
-        args, stdin = ["--rel", rel], new_text
+        args, stdin, covered = ["--rel", rel], new_text, {rel}
+        if sources is None or set(sources) - {rel}:
+            covered = set()  # other edited files were not part of this import
     else:
-        args, stdin = ["--rel", "-"], json.dumps(sources)
+        args, stdin, covered = ["--rel", "-"], json.dumps(sources), set(sources)
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
     try:
@@ -1041,6 +1048,8 @@ def _state_diff(maps: Maps, rel: str, new_text: str) -> dict | None:
         _log(f"{rel}: state diff failed ({exc!r})")
         return None
     maps.state_result = result
+    if result.get("changes") is not None and not result.get("import_failed"):
+        maps.state_imported = covered
     return result
 
 
