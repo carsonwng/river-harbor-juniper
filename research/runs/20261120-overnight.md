@@ -134,3 +134,11 @@ Followed from now on, on top of RUNBOOK.md.
 - **Orient:** slot OPEN. `strat/impact-combo` still isn't on origin. m1 grew to **42** commits; the local untracked copy is
   refreshed. origin/main gained `012cc2f` (scorer-like build timing, shared CPU budget) and `efc2ea4` (build budget research).
 - **Submission: slot unused** (no m1-safe candidate on origin). `label-local` is still running.
+
+## Cycle 6 (23:12 EST)
+
+- **Orient:** slot OPEN. Still no `strat/impact-combo` on origin. m1 has 42 commits (local copy current). New: `origin/strat/gap-tests`
+  `7b06945` (from the lead session): record-level narrowing of setUpClass-loaded fixtures in triage, built on
+  `int/night-2120`. That base has the `8owm` m1 miss in impact, so the branch can't pass m1 as is. It's for the lead to fold
+  into combo, not a submission candidate.
+- **Submission: slot unused** (no m1-safe candidate). `label-local` is still running (no commits since `e72f246`).
