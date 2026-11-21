@@ -158,3 +158,13 @@ Followed from now on, on top of RUNBOOK.md.
 - **Orient:** slot OPEN. Still no `strat/impact-combo` on origin. m1 grew to **56** (local copy refreshed). PR #4
   (`validation/local-20261120`) is open as a draft.
 - **Submission: slot unused** (no m1-safe candidate). `label-local` batch B is labelling.
+
+## Cycle 8 (23:54 EST)
+
+- **Orient:** slot OPEN. **`strat/impact-combo` `760d8bd` is on origin** (30 commits over main). Also new: `strat/gap-heavy`.
+  m1 is at **70** (refreshed), local-20261120 at 16.
+- **Integrate:** `int/night-2354` = origin/main + origin/strat/impact-combo (`2dd8f15`), clean merge. Docker verify on
+  sample + m1 + local-20261120 started.
+- **Deadline knob mismatch:** combo reads `BR_BUILD_DEADLINE` (default 510 in `build/impact.py`, no Dockerfile ENV line),
+  but the ladder names `BR_BUILD_DEADLINE_S`, default 555. Asked the lead. Default plan: variant `int/night-2354-d555` adding
+  `ENV BR_BUILD_DEADLINE=555`.
