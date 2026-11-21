@@ -73,6 +73,14 @@ def parse(commit: str, text: str) -> Patch:
             current.old_path = _strip(line[4:])
         elif hunk is None and line.startswith("+++ "):
             current.new_path = _strip(line[4:])
+        elif hunk is None and line.startswith("new file mode"):
+            current.old_path = None
+        elif hunk is None and line.startswith("deleted file mode"):
+            current.new_path = None
+        elif hunk is None and line.startswith("rename from "):
+            current.old_path = line[len("rename from "):].strip()
+        elif hunk is None and line.startswith("rename to "):
+            current.new_path = line[len("rename to "):].strip()
         elif line.startswith("Binary files"):
             current.binary = True
         elif (m := HUNK.match(line)):
