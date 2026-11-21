@@ -185,3 +185,14 @@ Followed from now on, on top of RUNBOOK.md.
   default. Reason: the lead's instruction (submit if 0 misses on all three sets) overrides runbook 4.1's 2% bar. The goal is an m1-safe
   entry that builds on the scorer. Expected practice score: above 243.2 is possible because of the CPU, but the build-pass outcome on their
   builder decides.
+
+## Cycle 9 (01:46 EST; the 01:01 wake-up was late)
+
+- **Submission 4 score: 284.7 s** (BB-0083E2D6, wait 119 ms). Runs: 279.936 s simulated, 4.76 / 4.77 / 4.87 s CPU, 0 commits missed.
+  Worse than submission 3 (243.2) by 41.5 s: combo's sim is +37.9 s and CPU +3.6 s. Its optional passes were probably cut on their builder too,
+  and the in-process registry rule is coarser. It is the only **m1-safe** entry so far.
+- m1 on origin is final: **64** commits (`9e15871`, "sample mix") plus **m1-extra** (22 breaking commits). Both are copied untracked into
+  main's `validation/sets/` with local-20261120.
+- **Human request (01:46): submit the best run we have, watch results, and run thin until 03:40.** Candidate: `strat/gap-mix`
+  `5fc0c56` (lead's branch: int/night-2120 + lambda cut + import-check fix for 8owm/doay; lead's docker eval sample 129.6 s,
+  m1(42) 0 misses). `int/night-0147` = origin/main + gap-mix (`24f5e6d`); docker verify on sample + m1(64) + m1-extra + local started.
