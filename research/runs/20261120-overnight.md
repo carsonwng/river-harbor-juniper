@@ -119,3 +119,12 @@ Followed from now on, on top of RUNBOOK.md.
   (sim 573.012, CPU 4.174), 1 miss: `8owm`. VERIFY FAIL.** `int/night-1948` shares the base impact layer and is
   taken as failing too (per the lead; not re-run). No candidate on origin passes m1, so the next slot goes unused
   unless `strat/impact-combo` lands and passes.
+
+## Cycle 4 (22:30 EST)
+
+- **Orient:** slot OPEN. `strat/impact-combo` is not on origin yet. m1 is unchanged (28 commits, `a4dc791`). The three cloud
+  drafts are unchanged. `label-local` is still labelling.
+- **Submission: slot unused.** No candidate on origin is known to pass m1. The only other option, main + `impact-isolate`
+  (sample 176.9 s, -1%), doesn't beat the best submitted sample total by 2%, so it doesn't qualify under 4.1. Per the lead, an
+  unused slot is better than an m1-failing candidate.
+- **Agent:** none started (`label-local` still running; budget is one at a time).
