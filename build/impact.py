@@ -341,6 +341,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     # only stores generator methods. Direct evidence (lines, instances, methods,
     # attribute and name reads) comes from every pass.
     ref_line_bits: dict[str, dict[int, int]] = {}
+    fork_line_bits: dict[str, dict[int, int]] = {}
     has_ref = any(w.get("mode") != "fork" for w in workers)
     for w in workers:
         wtests = w["tests"]
@@ -371,6 +372,9 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 target[int(line)] = target.get(int(line), 0) | acc
                 if ref:
                     ref_target[int(line)] = ref_target.get(int(line), 0) | acc
+                if w.get("mode") == "fork":
+                    fork_target = fork_line_bits.setdefault(rel, {})
+                    fork_target[int(line)] = fork_target.get(int(line), 0) | acc
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -413,6 +417,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     qual_exec: dict[tuple[str, str], int] = {}  # (rel, co_qualname) -> exec bits (functions)
     file_exec: dict[str, int] = {}  # rel -> tests running any function line
     trees: dict[str, ast.AST] = {}
+    func_lines: dict[tuple[str, str], set[int]] = {}
     for rel in files:
         source = (root / rel).read_text("utf-8")
         try:
@@ -441,6 +446,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 if is_func:
                     key = (rel, co.co_qualname)
                     qual_exec[key] = qual_exec.get(key, 0) | bits
+                    func_lines.setdefault(key, set()).update(lines)
                     file_exec[rel] = file_exec.get(rel, 0) | bits
                     if any(l in il for l in lines):
                         name_import.update(loads)
@@ -455,6 +461,30 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                     name_readers[name] = name_readers.get(name, 0) | bits
                 for name in attr:
                     attr_readers[name] = attr_readers.get(name, 0) | bits
+
+    # ---- state-dependent lines (needs an in-process and a forked pass)
+    # A line some test ran in the shared process but not when it ran alone depends
+    # on state another test left behind (Dialect._try_load after
+    # TestDialectEntryPoints cleared Dialect._classes). Which tests run it in the
+    # labelling run depends on that run's order and layout, which we do not know,
+    # so such a line counts for every test that ran its function in any pass.
+    if fork_line_bits and has_ref:
+        widened = 0
+        for (rel, qual), lines in func_lines.items():
+            ref, fork = ref_line_bits.get(rel, {}), fork_line_bits.get(rel, {})
+            target = line_bits.get(rel)
+            if target is None:
+                continue
+            il = imp_lines.get(rel, {})
+            for l in lines:
+                # lines that also run at import: the shared process attributes them
+                # to the first importer, the forked pass to nobody (probe maps them)
+                if l not in il and ref.get(l, 0) & ~fork.get(l, 0):
+                    target[l] = target.get(l, 0) | qual_exec.get((rel, qual), 0)
+                    widened += 1
+                    if os.environ.get("BR_IMPACT_DEBUG"):
+                        log(f"  widened {rel}:{l} ({qual})")
+        log(f"state-dependent lines widened to their function: {widened}")
 
     # ---- classes
     sys.path.insert(0, str(root))
