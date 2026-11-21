@@ -3,6 +3,10 @@
 # decide which sqlglot tests run, so keep it if your image runs them.
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 
+# Build start time: build/impact.py runs its optional passes only while the build
+# is well inside the 10-minute limit (a stale stamp from a cached layer is ignored).
+RUN date +%s > /opt/br_build_start
+
 # sqlglot at the pinned commit (allowed source), unpacked to /opt/sqlglot.
 ARG SQLGLOT_SHA=eb11aec4be8cb2122afe713a4816662c3f0fb2fa
 RUN python -c "import io,tarfile,urllib.request,os; \
