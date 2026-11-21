@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..a7a9a25 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -43,7 +43,7 @@ LEFT JOIN (
+   GROUP BY y.b
+ ) AS y
+   ON x.b = y.b;
+-SELECT
++SELEC
+   x.a
+ FROM x;
+ 

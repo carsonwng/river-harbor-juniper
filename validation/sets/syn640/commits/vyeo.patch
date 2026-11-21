@@ -1,0 +1,11 @@
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..fe26736 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -773,5 +773,5 @@ ORDER BY
+ SELECT
+   x.a
+ FROM x
+-ORDER BY
++ORD ER BY
+   x.a;

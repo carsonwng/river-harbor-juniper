@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/clickhouse.py b/sqlglot/generators/clickhouse.py
+index e4335f0..0ccdf2d 100644
+--- a/sqlglot/generators/clickhouse.py
++++ b/sqlglot/generators/clickhouse.py
+@@ -379,7 +379,7 @@ class ClickHouseGenerator(generator.Generator):
+         ),
+         exp.TimeStrToTime: _timestrtotime_sql,
+         exp.TimestampAdd: _datetime_delta_sql("TIMESTAMP_ADD"),
+-        exp.TimestampSub: _datetime_delta_sql("TIMESTAMP_SUB"),
++        exp.TimestampSub: _datetime_delta_sql("TIMESTAMP_SUBs"),
+         exp.Typeof: rename_func("toTypeName"),
+         exp.VarMap: _map_sql,
+         exp.Xor: lambda self, e: self.func("xor", e.this, e.expression),

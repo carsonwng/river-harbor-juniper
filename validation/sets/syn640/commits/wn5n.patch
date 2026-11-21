@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..03275b0 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -9014,7 +9014,7 @@ WITH "date_dim_2" AS (
+       CASE
+         WHEN "date_dim"."d_moy" = 2
+         THEN "web_sales"."ws_ext_sales_price" * "web_sales"."ws_quantity"
+-        ELSE 0
++        ELS E 0
+       END
+     ) AS "feb_sales",
+     SUM(

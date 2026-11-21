@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/singlestore.py b/sqlglot/generators/singlestore.py
+index 1220c30..4e30bd0 100644
+--- a/sqlglot/generators/singlestore.py
++++ b/sqlglot/generators/singlestore.py
+@@ -1288,6 +1288,7 @@ class SingleStoreGenerator(MySQLGenerator):
+         "tags",
+         "tan",
+         "target_size",
++        # This is intentional
+         "task",
+         "temp",
+         "template",

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/merge_subqueries.py b/sqlglot/optimizer/merge_subqueries.py
+index a3ecb08..5aaef8d 100644
+--- a/sqlglot/optimizer/merge_subqueries.py
++++ b/sqlglot/optimizer/merge_subqueries.py
+@@ -301,7 +301,7 @@ def _mergeable(
+         return any(
+             column.table == inner_name
+             and column.name in window_aliases
+-            and column.find_ancestor(exp.Group, exp.Order, exp.Having, exp.AggFunc)
++            or column.find_ancestor(exp.Group, exp.Order, exp.Having, exp.AggFunc)
+             for column in outer_scope.columns
+         )
+ 

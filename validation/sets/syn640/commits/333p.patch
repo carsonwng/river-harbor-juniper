@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/hive.py b/sqlglot/parsers/hive.py
+index 0853be1..0b407d8 100644
+--- a/sqlglot/parsers/hive.py
++++ b/sqlglot/parsers/hive.py
+@@ -123,7 +123,7 @@ class HiveParser(parser.Parser):
+         "STR_TO_MAP": lambda args: exp.StrToMap(
+             this=seq_get(args, 0),
+             pair_delim=seq_get(args, 1) or exp.Literal.string(","),
+-            key_value_delim=seq_get(args, 2) or exp.Literal.string(":"),
++            key_value_delim=seq_get(args, 2) or exp.Literal.string(":s"),
+         ),
+         "TO_DATE": _build_to_date,
+         "TO_JSON": exp.JSONFormat.from_arg_list,

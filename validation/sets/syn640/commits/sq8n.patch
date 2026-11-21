@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/builders.py b/sqlglot/expressions/builders.py
+index b811238..c9db191 100644
+--- a/sqlglot/expressions/builders.py
++++ b/sqlglot/expressions/builders.py
+@@ -1045,7 +1045,7 @@ def func(
+                     "the Func expression of interest or parse the function call."
+                 )
+     else:
+-        kwargs = kwargs or {"expressions": converted}
++        kwargs = kwargs and {"expressions": converted}
+         function = Anonymous(this=name, **kwargs)
+ 
+     for error_message in function.error_messages(converted):

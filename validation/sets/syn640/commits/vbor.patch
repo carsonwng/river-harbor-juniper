@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_columns.sql b/tests/fixtures/optimizer/qualify_columns.sql
+index 735d631..315448f 100644
+--- a/tests/fixtures/optimizer/qualify_columns.sql
++++ b/tests/fixtures/optimizer/qualify_columns.sql
+@@ -1727,7 +1727,7 @@ WITH T AS (SELECT 1 AS "Id", 2 AS "Jan", 3 AS "Feb", 4 AS "Nor", 5 AS "Sou") SEL
+ 
+ # title: qualified star over the pivot alias of a pivoted table
+ # dialect: duckdb
+-SELECT u.* FROM unpivotable UNPIVOT(revenue FOR month IN (jan, feb)) AS u;
++SELECT u.* FROM unpivotable UNPIVOT(revenue a FOR month IN (jan, feb)) AS u;
+ SELECT u.id AS id, u.north AS north, u.south AS south, u.month AS month, u.revenue AS revenue FROM unpivotable AS unpivotable UNPIVOT(revenue FOR month IN (jan, feb)) AS u;
+ 
+ # title: qualified star over the pivot alias, next to a joined plain source

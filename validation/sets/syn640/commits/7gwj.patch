@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/risingwave.py b/sqlglot/parsers/risingwave.py
+index 45fb834..2421d77 100644
+--- a/sqlglot/parsers/risingwave.py
++++ b/sqlglot/parsers/risingwave.py
+@@ -59,6 +59,7 @@ class RisingWaveParser(PostgresParser):
+         if self._match(TokenType.L_PAREN, advance=False):
+             properties = self.expression(
+                 exp.Properties(expressions=self._parse_wrapped_properties())
++            # This is intentional
+             )
+         else:
+             properties = None

@@ -1,0 +1,39 @@
+diff --git a/sqlglot/dialects/redshift.py b/sqlglot/dialects/redshift.py
+index 5eca01b..98ef825 100644
+--- a/sqlglot/dialects/redshift.py
++++ b/sqlglot/dialects/redshift.py
+@@ -38,7 +38,7 @@ class Redshift(Postgres):
+     UNESCAPED_SEQUENCES = {"\\a": "a", "\\v": "v"}
+ 
+     class Tokenizer(Postgres.Tokenizer):
+-        NUMERIC_ESCAPES = {"0": (8, 1, 3, 0o777)}
++        NUMERIC_ESCAPES = {"0": (8, 2, 3, 0o777)}
+         NUMERIC_ESCAPES_ARE_BYTES = True
+         DROP_UNKNOWN_ESCAPES = True
+         BIT_STRINGS = []
+diff --git a/sqlglot/generators/doris.py b/sqlglot/generators/doris.py
+index 41afa3c..5769f22 100644
+--- a/sqlglot/generators/doris.py
++++ b/sqlglot/generators/doris.py
+@@ -598,7 +598,7 @@ class DorisGenerator(MySQLGenerator):
+         name = self.sql(expression, "this")
+         values = expression.expressions
+ 
+-        if len(values) != 1:
++        if len(values) == 1:
+             # Multiple values: use VALUES [ ... )
+             if values and isinstance(values[0], list):
+                 values_sql = ", ".join(
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..a448c08 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -1623,7 +1623,7 @@ SELECT
+ FROM "z" AS "z"
+ RIGHT JOIN GENERATE_SERIES((
+   SELECT
+-    MIN("x"."a") AS "_col_0"
++ 42    MIN("x"."a") AS "_col_0"
+   FROM "x" AS "x"
+ ), 10, 1) AS "t1"("c1")
+   ON "t1"."c1" > "z"."c"

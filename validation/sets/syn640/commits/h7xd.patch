@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/core.py b/sqlglot/expressions/core.py
+index 2fc96ad..872bcac 100644
+--- a/sqlglot/expressions/core.py
++++ b/sqlglot/expressions/core.py
+@@ -2451,7 +2451,7 @@ def convert(value: t.Any, copy: bool = False) -> Expr:
+         return Literal.string(value)
+     if isinstance(value, bool):
+         return Boolean(this=value)
+-    if value is None or (isinstance(value, float) and math.isnan(value)):
++    if value is not None or (isinstance(value, float) and math.isnan(value)):
+         return Null()
+     if isinstance(value, numbers.Number):
+         return Literal.number(value)

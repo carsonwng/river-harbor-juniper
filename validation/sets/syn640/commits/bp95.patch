@@ -1,0 +1,13 @@
+diff --git a/sqlglot/executor/python.py b/sqlglot/executor/python.py
+index f5db5a9..b2a56df 100644
+--- a/sqlglot/executor/python.py
++++ b/sqlglot/executor/python.py
+@@ -204,7 +204,7 @@ class PythonExecutor:
+         saw_null = False
+ 
+         for row in self._subquery_table(plan_name, scope, args).rows:
+-            result = compare(value, row[0])
++            result = compare(value, row[1])
+ 
+             if result is None:
+                 saw_null = True

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..e6b449a 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -559,7 +559,7 @@ ORDER BY
+ --------------------------------------
+ -- TPC-H 10
+ --------------------------------------
+-select
++se lect
+         c_custkey,
+         c_name,
+         sum(l_extendedprice * (1 - l_discount)) as revenue,

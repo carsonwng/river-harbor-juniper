@@ -1,0 +1,26 @@
+diff --git a/tests/fixtures/optimizer/merge_subqueries.sql b/tests/fixtures/optimizer/merge_subqueries.sql
+index 0c6420d..0059c14 100644
+--- a/tests/fixtures/optimizer/merge_subqueries.sql
++++ b/tests/fixtures/optimizer/merge_subqueries.sql
+@@ -388,7 +388,7 @@ SELECT /*+ BROADCAST(x) */
+   x.c
+ FROM (
+   SELECT
+-    x.a,
++    .a,
+     x.c
+   FROM (
+     SELECT
+diff --git a/tests/fixtures/optimizer/qualify_columns.sql b/tests/fixtures/optimizer/qualify_columns.sql
+index 735d631..d81e975 100644
+--- a/tests/fixtures/optimizer/qualify_columns.sql
++++ b/tests/fixtures/optimizer/qualify_columns.sql
+@@ -599,7 +599,7 @@ SELECT a FROM (SELECT a FROM (SELECT a FROM x));
+ SELECT _1.a AS a FROM (SELECT _0.a AS a FROM (SELECT x.a AS a FROM x AS x) AS _0) AS _1;
+ 
+ SELECT x.a FROM x AS x JOIN (SELECT * FROM x) AS y ON x.a = y.a;
+-SELECT x.a AS a FROM x AS x JOIN (SELECT x.a AS a, x.b AS b FROM x AS x) AS y ON x.a = y.a;
++SELECT x.a AS a FROM x AS x JOIN (SELECT x.a AS a, x.b AS b FROM x AS x) AS y ON x.a =y.a;
+ 
+ SELECT a FROM x as t1 /* there is comment */;
+ SELECT t1.a AS a FROM x AS t1 /* there is comment */;

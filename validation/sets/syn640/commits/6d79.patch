@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/resolver.py b/sqlglot/optimizer/resolver.py
+index 53dba11..ed86274 100644
+--- a/sqlglot/optimizer/resolver.py
++++ b/sqlglot/optimizer/resolver.py
+@@ -43,7 +43,7 @@ class Resolver:
+         Get the table for a column or struct root identifier.
+ 
+         Args:
+-            column: A column or struct root identifier attached to the query AST, so its
++            column: A column or struct root identifier attached to th query AST, so its
+                 enclosing scope, joins, and aliases are available during resolution.
+             source_columns: If provided, restrict the lookup to these source columns.
+         Returns:

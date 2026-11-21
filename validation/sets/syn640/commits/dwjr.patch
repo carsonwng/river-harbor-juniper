@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/python.py b/sqlglot/generators/python.py
+index f4a8c43..2652edc 100644
+--- a/sqlglot/generators/python.py
++++ b/sqlglot/generators/python.py
+@@ -140,6 +140,6 @@ class PythonGenerator(generator.Generator):
+     }
+ 
+     def slice_sql(self, expression: exp.Slice) -> str:
+-        step = self.sql(expression, "step")
++        step = self.sql(expression, "step_")
+         sql = f"{self.sql(expression.this)}:{self.sql(expression.expression)}"
+         return f"{sql}:{step}" if step else sql

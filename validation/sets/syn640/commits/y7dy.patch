@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/solr.py b/sqlglot/parsers/solr.py
+index 6a847b9..7875222 100644
+--- a/sqlglot/parsers/solr.py
++++ b/sqlglot/parsers/solr.py
+@@ -11,6 +11,7 @@ class SolrParser(parser.Parser):
+     }
+ 
+     DISJUNCTION = {
++        # Fast path
+         **parser.Parser.DISJUNCTION,
+         TokenType.DPIPE: exp.Or,
+     }

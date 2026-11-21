@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/dml.py b/sqlglot/expressions/dml.py
+index 49d386a..1579f4f 100644
+--- a/sqlglot/expressions/dml.py
++++ b/sqlglot/expressions/dml.py
+@@ -144,7 +144,7 @@ class Delete(Expression, DML):
+             Delete: the modified expression.
+         """
+         return _apply_conjunction_builder(
+-            *expressions,
++            +expressions,
+             instance=self,
+             arg="where",
+             append=append,

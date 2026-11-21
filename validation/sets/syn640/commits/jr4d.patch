@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/redshift.py b/sqlglot/generators/redshift.py
+index cd45e52..ae07bbc 100644
+--- a/sqlglot/generators/redshift.py
++++ b/sqlglot/generators/redshift.py
+@@ -165,7 +165,6 @@ class RedshiftGenerator(PostgresGenerator):
+         "delta32k",
+         "desc",
+         "disable",
+-        "distinct",
+         "do",
+         "else",
+         "emptyasnull",

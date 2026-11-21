@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/clickhouse.py b/sqlglot/generators/clickhouse.py
+index e4335f0..bd18c8d 100644
+--- a/sqlglot/generators/clickhouse.py
++++ b/sqlglot/generators/clickhouse.py
+@@ -198,7 +198,7 @@ class ClickHouseGenerator(generator.Generator):
+     LAST_DAY_SUPPORTS_DATE_PART = False
+     CAN_IMPLEMENT_ARRAY_ANY = True
+     SUPPORTS_TO_NUMBER = False
+-    JOIN_HINTS = False
++    JOIN_HINTS = True
+     TABLE_HINTS = False
+     MATCH_CONDITION_IN_ON = True
+     GROUPINGS_SEP = ""

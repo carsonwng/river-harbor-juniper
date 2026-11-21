@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/presto.py b/sqlglot/generators/presto.py
+index 5a0872a..50be0ee 100644
+--- a/sqlglot/generators/presto.py
++++ b/sqlglot/generators/presto.py
+@@ -242,7 +242,7 @@ def amend_exploded_column_table(expression: exp.Expr) -> exp.Expr:
+         for lateral in expression.args.get("laterals") or []:
+             alias = lateral.args.get("alias")
+             if (
+-                not isinstance(lateral.this, exp.Explode)
++                isinstance(lateral.this, exp.Explode)
+                 or not isinstance(alias, exp.TableAlias)
+                 or len(alias.columns) != 1
+             ):

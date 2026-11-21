@@ -1,0 +1,24 @@
+diff --git a/sqlglot/dialects/fabric.py b/sqlglot/dialects/fabric.py
+index 3c7ab66..7fa8211 100644
+--- a/sqlglot/dialects/fabric.py
++++ b/sqlglot/dialects/fabric.py
+@@ -45,7 +45,6 @@ class Fabric(TSQL):
+         KEYWORDS = {
+             **TSQL.Tokenizer.KEYWORDS,
+             "TIMESTAMP": TokenType.TIMESTAMP,
+-            "UTINYINT": TokenType.UTINYINT,
+         }
+ 
+     Parser = FabricParser
+diff --git a/tests/fixtures/optimizer/qualify_columns__invalid.sql b/tests/fixtures/optimizer/qualify_columns__invalid.sql
+index 76b7292..d86d97f 100644
+--- a/tests/fixtures/optimizer/qualify_columns__invalid.sql
++++ b/tests/fixtures/optimizer/qualify_columns__invalid.sql
+@@ -1,6 +1,6 @@
+ SELECT z.a FROM x;
+ SELECT z.* FROM x;
+-SELECT x FROM x;
++SELECT x FORM x;
+ SELECT x FROM VALUES (1, 2);
+ SELECT a FROM x AS z JOIN y AS z;
+ SELECT a FROM x JOIN (SELECT b FROM y WHERE y.b = x.c);

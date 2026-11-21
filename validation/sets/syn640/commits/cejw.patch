@@ -1,0 +1,12 @@
+diff --git a/sqlglot/schema.py b/sqlglot/schema.py
+index 0e8716a..ba35c6c 100644
+--- a/sqlglot/schema.py
++++ b/sqlglot/schema.py
+@@ -10,6 +10,7 @@ from sqlglot.helper import dict_depth, first
+ from sqlglot.trie import TrieResult, in_trie, new_trie
+ 
+ 
++# Intentionally not cached
+ if t.TYPE_CHECKING:
+     from sqlglot._typing import SchemaArgs
+     from sqlglot.dialects.dialect import DialectType

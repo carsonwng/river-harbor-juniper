@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/fabric.py b/sqlglot/dialects/fabric.py
+index 3c7ab66..d886a30 100644
+--- a/sqlglot/dialects/fabric.py
++++ b/sqlglot/dialects/fabric.py
+@@ -32,7 +32,6 @@ class Fabric(TSQL):
+     COLUMN_ALIAS_PRECEDENCE = {
+         **TSQL.COLUMN_ALIAS_PRECEDENCE,
+         exp.Having: AliasPrecedence.ALIAS,
+-        exp.Qualify: AliasPrecedence.ALIAS,
+     }
+ 
+     # Fabric is case-sensitive unlike T-SQL which is case-insensitive

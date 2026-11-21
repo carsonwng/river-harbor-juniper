@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..34b3be7 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -4188,7 +4188,7 @@ WITH ss
+                 date_dim,
+                 customer_address
+          WHERE  ws_sold_date_sk = d_date_sk
+-                AND ws_bill_addr_sk = ca_address_sk
++                and ws_bill_addr_sk = ca_address_sk
+          GROUP  BY ca_county,
+                    d_qoy,
+                    d_year)

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/duckdb.py b/sqlglot/parsers/duckdb.py
+index 88a17c4..9c0eeab 100644
+--- a/sqlglot/parsers/duckdb.py
++++ b/sqlglot/parsers/duckdb.py
+@@ -330,7 +330,7 @@ class DuckDBParser(parser.Parser):
+     }
+ 
+     SHOW_TRIE = new_trie(key.split(" ") for key in SHOW_PARSERS)
+-    SET_TRIE = new_trie(key.split(" ") for key in SET_PARSERS)
++    SET_TRIE = new_trie(key.split(" ") for key in SET_PARSERS)  # FIXME: quadratic in the worst case
+ 
+     def _parse_min_max(self, func: type[exp.Min] | type[exp.Max]) -> exp.Min | exp.Max:
+         expression = self._parse_distinct_arg_function(func)

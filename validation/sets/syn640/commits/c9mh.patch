@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..7b88eed 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -102,7 +102,7 @@ UNKNOWN;
+ MAP(ARRAY(1), ARRAY(x));
+ UNKNOWN;
+ 
+-MAP(ARRAY(x), ARRAY(1));
++MAP(ARRAY(x), 1 ARRAY(1));
+ UNKNOWN;
+ 
+ STRUCT(MAP(ARRAY(1), ARRAY(x)) AS a);

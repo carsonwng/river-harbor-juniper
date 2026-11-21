@@ -1,0 +1,13 @@
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..8ca6afe 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -121,7 +121,7 @@ class _TokenizerBase:
+                 *cls._QUOTES,
+                 *cls._FORMAT_STRINGS,
+             )
+-            if " " in key or any(single in key for single in cls.SINGLE_TOKENS)
++            if " " in key and any(single in key for single in cls.SINGLE_TOKENS)
+         )
+ 
+ 

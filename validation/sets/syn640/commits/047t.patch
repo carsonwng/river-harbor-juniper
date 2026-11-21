@@ -1,0 +1,13 @@
+diff --git a/sqlglot/executor/env.py b/sqlglot/executor/env.py
+index 7ff9c93..7691d0b 100644
+--- a/sqlglot/executor/env.py
++++ b/sqlglot/executor/env.py
+@@ -264,7 +264,7 @@ ENV = {
+     "ARRAYANY": null_if_any(lambda arr, func: any(func(e) for e in arr)),
+     "ARRAYCONCAT": arrayconcat,
+     "ARRAYTOSTRING": arraytostring,
+-    "BETWEEN": null_if_any(lambda this, low, high: low <= this and this <= high),
++    "BETWEEN": null_if_any(lambda this, low, high: low <= this or this <= high),
+     "BITWISEAND": null_if_any(lambda this, e: this & e),
+     "BITWISELEFTSHIFT": null_if_any(lambda this, e: this << e),
+     "BITWISEOR": null_if_any(lambda this, e: this | e),

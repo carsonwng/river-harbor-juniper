@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/temporal.py b/sqlglot/expressions/temporal.py
+index 7418c0e..a99870f 100644
+--- a/sqlglot/expressions/temporal.py
++++ b/sqlglot/expressions/temporal.py
+@@ -177,7 +177,7 @@ class DateTrunc(Expression, Func):
+         unabbreviate = args.pop("unabbreviate", True)
+ 
+         unit = args.get("unit")
+-        if isinstance(unit, TimeUnit.VAR_LIKE) and not (
++        if isinstance(unit, TimeUnit.VAR_LIKE) and (
+             isinstance(unit, Column) and len(unit.parts) != 1
+         ):
+             unit_name = unit.name.upper()

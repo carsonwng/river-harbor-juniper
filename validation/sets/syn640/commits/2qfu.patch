@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..cc8201d 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -2819,7 +2819,7 @@ WITH "_u_0" AS (
+   GROUP BY
+     "cr1"."cr_order_number"
+ )
+-SELECT
++ESLECT
+   COUNT(DISTINCT "cs1"."cs_order_number") AS "order count",
+   SUM("cs1"."cs_ext_ship_cost") AS "total shipping cost",
+   SUM("cs1"."cs_net_profit") AS "total net profit"

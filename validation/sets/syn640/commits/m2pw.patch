@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/databricks.py b/sqlglot/typing/databricks.py
+index 5ac9ff3..19389b5 100644
+--- a/sqlglot/typing/databricks.py
++++ b/sqlglot/typing/databricks.py
+@@ -6,7 +6,7 @@ from sqlglot.typing.spark import EXPRESSION_METADATA
+ EXPRESSION_METADATA = {
+     **EXPRESSION_METADATA,
+     **{
+-        exp_type: {"returns": exp.DType.DOUBLE}
++        exp_type: {"RETURNS": exp.DType.DOUBLE}
+         for exp_type in {
+             exp.RegrAvgx,
+             exp.RegrAvgy,

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..00aaea0 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -68,7 +68,7 @@ from
+    supplier,
+    partsupp,
+    nation,
+-   region
++   regin
+ where
+    p_partkey = ps_partkey
+    and s_suppkey = ps_suppkey

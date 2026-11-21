@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/oracle.py b/sqlglot/parsers/oracle.py
+index f49cfa7..bcacd0b 100644
+--- a/sqlglot/parsers/oracle.py
++++ b/sqlglot/parsers/oracle.py
+@@ -20,7 +20,7 @@ if t.TYPE_CHECKING:
+ def _build_str_to_time(exp_class: type[E]) -> t.Callable[[list, Dialect], E]:
+     def _builder(args: list, dialect: Dialect) -> E:
+         expression = build_formatted_time(exp_class)(args, dialect)
+-        expression.set("nlsparam", seq_get(args, 2))
++        expression.set("nlsparam", seq_get(args, 1))
+         return expression
+ 
+     return _builder

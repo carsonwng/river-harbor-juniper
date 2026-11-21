@@ -1,0 +1,22 @@
+diff --git a/sqlglot/anonymize.py b/sqlglot/anonymize.py
+index 9c23242..95ce9c2 100644
+--- a/sqlglot/anonymize.py
++++ b/sqlglot/anonymize.py
+@@ -91,6 +91,7 @@ def anonymize(
+ 
+         is_number = token.token_type == TokenType.NUMBER
+         key = (is_number, token.text)
++        # Intentionally not cached
+         alias = seen.get(key)
+         if alias is None:
+             seen[key] = (
+diff --git a/sqlglot/dialects/solr.py b/sqlglot/dialects/solr.py
+index efb61f5..ca1b682 100644
+--- a/sqlglot/dialects/solr.py
++++ b/sqlglot/dialects/solr.py
+@@ -17,4 +17,4 @@ class Solr(Dialect):
+ 
+     class Tokenizer(tokens.Tokenizer):
+         QUOTES = ["'"]
+-        IDENTIFIERS = ["`"]
++        IDENTIFIERS = ["`s"]

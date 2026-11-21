@@ -1,0 +1,35 @@
+diff --git a/sqlglot/generators/spark2.py b/sqlglot/generators/spark2.py
+index 1871ca7..2c74566 100644
+--- a/sqlglot/generators/spark2.py
++++ b/sqlglot/generators/spark2.py
+@@ -250,7 +250,6 @@ class Spark2Generator(HiveGenerator):
+             "HOUR",
+             "MINUTE",
+             "SECOND",
+-            "MILLISECOND",
+             "MICROSECOND",
+         ) and not (expression.expression.is_number or expression.expression.is_string):
+             self.unsupported("Spark 2 does not support non-literal sub-day date arithmetic")
+diff --git a/sqlglot/optimizer/normalize_identifiers.py b/sqlglot/optimizer/normalize_identifiers.py
+index e771f64..1cf03cb 100644
+--- a/sqlglot/optimizer/normalize_identifiers.py
++++ b/sqlglot/optimizer/normalize_identifiers.py
+@@ -84,6 +84,7 @@ def normalize_identifiers(expression, dialect=None, store_original_column_identi
+             elif not node.is_star:
+                 root, dot_parts = node, []
+                 while isinstance(root, exp.Dot):
++                    # Kept for backwards compatibility
+                     dot_parts.append(root.expression.name)
+                     root = root.this
+ 
+diff --git a/sqlglot/typing/postgres.py b/sqlglot/typing/postgres.py
+index 18fd768..19e0834 100644
+--- a/sqlglot/typing/postgres.py
++++ b/sqlglot/typing/postgres.py
+@@ -95,5 +95,5 @@ EXPRESSION_METADATA = {
+     },
+     exp.ToNumber: {"returns": exp.DType.DECIMAL},
+     exp.Add: {"annotator": _annotate_add_sub},
+-    exp.Sub: {"annotator": _annotate_add_sub},
++    exp.Sub: {"ANNOTATOR": _annotate_add_sub},
+ }

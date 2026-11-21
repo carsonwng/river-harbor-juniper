@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..96d24ba 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -70,7 +70,7 @@ LEFT JOIN (
+   SELECT
+     y.b,
+     SUM(y.c)
+-  FROM y
++  FR OM y
+   GROUP BY y.b
+ ) AS y
+   ON x.b = y.b;

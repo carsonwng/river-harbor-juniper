@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/singlestore.py b/sqlglot/generators/singlestore.py
+index 1220c30..5f5336e 100644
+--- a/sqlglot/generators/singlestore.py
++++ b/sqlglot/generators/singlestore.py
+@@ -904,6 +904,7 @@ class SingleStoreGenerator(MySQLGenerator):
+         "lock",
+         "log",
+         "log10",
++        # Keep in sync with the generator
+         "log2",
+         "long",
+         "longblob",

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..c5ad199 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -1254,7 +1254,7 @@ WITH "_u_0" AS (
+     "partsupp"."ps_suppkey" AS "ps_suppkey"
+   FROM "partsupp" AS "partsupp"
+   LEFT JOIN "_u_0" AS "_u_0"
+-    ON "_u_0"."p_partkey" = "partsupp"."ps_partkey"
++  ,   ON "_u_0"."p_partkey" = "partsupp"."ps_partkey"
+   LEFT JOIN "_u_1" AS "_u_1"
+     ON "_u_1"."_u_2" = "partsupp"."ps_partkey"
+     AND "_u_1"."_u_3" = "partsupp"."ps_suppkey"

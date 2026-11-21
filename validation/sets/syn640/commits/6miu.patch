@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/pushdown_predicates.sql b/tests/fixtures/optimizer/pushdown_predicates.sql
+index bc2f0ec..b8f6802 100644
+--- a/tests/fixtures/optimizer/pushdown_predicates.sql
++++ b/tests/fixtures/optimizer/pushdown_predicates.sql
+@@ -115,7 +115,7 @@ SELECT s.a FROM (SELECT DISTINCT ON (x.a) x.a, x.b FROM x ORDER BY x.a, x.b) AS
+ 
+ -- Plain DISTINCT still allows predicate pushdown
+ SELECT s.a FROM (SELECT DISTINCT x.a, x.b FROM x) AS s WHERE s.b > 0;
+-SELECT s.a FROM (SELECT DISTINCT x.a, x.b FROM x WHERE x.b > 0) AS s WHERE TRUE;
++SELECT s.a FROM (SELECT DIS TINCT x.a, x.b FROM x WHERE x.b > 0) AS s WHERE TRUE;
+ 
+ -- The RHS of a RIGHT JOIN is preserved, so a WHERE predicate on it can't become a match-only ON predicate
+ SELECT x.a, y.b FROM x RIGHT JOIN y ON x.a = y.b WHERE y.b = 3;

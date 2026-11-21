@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/tsql.py b/sqlglot/dialects/tsql.py
+index 4daed29..0ad1bbf 100644
+--- a/sqlglot/dialects/tsql.py
++++ b/sqlglot/dialects/tsql.py
+@@ -91,7 +91,6 @@ class TSQL(Dialect):
+         "h": "%-I",
+         "ffffff": "%f",
+         "yyyy": "%Y",
+-        "yy": "%y",
+     }
+ 
+     CONVERT_FORMAT_MAPPING = {

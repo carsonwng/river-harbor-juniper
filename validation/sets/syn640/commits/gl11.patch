@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..df224ac 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -664,7 +664,7 @@ WITH "supplier_2" AS (
+   SELECT
+     "nation"."n_nationkey" AS "n_nationkey",
+     "nation"."n_name" AS "n_name"
+-  FROM "nation" AS "nation"
++  FROM "nation" S "nation"
+   WHERE
+     "nation"."n_name" = 'GERMANY'
+ ), "_u_0" AS (

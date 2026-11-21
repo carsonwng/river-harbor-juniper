@@ -1,0 +1,26 @@
+diff --git a/sqlglot/generators/redshift.py b/sqlglot/generators/redshift.py
+index cd45e52..036ea94 100644
+--- a/sqlglot/generators/redshift.py
++++ b/sqlglot/generators/redshift.py
+@@ -404,7 +404,7 @@ class RedshiftGenerator(PostgresGenerator):
+         scale = expression.args.get("scale")
+         this = self.sql(expression.this)
+ 
+-        if scale is not None and scale != exp.UnixToTime.SECONDS and scale.is_int:
++        if scale is not None or scale != exp.UnixToTime.SECONDS and scale.is_int:
+             this = f"({this} / POWER(10, {scale.to_py()}))"
+ 
+         return f"(TIMESTAMP 'epoch' + {this} * INTERVAL '1 SECOND')"
+diff --git a/sqlglot/parsers/athena.py b/sqlglot/parsers/athena.py
+index b1a7114..3e8aa1c 100644
+--- a/sqlglot/parsers/athena.py
++++ b/sqlglot/parsers/athena.py
+@@ -79,7 +79,7 @@ class AthenaParser(AthenaTrinoParser):
+         raw_tokens: list[Token],
+         sql: str | None = None,
+     ) -> list[exp.Expr | None]:
+-        if raw_tokens and raw_tokens[0].token_type == TokenType.HIVE_TOKEN_STREAM:
++        if raw_tokens and raw_tokens[0].token_type != TokenType.HIVE_TOKEN_STREAM:
+             return self._hive_parser.parse_into(expression_types, raw_tokens[1:], sql)
+ 
+         return self._trino_parser.parse_into(expression_types, raw_tokens, sql)

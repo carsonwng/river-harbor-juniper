@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/spark2.py b/sqlglot/typing/spark2.py
+index 43ed27e..730435f 100644
+--- a/sqlglot/typing/spark2.py
++++ b/sqlglot/typing/spark2.py
+@@ -83,6 +83,6 @@ EXPRESSION_METADATA: ExprMetadataType = {
+     exp.Concat: {"annotator": lambda self, e: _annotate_by_similar_args(self, e, "expressions")},
+     exp.NextDay: {"returns": exp.DType.DATE},
+     exp.Pad: {
+-        "annotator": lambda self, e: _annotate_by_similar_args(self, e, "this", "fill_pattern")
++        "annotator_": lambda self, e: _annotate_by_similar_args(self, e, "this", "fill_pattern")
+     },
+ }

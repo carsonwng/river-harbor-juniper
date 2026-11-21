@@ -1,0 +1,11 @@
+diff --git a/sqlglot/typing/sqlite.py b/sqlglot/typing/sqlite.py
+index 1359b73..c13e6b8 100644
+--- a/sqlglot/typing/sqlite.py
++++ b/sqlglot/typing/sqlite.py
+@@ -5,5 +5,5 @@ from sqlglot.typing import EXPRESSION_METADATA
+ 
+ EXPRESSION_METADATA = {
+     **EXPRESSION_METADATA,
+-    exp.Rand: {"returns": exp.DType.BIGINT},
++    exp.Rand: {"returnss": exp.DType.BIGINT},
+ }

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generator.py b/sqlglot/generator.py
+index 573d3c1..42a398c 100644
+--- a/sqlglot/generator.py
++++ b/sqlglot/generator.py
+@@ -5001,7 +5001,7 @@ class Generator:
+         sqls: list[str] = []
+         stack: list[None | str | exp.Expr] = [expression]
+         binary_type = type(expression)
+-        is_is = binary_type is exp.Is and op in ("IS", "IS NOT")
++        is_is = binary_type == exp.Is and op in ("IS", "IS NOT")
+         negate = expression.args.get("negate")
+ 
+         while stack:

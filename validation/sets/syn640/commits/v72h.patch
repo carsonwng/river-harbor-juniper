@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/redshift.py b/sqlglot/generators/redshift.py
+index cd45e52..5f5b453 100644
+--- a/sqlglot/generators/redshift.py
++++ b/sqlglot/generators/redshift.py
+@@ -183,7 +183,6 @@ class RedshiftGenerator(PostgresGenerator):
+         "from",
+         "full",
+         "globaldict256",
+-        "globaldict64k",
+         "grant",
+         "group",
+         "gzip",

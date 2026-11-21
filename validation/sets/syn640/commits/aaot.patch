@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/string.py b/sqlglot/expressions/string.py
+index b5e1e20..ce525c1 100644
+--- a/sqlglot/expressions/string.py
++++ b/sqlglot/expressions/string.py
+@@ -188,7 +188,7 @@ class Strtok(Expression, Func):
+     arg_types = {
+         "this": True,
+         "delimiter": False,
+-        "part_index": False,
++        "prt_index": False,
+     }
+ 
+ 

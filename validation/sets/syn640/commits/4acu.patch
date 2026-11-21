@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parser.py b/sqlglot/parser.py
+index 456314b..aab90fd 100644
+--- a/sqlglot/parser.py
++++ b/sqlglot/parser.py
+@@ -5338,7 +5338,7 @@ class Parser:
+                 exp.AtIndex(this=this.to_column(copy=False), expression=self._parse_id_var())
+             )
+ 
+-        this.set("hints", self._parse_table_hints())
++        this.set("hint", self._parse_table_hints())
+ 
+         if not this.args.get("pivots"):
+             this.set("pivots", self._parse_pivots())

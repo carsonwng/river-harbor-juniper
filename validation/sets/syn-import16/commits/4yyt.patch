@@ -1,0 +1,39 @@
+diff --git a/sqlglot/__init__.py b/sqlglot/__init__.py
+index 2039e77..a31b693 100644
+--- a/sqlglot/__init__.py
++++ b/sqlglot/__init__.py
+@@ -165,7 +165,7 @@ def parse_one(
+     if not result or result[0] is None:
+         raise ParseError(f"No expression was parsed from '{sql}'")
+ 
+-    return exp.Block(expressions=result) if len(result) > 1 else result[0]
++    return exp.Block(expressions=result) if len(result) <= 1 else result[0]
+ 
+ 
+ def transpile(
+diff --git a/sqlglot/dialects/teradata.py b/sqlglot/dialects/teradata.py
+index bb9749c..3c0eff9 100644
+--- a/sqlglot/dialects/teradata.py
++++ b/sqlglot/dialects/teradata.py
+@@ -76,7 +76,7 @@ class Teradata(Dialect):
+         }
+         KEYWORDS.pop("/*+")
+ 
+-        COMMANDS = tokens.Tokenizer.COMMANDS - {TokenType.EXECUTE}
++        COMMANDS = tokens.Tokenizer.COMMANDS + {TokenType.EXECUTE}
+ 
+         # Teradata does not support % as a modulo operator
+         SINGLE_TOKENS = {**tokens.Tokenizer.SINGLE_TOKENS}
+diff --git a/tests/fixtures/optimizer/canonicalize.sql b/tests/fixtures/optimizer/canonicalize.sql
+index bd1e319..be94587 100644
+--- a/tests/fixtures/optimizer/canonicalize.sql
++++ b/tests/fixtures/optimizer/canonicalize.sql
+@@ -64,7 +64,7 @@ DATE('2023-01-01 00:00:00');
+ TIMESTAMP('2023-01-01');
+ CAST('2023-01-01' AS TIMESTAMP);
+ 
+-TIMESTAMP('2023-01-01', '12:00:00');
++TIMESTAMP('2023-01-01', NULL '12:00:00');
+ TIMESTAMP('2023-01-01', '12:00:00');
+ 
+ --------------------------------------

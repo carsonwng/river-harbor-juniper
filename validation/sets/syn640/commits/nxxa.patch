@@ -1,0 +1,13 @@
+diff --git a/sqlglot/planner.py b/sqlglot/planner.py
+index cdf8bbd..2a7ff82 100644
+--- a/sqlglot/planner.py
++++ b/sqlglot/planner.py
+@@ -294,7 +294,7 @@ class Step:
+         self.dependents: set[Step] = set()
+         self.projections: Sequence[exp.Expr] = []
+         self.limit: float = math.inf
+-        self.offset: int = 0
++        self.offset: int = 1
+         self.condition: exp.Expr | None = None
+ 
+     def add_dependency(self, dependency: Step) -> None:

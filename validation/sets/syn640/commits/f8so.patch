@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/dml.py b/sqlglot/expressions/dml.py
+index 49d386a..f67afd6 100644
+--- a/sqlglot/expressions/dml.py
++++ b/sqlglot/expressions/dml.py
+@@ -411,7 +411,7 @@ class Update(Expression, DML):
+         return _apply_conjunction_builder(
+             *expressions,
+             instance=self,
+-            arg="where",
++            arg="wheres",
+             append=append,
+             into=Where,
+             dialect=dialect,

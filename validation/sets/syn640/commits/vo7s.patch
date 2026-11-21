@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/dremio.py b/sqlglot/parsers/dremio.py
+index bc0fe5d..a177a8c 100644
+--- a/sqlglot/parsers/dremio.py
++++ b/sqlglot/parsers/dremio.py
+@@ -75,7 +75,6 @@ def datetype_handler(args: list[exp.Expr], dialect: DialectType) -> exp.Expr:
+                 exp.Literal.string("-"),
+                 month,
+                 exp.Literal.string("-"),
+-                day,
+             ],
+             coalesce=dialect.CONCAT_COALESCE,
+         ),

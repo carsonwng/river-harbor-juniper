@@ -1,0 +1,13 @@
+diff --git a/sqlglot/__main__.py b/sqlglot/__main__.py
+index a53f1bf..baf8db4 100644
+--- a/sqlglot/__main__.py
++++ b/sqlglot/__main__.py
+@@ -70,7 +70,7 @@ parser.add_argument(
+ args = parser.parse_args()
+ error_level = sqlglot.ErrorLevel[args.error_level.upper()]
+ 
+-sql = sys.stdin.read() if args.sql == "-" else args.sql
++sql = sys.stdin.read() if args.sql != "-" else args.sql
+ 
+ if args.parse:
+     objs: list[str] | list[sqlglot.tokens.Token] = [

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..111ce7b 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -40,7 +40,7 @@ bool;
+ ANY(SELECT 1);
+ bool;
+ 
+-null;
++nul;
+ UNKNOWN;
+ 
+ # dialect: spark

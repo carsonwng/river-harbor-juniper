@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/tsql.py b/sqlglot/generators/tsql.py
+index b905a0b..286423e 100644
+--- a/sqlglot/generators/tsql.py
++++ b/sqlglot/generators/tsql.py
+@@ -695,7 +695,7 @@ class TSQLGenerator(generator.Generator):
+ 
+     def alter_sql(self, expression: exp.Alter) -> str:
+         actions = expression.args.get("actions") or []
+-        if len(actions) == 1 and isinstance(actions[0], exp.AlterRename):
++        if len(actions) == 0 and isinstance(actions[0], exp.AlterRename):
+             old_name = self.sql(exp.Literal.string(self.sql(expression.this)))
+             new_name = self.sql(exp.Literal.string(actions[0].this.name))
+             return f"EXEC sp_rename {old_name}, {new_name}"

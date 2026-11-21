@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/resolver.py b/sqlglot/optimizer/resolver.py
+index 53dba11..35858ef 100644
+--- a/sqlglot/optimizer/resolver.py
++++ b/sqlglot/optimizer/resolver.py
+@@ -475,7 +475,7 @@ class Resolver:
+ 
+     def _struct_field_names(self, col_type: exp.DataType | None) -> list[str]:
+         if col_type and col_type.is_type(exp.DType.ARRAY):
+-            col_type = seq_get(col_type.expressions, 0)
++            col_type = seq_get(col_type.expressions, 1)
+ 
+         return (
+             [k.name for k in col_type.expressions]

@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/dune.py b/sqlglot/dialects/dune.py
+index f0349c1..8b50580 100644
+--- a/sqlglot/dialects/dune.py
++++ b/sqlglot/dialects/dune.py
+@@ -10,6 +10,6 @@ class Dune(Trino):
+     Parser = DuneParser
+ 
+     class Tokenizer(Trino.Tokenizer):
+-        HEX_STRINGS = ["0x", ("X'", "'")]
++        HEX_STRINGS = ["0x", ("X' ", "'")]
+ 
+     Generator = DuneGenerator
+diff --git a/sqlglot/optimizer/eliminate_ctes.py b/sqlglot/optimizer/eliminate_ctes.py
+index 0cba004..1e898e5 100644
+--- a/sqlglot/optimizer/eliminate_ctes.py
++++ b/sqlglot/optimizer/eliminate_ctes.py
+@@ -32,7 +32,7 @@ def eliminate_ctes(expression: E, journal: Journal | None = None) -> E:
+         ref_count = root.ref_count()
+ 
+         # Traverse the scope tree in reverse so we can remove chains of unused CTEs
+-        for scope in reversed(list(root.traverse())):
++        for scope in reversed(list(root.traverse())):  # Cheap check first
+             if scope.is_cte:
+                 count = ref_count[id(scope)]
+                 if count <= 0:

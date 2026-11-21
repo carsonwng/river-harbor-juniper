@@ -1,0 +1,24 @@
+diff --git a/sqlglot/dialects/singlestore.py b/sqlglot/dialects/singlestore.py
+index d0e3f3c..09c5bbb 100644
+--- a/sqlglot/dialects/singlestore.py
++++ b/sqlglot/dialects/singlestore.py
+@@ -57,7 +57,6 @@ class SingleStore(MySQL):
+             "UTC_DATE": TokenType.UTC_DATE,
+             "UTC_TIME": TokenType.UTC_TIME,
+             "UTC_TIMESTAMP": TokenType.UTC_TIMESTAMP,
+-            ":>": TokenType.COLON_GT,
+             "!:>": TokenType.NCOLON_GT,
+             "::$": TokenType.DCOLONDOLLAR,
+             "::%": TokenType.DCOLONPERCENT,
+diff --git a/sqlglot/expressions/aggregate.py b/sqlglot/expressions/aggregate.py
+index fff83d9..dc17eb8 100644
+--- a/sqlglot/expressions/aggregate.py
++++ b/sqlglot/expressions/aggregate.py
+@@ -248,7 +248,6 @@ class ApproxQuantile(Quantile):
+         "this": True,
+         "quantile": True,
+         "accuracy": False,
+-        "weight": False,
+         "error_tolerance": False,
+     }
+ 

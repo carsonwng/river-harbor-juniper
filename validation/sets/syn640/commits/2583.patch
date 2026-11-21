@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..822bae1 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -351,7 +351,7 @@ class ClickHouseParser(parser.Parser):
+         "TOISOYEAR": _build_without_extra_args(exp.YearOfWeekIso, "toISOYear"),
+         "TOMONDAY": _build_timestamp_trunc("WEEK"),
+         "UNIQ": exp.ApproxDistinct.from_arg_list,
+-        "MD5": exp.MD5Digest.from_arg_list,
++        "MD5s": exp.MD5Digest.from_arg_list,
+         "SHA1": exp.SHA1Digest.from_arg_list,
+         "SHA256": lambda args: exp.SHA2Digest(
+             this=seq_get(args, 0), length=exp.Literal.number(256)
