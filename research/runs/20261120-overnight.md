@@ -260,3 +260,11 @@ Followed from now on, on top of RUNBOOK.md.
   gap-heavy, whose gain shows on local (329.5 to 308.3) and m1 (-16 s). The sample gain is 1.1%, under the 2% bar. gap-heavy's profile pass runs after
   relprof on a deadline and was most likely skipped on the scorer, as relprof was. So the expected practice gain is about 0, and the build-time risk goes up.
   It is a candidate only if a future build-order change makes heavy run before relprof.
+- **`int/night-0519-norelprof` `43c2863`** (code `157b182` = 0434-all + Dockerfile `ENV BR_RELPROF_TIMEOUT=0`): verify PASS, 0 misses on every set.
+  Cold build under scorer limits **228.5 s** (vs 371.3 for ae47472, 428.8 for 0434-all); the heavy pass completes (17/17, 50.3 s). Simulated vs ae47472 with
+  relprof/heavy maps off (what the scorer effectively ran): sample 175.8 to 174.4, m1 461.5 to 444.1, m1-extra 203.1 to 202.6, local 326.4 to 304.9.
+- **Decision: submit norelprof at 05:36, a deliberate exception to 4.1's sample rule.** Its docker sample total (178.6) is worse than ae47472's (127.3),
+  but that sample gain is relprof's, and the practice evidence says relprof contributes about nothing on the scorer: submission 2 to 3 was only -2.0 s
+  simulated, and CPU stayed at base level. relprof is also worth about 0 on m1 per gap-mix's notes. heavy's gain shows on the practice-like sets
+  (m1 -17 s, local -21 s). The build becomes 143 s shorter, which gives more margin for the final rebuild. Downside is bounded: a worse practice score
+  doesn't replace the best (213.9).
