@@ -293,3 +293,8 @@ Followed from now on, on top of RUNBOOK.md.
   better), justified because the output is byte-identical: zero selection risk and a pure CPU gain. Expected: about 212 s (210.365 + about 1.8 CPU).
 - **Submission 8 score: 212.9 s** (BB-AC138D27, wait 74 ms). Runs: 210.365 s simulated (identical to sub 6, as byte-identical output predicts),
   2.51 / 2.51 / 2.50 s CPU, 0 commits missed. **New best** (-1.0 vs 213.9), and the page shows "Entered in the final (your best score)".
+
+## Cycle 16 (08:02 EST): last cycle
+
+- Slot OPEN, nothing new on origin, no candidate better than submission 8. Slot unused. No agents running.
+- Night PR: #15 (draft). **Loop stopped** per RUNBOOK step 8 (after 08:00 with the night PR open). Final entry on the page: `f89594d`, 212.9 s.
