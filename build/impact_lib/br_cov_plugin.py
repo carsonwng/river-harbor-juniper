@@ -42,7 +42,9 @@ ROOT = os.path.normcase(os.path.realpath(os.environ["BR_IMPACT_ROOT"]))
 OUT = os.environ["BR_IMPACT_OUT"]
 PREFIXES = (os.path.join(ROOT, "sqlglot") + os.sep, os.path.join(ROOT, "tests") + os.sep)
 # BR_IMPACT_PROFILE=1: also record the relation and attribute profiles (br_prof)
-PROFILE = os.environ.get("BR_IMPACT_PROFILE", "0") == "1"
+# (the xdist controller runs no tests: BR_IMPACT_WORKERS_ONLY=1 keeps it plain)
+PROFILE = os.environ.get("BR_IMPACT_PROFILE", "0") == "1" and not (
+    os.environ.get("BR_IMPACT_WORKERS_ONLY") == "1" and not os.environ.get("PYTEST_XDIST_WORKER"))
 if PROFILE:
     import br_prof as prof  # installs the instrumenting import hook before sqlglot loads
 

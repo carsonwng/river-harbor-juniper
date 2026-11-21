@@ -35,7 +35,9 @@ whole-function changes, and select() always adds the unsure/unknown tests:
     single-operator comparisons is dropped when every recorded evaluation agrees
     under the old and new comparison (shared-process relation profile), no site
     is in a state-dependent function, and every covering test evaluated it.
-With both off, the result is the strat/impact-isolate selection.
+  - BR_IMPACT_IMPORT_CHECK (default 1): the import of the edited sqlglot alone
+    (every test when it fails), also with BR_IMPACT_ATTRS=0.
+With all three off, the result is the strat/impact-isolate selection.
 """
 
 from __future__ import annotations
@@ -518,15 +520,17 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
-    if bits == maps.ALL:
-        return bits
     # ---- refinements (strat/impact-combo): each returns a sound subset of `bits`
     # or None (keep `bits`). The always-set (unsure / unknown tests) is added by
     # select() whatever they return.
-    if bits != keep and os.environ.get("BR_IMPACT_ATTRS", "1") == "1":
+    use_attrs = os.environ.get("BR_IMPACT_ATTRS", "1") == "1"
+    # the import check alone (an edited sqlglot that no longer imports selects every
+    # test) is a soundness fix, switchable on its own
+    import_check = os.environ.get("BR_IMPACT_IMPORT_CHECK", "1") == "1"
+    if bits != keep and (use_attrs or import_check):
         kind = _import_kind(change, old_tree, new_tree)
         if kind:
-            alt = _diff_bits(maps, path, new_text, use_profile=kind == "assign")
+            alt = _diff_bits(maps, path, new_text, use_profile=use_attrs and kind == "assign")
             if alt == maps.ALL:
                 return alt  # the edited sqlglot no longer imports
             if alt is not None:

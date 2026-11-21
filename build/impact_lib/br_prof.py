@@ -89,6 +89,7 @@ def transform(tree, path: str, level: int = 0):
 # every verdict about a class it uses).
 _variants: dict = {}   # level-0 code -> (level-1 code, level-2 code)
 _level = 0
+_sources: list = []    # (level-0 module code, source bytes, path): variants built on demand
 
 
 def _pair(full, others) -> None:
@@ -107,6 +108,14 @@ def set_level(level: int) -> int:
     _level = level
     if level >= 2:
         rt.on = False
+    while _sources:  # only a child that needs a lower level pays for compiling it
+        full, data, path = _sources.pop()
+        try:
+            others = [compile(transform(ast.parse(data, path), path, lv), path, "exec",
+                              dont_inherit=True) for lv in (1, 2)]
+            _pair(full, others)
+        except Exception as exc:  # noqa: BLE001  (no lower levels for this module)
+            print(f"[br_prof] no profile levels for {path}: {exc!r}", file=sys.stderr)
     swapped = 0
     for obj in gc.get_objects():
         if type(obj) is types.FunctionType:
@@ -127,12 +136,7 @@ class _Loader(importlib.machinery.SourceFileLoader):
             return compile(transform(ast.parse(data, path), path, _level), path, "exec",
                            dont_inherit=True)
         full = compile(transform(ast.parse(data, path), path, 0), path, "exec", dont_inherit=True)
-        try:
-            others = [compile(transform(ast.parse(data, path), path, lv), path, "exec",
-                              dont_inherit=True) for lv in (1, 2)]
-            _pair(full, others)
-        except Exception as exc:  # noqa: BLE001  (no lower levels for this module)
-            print(f"[br_prof] no profile levels for {path}: {exc!r}", file=sys.stderr)
+        _sources.append((full, data, path))
         return full
 
 

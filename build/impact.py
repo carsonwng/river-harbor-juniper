@@ -108,7 +108,7 @@ def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none
     cov_dir.mkdir(parents=True, exist_ok=True)
     env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir),
                BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none",
-               BR_IMPACT_DEADLINE=str(deadline or 0), **(extra or {}))
+               BR_IMPACT_DEADLINE=str(deadline or 0), BR_IMPACT_WORKERS_ONLY="1", **(extra or {}))
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
                "-n", str(jobs), "--dist", "load"]
     if env.get("BR_IMPACT_ORDER"):
