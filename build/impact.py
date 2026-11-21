@@ -53,6 +53,81 @@ def log(message: str) -> None:
     print(f"[impact] {message}", file=sys.stderr, flush=True)
 
 
+# ---------------------------------------------------------------- build budget
+#
+# The image build has 10 minutes on 4 cores, and the final rebuilds every image on
+# the scorer's machine. The Dockerfile's first RUN writes the build's start time
+# (BUILD_STAMP). Every pass after the core coverage map runs only while there is
+# time before DEADLINE seconds from that start (minus a reserve for postprocessing,
+# the other layers and the image export); a pass that would run past it is killed
+# and dropped. A dropped pass only ever makes the maps coarser: the selector falls
+# back to the rules that do not need it. meta.json records which passes completed.
+
+BUILD_STAMP = Path(os.environ.get("BR_BUILD_STAMP", "/opt/br_build_start"))
+DEADLINE = float(os.environ.get("BR_BUILD_DEADLINE", "510"))   # about 8.5 min
+RESERVE = float(os.environ.get("BR_BUILD_RESERVE", "75"))      # postprocess, triage, export
+ASSUMED_BEFORE = 90.0  # no usable stamp: what download + pip install may have taken
+
+
+def build_start() -> tuple[float, str]:
+    """Wall-clock start of the image build. A stamp older than the 10-minute build
+    limit cannot be this build's (a cached layer): then assume the impact build
+    started ASSUMED_BEFORE seconds into the image build."""
+    now = time.time()
+    try:
+        stamp = float(BUILD_STAMP.read_text().strip())
+        if 0 <= now - stamp <= 600:
+            return stamp, "stamp"
+    except (OSError, ValueError):
+        pass
+    return now - ASSUMED_BEFORE, "assumed"
+
+
+class Budget:
+    def __init__(self) -> None:
+        self.start, self.source = build_start()
+        self.passes: dict[str, dict] = {}
+        log(f"build budget: {self.left():.0f}s left before the internal deadline "
+            f"({DEADLINE:.0f}s from build start, start from {self.source})")
+
+    def elapsed(self) -> float:
+        return time.time() - self.start
+
+    def left(self) -> float:
+        """Seconds a pass may still run (deadline minus reserve)."""
+        return DEADLINE - RESERVE - self.elapsed()
+
+    def record(self, name: str, status: str, seconds: float, **extra) -> None:
+        self.passes[name] = {"status": status, "seconds": round(seconds, 1), **extra}
+        log(f"pass {name}: {status} in {seconds:.1f}s (build at {self.elapsed():.0f}s)")
+
+
+def run_pass(command: list[str], cwd: Path, env: dict, timeout: float | None) -> tuple[int | None, str]:
+    """Run a suite pass in its own process group; on timeout kill the whole group
+    (xdist workers, forked children) and return (None, tail)."""
+    kwargs = {"start_new_session": True} if os.name == "posix" else {}
+    proc = subprocess.Popen(command, cwd=str(cwd), env=env, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, errors="replace", **kwargs)
+    try:
+        output, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if os.name == "posix":
+            import signal
+
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+        proc.kill()
+        output, _ = proc.communicate()
+        return None, _tail(output)
+    return proc.returncode, _tail(output)
+
+
+def _tail(output: str | None) -> str:
+    return " | ".join((output or "").strip().splitlines()[-3:])
+
+
 # ---------------------------------------------------------------- passes
 
 
@@ -94,24 +169,28 @@ def run_probes(root: Path, work: Path, env: dict, jobs: int) -> dict[str, dict]:
     return results
 
 
-def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none") -> list[dict]:
+def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none",
+                 timeout: float | None = None) -> list[dict] | None:
     """One instrumented suite pass. mode "fork": every test in its own fork of the
-    post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE)."""
+    post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE). None: timed out."""
     cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
-    cov_dir.mkdir(parents=True, exist_ok=True)
+    if cov_dir.exists():
+        shutil.rmtree(cov_dir)
+    cov_dir.mkdir(parents=True)
     env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir),
                BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none")
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
                "-n", str(jobs), "--dist", "load", "tests"]
     start = time.time()
-    proc = subprocess.run(command, cwd=str(root), env=env, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True, errors="replace")
-    tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
-    log(f"pytest ({mode}) exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
+    code, tail = run_pass(command, root, env, timeout)
+    log(f"pytest ({mode}) exit {code} in {time.time() - start:.1f}s: {tail}")
+    if code is None:
+        return None
     return [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
 
 
-def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
+def run_relprof(root: Path, work: Path, env: dict, jobs: int,
+                timeout: float | None = None) -> list[dict] | None:
     """Suite pass on a throwaway copy of the checkout with every single-operator
     comparison in sqlglot/ recorded by br_relprof_plugin (source files unchanged;
     the plugin rewrites the AST at import)."""
@@ -128,18 +207,10 @@ def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
         command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p",
                    "br_relprof_plugin", "-q", "-n", str(jobs), "--dist", "load", "tests"]
         start = time.time()
-        # the image build has 10 minutes: past this, give up on the profile (the
-        # selector then keeps the coverage behaviour)
-        limit = float(os.environ.get("BR_RELPROF_TIMEOUT", 420 if jobs >= 4 else 1500))
-        try:
-            proc = subprocess.run(command, cwd=str(copy), env=env, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, text=True, errors="replace",
-                                  timeout=limit)
-        except subprocess.TimeoutExpired:
-            log(f"relprof pass exceeded {limit:.0f}s; no relprof map")
-            return []
-        tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
-        log(f"relprof pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
+        code, tail = run_pass(command, copy, env, timeout)
+        log(f"relprof pytest exit {code} in {time.time() - start:.1f}s: {tail}")
+        if code is None:
+            return None
     finally:
         shutil.rmtree(copy.parent, ignore_errors=True)
     return [json.loads(p.read_text("utf-8")) for p in sorted(rp_dir.glob("relprof-*.json"))]
@@ -438,61 +509,128 @@ def main() -> int:
                PYTHONPATH=os.pathsep.join([str(root), str(LIB)]))
     env.pop("PYTEST_ADDOPTS", None)
 
+    budget = Budget()
+    sys.path.insert(0, str(LIB))
+    import br_attr_build
+
+    def cached(sub: str, pattern: str) -> list[dict] | None:
+        if options.reuse and list((work / sub).glob(pattern)):
+            return [json.loads(p.read_text("utf-8")) for p in sorted((work / sub).glob(pattern))]
+        return None
+
+    # ---- core (always): import probe, in-process coverage
     start = time.time()
     if options.reuse and (work / "probe.json").exists():
         probes = json.loads((work / "probe.json").read_text("utf-8"))
     else:
         probes = run_probes(root, work, env, options.jobs)
         (work / "probe.json").write_text(json.dumps(probes), "utf-8")
-    log(f"import probe: {len(probes)} modules in {time.time() - start:.1f}s")
+    budget.record("probe", "done", time.time() - start, modules=len(probes))
 
-    workers = []
+    workers: list[dict] = []
     modes = ["none", "fork"] if options.isolate == "both" else [options.isolate]
-    for mode in modes:
+    if modes[0] == "fork" and not hasattr(os, "fork"):
+        modes = ["none"]
+
+    def coverage(mode: str, timeout: float | None) -> None:
         start = time.time()
-        cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
-        if options.reuse and list(cov_dir.glob("cov-*.json")):
-            got = [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
-        else:
-            got = run_coverage(root, work, env, options.jobs, mode)
-        log(f"coverage ({mode}): {len(got)} workers in {time.time() - start:.1f}s")
+        got = cached("cov-fork" if mode == "fork" else "cov", "cov-*.json")
+        if got is None:
+            got = run_coverage(root, work, env, options.jobs, mode, timeout)
+        name = f"coverage-{'fork' if mode == 'fork' else 'inproc'}"
         if not got:
-            log(f"coverage ({mode}) produced nothing; using the other passes only")
-            continue
+            budget.record(name, "timeout" if got is None else "empty", time.time() - start)
+            return
         for w in got:
             w["mode"] = mode
         workers.extend(got)
+        budget.record(name, "done", time.time() - start, workers=len(got))
+
+    coverage(modes[0], None)  # the core map: never cut short
     if not workers:
         log("no coverage results; writing no maps (selector falls back to all tests)")
         return 0
 
+    # ---- cheap soundness inputs: test-module imports (crash users), pristine
+    # import-time state (the run-time import-failure check)
     start = time.time()
     if options.reuse and (work / "test_imports.json").exists():
         test_imports = json.loads((work / "test_imports.json").read_text("utf-8"))
     else:
         test_imports = run_test_imports(root, work, env)
-    log(f"test import probe: {len(test_imports)} test modules in {time.time() - start:.1f}s")
-    start = time.time()
-    postprocess(root, out, probes, workers, test_imports)
-    log(f"postprocess in {time.time() - start:.1f}s")
-
-    # relation profile of comparison sites (second, separate suite pass)
+    budget.record("test-imports", "done" if test_imports else "empty", time.time() - start,
+                  modules=len(test_imports))
     start = time.time()
     try:
-        if options.reuse and list((work / "relprof").glob("relprof-*.json")):
-            rp_workers = [json.loads(p.read_text("utf-8"))
-                          for p in sorted((work / "relprof").glob("relprof-*.json"))]
+        br_attr_build.prepare(root, work, out, env)
+        budget.record("state", "done", time.time() - start)
+    except Exception as exc:  # noqa: BLE001
+        log(f"import-time state failed: {exc!r}")
+        shutil.rmtree(out / "attrs", ignore_errors=True)
+        budget.record("state", "failed", time.time() - start)
+
+    # ---- optional passes, in priority order, while the budget lasts:
+    # 1. forked coverage (strat/impact-isolate: sound against cross-test state)
+    # 2. relation profiles of comparison sites (strat/impact-relprof)
+    # 3. attribute/key read profile (strat/impact-attrs)
+    MIN_PASS = 30.0
+    if len(modes) > 1:
+        left = budget.left()
+        if left < MIN_PASS and not options.reuse:
+            budget.record("coverage-fork", "skipped", 0.0)
         else:
-            rp_workers = run_relprof(root, work, env, options.jobs)
-        log(f"relprof pass: {len(rp_workers)} workers in {time.time() - start:.1f}s")
+            coverage("fork", left)
+
+    rp_workers = None
+    if os.environ.get("BR_IMPACT_RELPROF", "1") == "1":
+        start = time.time()
+        left = budget.left()
+        rp_workers = cached("relprof", "relprof-*.json")
+        if rp_workers is None and left >= MIN_PASS:
+            rp_workers = run_relprof(root, work, env, options.jobs, left)
+            budget.record("relprof", "done" if rp_workers else
+                          ("timeout" if rp_workers is None else "empty"), time.time() - start)
+        elif rp_workers is None:
+            budget.record("relprof", "skipped", 0.0)
+        else:
+            budget.record("relprof", "done", time.time() - start, reused=True)
+
+    attr_workers = None
+    if os.environ.get("BR_IMPACT_ATTRS", "1") == "1" and (out / "attrs" / "state.json").exists():
+        start = time.time()
+        left = budget.left()
+        if left >= MIN_PASS or options.reuse:
+            try:
+                attr_workers = br_attr_build.profile(root, work, env, options.jobs, options.reuse,
+                                                     run_pass, left)
+            except Exception as exc:  # noqa: BLE001
+                log(f"attribute profile failed: {exc!r}")
+            budget.record("attrs", "done" if attr_workers else "timeout/failed",
+                          time.time() - start)
+        else:
+            budget.record("attrs", "skipped", 0.0)
+
+    # ---- postprocess whatever completed
+    start = time.time()
+    postprocess(root, out, probes, workers, test_imports, attr_workers,
+                passes=budget.passes)
+    log(f"postprocess in {time.time() - start:.1f}s")
+    start = time.time()
+    try:
         if not rp_workers:
             raise RuntimeError("no relprof results")
-        start = time.time()
         relprof_post(out, workers, rp_workers)
         log(f"relprof postprocess in {time.time() - start:.1f}s")
     except Exception as exc:  # noqa: BLE001  the selector works without it
-        log(f"relprof failed, no relprof map: {exc!r}")
+        log(f"no relprof map: {exc!r}")
         (out / "relprof.json").unlink(missing_ok=True)
+    meta = json.loads((out / "meta.json").read_text("utf-8"))
+    meta["passes"] = budget.passes
+    meta["build_seconds_at_impact_end"] = round(budget.elapsed(), 1)
+    meta["build_start_source"] = budget.source
+    (out / "meta.json").write_text(json.dumps(meta, separators=(",", ":")), "utf-8")
+    log(f"impact maps done at {budget.elapsed():.0f}s of the build; passes: "
+        + ", ".join(f"{k}={v['status']}({v['seconds']}s)" for k, v in budget.passes.items()))
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
     for dirpath, _dirs, files in os.walk(out):
@@ -503,7 +641,8 @@ def main() -> int:
 
 
 def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
-                test_imports: dict | None = None) -> None:
+                test_imports: dict | None = None, attr_workers: list[dict] | None = None,
+                passes: dict | None = None) -> None:
     # ---- tests and per-line test sets
     nodeids: set[str] = set()
     outcomes: dict[str, str] = {}
@@ -839,11 +978,15 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
          "importers": {k: sets.add(v | module_users.get(k, 0))
                        for k, v in sorted(importers.items())},
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
+    if (out / "attrs").is_dir():
+        import br_attr_build
+
+        br_attr_build.postprocess(out, attr_workers, pos, by_class, by_module, ALL, sets)
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(
         {"version": VERSION, "sqlglot": str(root), "tests": tests, "unsure": unsure,
-         "python": sys.version}, separators=(",", ":")), "utf-8")
+         "python": sys.version, "passes": passes or {}}, separators=(",", ":")), "utf-8")
     log(f"{len(sets.items)} distinct sets, {len(names)} names, {len(class_users)} classes")
 
 
