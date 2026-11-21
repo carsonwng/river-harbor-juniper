@@ -22,7 +22,8 @@ Treat it as **done** if either of these holds:
 - a `research/runs/*impact*` report exists on `origin/main` or on any `origin/cloud/*` branch, or
   a PR from a `cloud/*` branch mentions the impact cluster;
 - no `origin/cloud/*` or `origin/strat/impact*` branch has had a commit in the last **120 minutes**,
-  so round 1 has stopped.
+  so round 1 has stopped. **Ignore `strat/impact-combo`**: it's a local integration branch from the team
+  laptop, not round 1.
 
 If round 1 is still active (commits in the last 120 minutes and no final report), **stop now**:
 print one line saying so and end the session. Do nothing else. Two impact clusters must
@@ -44,6 +45,13 @@ Known facts as of 2026-11-20 20:30 (verify them; don't trust them blindly):
 - `strat/runcpu` `79a3b3e`: identical selections, with slightly less run CPU (178.655 s).
 - Held-out set: tooling on `origin/validation/m1`, labelled by a parallel cloud session.
   Check whether `validation/sets/` exists on any branch.
+- Round 1 opened PRs #1 `strat/impact-attrs`, #2 `strat/impact-relprof` and #3 `strat/impact-isolate`. A local agent
+  on the team laptop is combining all three into **`strat/impact-combo`**, with docker and 4-CPU cold-build
+  timing (cloud has no docker) and a deadline-aware build (internal deadline about 8.5 min). **Use
+  `strat/impact-combo` as your base if it exists and has passed `br.py verify`** (see its
+  `strategies/impact-combo.md`). Don't redo the combination work.
+- Build budget: the 10 min limit is hard. A build over it rejects the submission, and the final rebuilds every
+  image. Every extra suite pass you add must fit the combo's deadline mechanism.
 - An overnight runner on the team laptop integrates `strat/impact-*` branches, verifies them in
   docker against the sample and held-out sets, and submits once per hour. **Your branches reach
   the board through it.** Name them `strat/impact-r2-<slug>` and open draft PRs.
