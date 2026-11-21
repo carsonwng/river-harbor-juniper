@@ -362,7 +362,7 @@ RELS = ["sqlglot/dialects/tsql.py", "sqlglot/expressions/core.py", "sqlglot/pars
         "sqlglot/generator.py", "sqlglot/tokens.py"]
 
 
-def build_state(root: Path, out: Path, runs: int = 6) -> dict:
+def build_state(root: Path, out: Path, runs: int = 6, pyc: Path | None = None) -> dict:
     """Pristine snapshot, with entries whose order is not reproducible across
     processes fingerprinted unordered, and entries that still are not
     reproducible listed as volatile (a change there is never trusted)."""
@@ -370,6 +370,8 @@ def build_state(root: Path, out: Path, runs: int = 6) -> dict:
     import tempfile
 
     env = dict(os.environ, PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    if pyc is not None:
+        env["PYTHONPYCACHEPREFIX"] = str(pyc)  # the bytecode the run-time diff loads
 
     def one(unordered: set[str], rel: str | None = None) -> dict:
         with tempfile.TemporaryDirectory() as tmp:
@@ -416,7 +418,12 @@ class _Override(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         return None
 
     def exec_module(self, module):
-        code = compile(self.text, self.path, "exec", dont_inherit=True)
+        import marshal
+
+        # through marshal, like bytecode loaded from a .pyc: frozenset constants
+        # are rebuilt the same way, so tables built from set literals come out in
+        # the order the pristine (bytecode-loaded) snapshot saw
+        code = marshal.loads(marshal.dumps(compile(self.text, self.path, "exec", dont_inherit=True)))
         exec(code, module.__dict__)
 
 

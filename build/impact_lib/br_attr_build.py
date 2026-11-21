@@ -50,24 +50,30 @@ def prepare(root: Path, work: Path, out: Path, env: dict) -> None:
     import-failure check and state diff need them), tracked names, and bytecode."""
     adir = out / "attrs"
     adir.mkdir(parents=True, exist_ok=True)
-    start = time.time()
-    state = br_state.build_state(root, adir / "state.json")
-    (adir / "opaque.json").write_text(json.dumps(state["opaque"]), "utf-8")
-    log(f"state in {time.time() - start:.1f}s")
-    penv = dict(env, PYTHONHASHSEED="0")
-    tracked = work / "tracked.json"
-    subprocess.run([sys.executable, "-W", "ignore", str(HERE / "br_state.py"), "tracked",
-                    "--sqlglot", str(root), "--out", str(tracked)], env=penv, check=True,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    shutil.copy(tracked, adir / "tracked.json")
+    # bytecode first, compiled with the hash seed every later import uses: frozenset
+    # constants (set literals) are marshalled in the compiling process's iteration
+    # order, which decides the order of tables built from them (ClickHouse
+    # _AGG_FUNC_MAPPING). The snapshots below and the run-time diff then load the
+    # same bytecode, so their fingerprints agree.
     start = time.time()
     pyc = adir / "pyc"
     if pyc.exists():
         shutil.rmtree(pyc)
     subprocess.run([sys.executable, "-m", "compileall", "-q", str(root / "sqlglot")],
-                   env=dict(env, PYTHONPYCACHEPREFIX=str(pyc.resolve()), PYTHONDONTWRITEBYTECODE=""),
+                   env=dict(env, PYTHONPYCACHEPREFIX=str(pyc.resolve()), PYTHONDONTWRITEBYTECODE="",
+                            PYTHONHASHSEED="0"),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     log(f"pyc in {time.time() - start:.1f}s")
+    start = time.time()
+    state = br_state.build_state(root, adir / "state.json", pyc=pyc.resolve())
+    (adir / "opaque.json").write_text(json.dumps(state["opaque"]), "utf-8")
+    log(f"state in {time.time() - start:.1f}s")
+    penv = dict(env, PYTHONHASHSEED="0", PYTHONPYCACHEPREFIX=str(pyc.resolve()))
+    tracked = work / "tracked.json"
+    subprocess.run([sys.executable, "-W", "ignore", str(HERE / "br_state.py"), "tracked",
+                    "--sqlglot", str(root), "--out", str(tracked)], env=penv, check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    shutil.copy(tracked, adir / "tracked.json")
 
 
 def profile(root: Path, work: Path, env: dict, jobs: int, reuse: bool, run_pass,
