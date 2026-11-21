@@ -15,6 +15,10 @@ COPY requirements.lock /app/requirements.lock
 RUN pip install --no-cache-dir -r /app/requirements.lock
 
 COPY . /app
+# No relprof pass (existing knob in build/impact.py run_relprof: a 0 s limit gives up at
+# once, so no relprof map, as the scorer's build ends up today). The time goes to the
+# gap-heavy instruction pass instead.
+ENV BR_RELPROF_TIMEOUT=0
 # Each layer's build/<layer>.py writes maps to /app/maps/<layer>; nobody must read them.
 RUN python /app/build/run_all.py --sqlglot /opt/sqlglot --out /app/maps \
  && chmod -R a+rX /app /opt/sqlglot
