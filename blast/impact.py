@@ -439,6 +439,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
+    bits |= _cache_bits(info, old_tree, change, new_to_old)
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -683,6 +684,210 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- run-time caches
+#
+# Coverage is recorded in long-lived test processes. A value that sqlglot memoizes
+# in a container that outlives a test (a module global such as generator.py's
+# _DISPATCH_CACHE, a class attribute such as _Dialect._classes) is computed by the
+# first test of a process that needs it; every later test only reads it. Coverage
+# then names the first tests as the users of the code that fills the cache, but if
+# an edit breaks that code, every test that reads the cache fails. So an edit in a
+# function that fills such a cache (writes it at run time, or is called by name
+# from one that does) also selects every test that ran a line reading the cache.
+# Found by a static scan of the edited file; nothing is listed by hand.
+
+_MUTATORS = {"append", "add", "update", "setdefault", "pop", "clear", "extend", "insert",
+             "remove", "discard", "popitem", "__setitem__"}
+_CONTAINER_CALLS = {"dict", "set", "list", "defaultdict", "OrderedDict", "WeakKeyDictionary",
+                    "WeakValueDictionary", "Counter", "deque"}
+
+
+def _is_container(value) -> bool:
+    if isinstance(value, (ast.Dict, ast.Set, ast.List, ast.DictComp, ast.SetComp, ast.ListComp)):
+        return True
+    if isinstance(value, ast.Call):
+        f = value.func
+        name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else None
+        return name in _CONTAINER_CALLS
+    return False
+
+
+def _assigned(stmt):
+    if isinstance(stmt, ast.Assign):
+        return [t.id for t in stmt.targets if isinstance(t, ast.Name)], stmt.value
+    if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.value is not None:
+        return [stmt.target.id], stmt.value
+    return [], None
+
+
+def _cache_scan(tree):
+    """[(lo, hi, reader_lines, module_wide)] per function that fills a run-time cache."""
+    globals_ = set()
+    for stmt in tree.body:
+        names, value = _assigned(stmt)
+        if value is not None and _is_container(value):
+            globals_.update(names)
+    funcs = []  # (node, enclosing class or None)
+
+    def visit(body, klass):
+        for node in body:
+            if isinstance(node, ast.ClassDef):
+                visit(node.body, node)
+            elif isinstance(node, FUNC):
+                funcs.append((node, klass))
+                visit(node.body, klass)
+
+    visit(tree.body, None)
+    class_attrs = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            attrs = set()
+            for stmt in node.body:
+                names, value = _assigned(stmt)
+                if value is not None and _is_container(value):
+                    attrs.update(names)
+            class_attrs[node.name] = attrs
+
+    def key(expr, klass):
+        if isinstance(expr, ast.Name) and expr.id in globals_:
+            return "g:" + expr.id
+        if isinstance(expr, ast.Attribute) and isinstance(expr.value, ast.Name):
+            owner = expr.value.id
+            if owner in ("cls", "self") and klass is not None \
+                    and expr.attr in class_attrs.get(klass.name, ()):
+                return f"c:{klass.name}.{expr.attr}"
+            if owner in class_attrs and expr.attr in class_attrs[owner]:
+                return f"c:{owner}.{expr.attr}"
+        return None
+
+    def call_names(expr) -> set:
+        # calls evaluated when expr is: not those inside lambdas or nested defs,
+        # which run later, when whoever reads the cache calls them
+        out = set()
+        stack = [expr]
+        while stack:
+            n = stack.pop()
+            if isinstance(n, ast.Lambda) or (n is not expr and isinstance(n, FUNC)):
+                continue
+            stack.extend(ast.iter_child_nodes(n))
+            if isinstance(n, ast.Call):
+                if isinstance(n.func, ast.Name):
+                    out.add(n.func.id)
+                elif isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name) \
+                        and n.func.value.id in ("cls", "self"):
+                    out.add(n.func.attr)
+        return out
+
+    writes, calls, value_calls, reads, by_name = {}, {}, {}, {}, {}
+    for node, klass in funcs:
+        by_name.setdefault(node.name, []).append(node)
+        w = set()
+        sources = []  # expressions whose value ends up in a cache
+        assigns = {}  # local name -> expressions assigned to it
+        for n in ast.walk(node):
+            value = getattr(n, "value", None)
+            if isinstance(n, (ast.Assign, ast.AnnAssign, ast.NamedExpr)) and value is not None:
+                targets = n.targets if isinstance(n, ast.Assign) else [n.target]
+                for t in targets:
+                    if isinstance(t, ast.Name):
+                        assigns.setdefault(t.id, []).append(value)
+            if isinstance(n, (ast.Assign, ast.AugAssign, ast.AnnAssign, ast.Delete)):
+                targets = n.targets if isinstance(n, (ast.Assign, ast.Delete)) else [n.target]
+                for t in targets:
+                    if isinstance(t, ast.Subscript):
+                        v = t.value
+                        k = key(v, klass)
+                        if isinstance(v, ast.Call) and isinstance(v.func, ast.Name) \
+                                and v.func.id in ("globals", "vars"):
+                            k = "globals"
+                        if k:
+                            w.add(k)
+                            sources.append(t.slice)
+                            if value is not None:
+                                sources.append(value)
+            elif isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                    and n.func.attr in _MUTATORS:
+                k = key(n.func.value, klass)
+                if k:
+                    w.add(k)
+                    sources.extend(n.args)
+                    sources.extend(kw.value for kw in n.keywords)
+            if isinstance(n, (ast.Name, ast.Attribute)):
+                k = key(n, klass)
+                if k:
+                    reads.setdefault(k, set()).add(n.lineno)
+        # calls whose results flow (directly or through local names) into a cache write
+        vc, seen_names, stack = set(), set(), list(sources)
+        while stack:
+            expr = stack.pop()
+            vc |= call_names(expr)
+            for n in ast.walk(expr):
+                if isinstance(n, ast.Name) and n.id in assigns and n.id not in seen_names:
+                    seen_names.add(n.id)
+                    stack.extend(assigns[n.id])
+        writes[id(node)], value_calls[id(node)] = w, vc
+        calls[id(node)] = call_names(node)
+    out = []
+    for node, _klass in funcs:
+        keys = writes[id(node)]
+        if not keys:
+            continue
+        # the writer, the functions computing the stored value, and what those call
+        seen, stack, fillers = {id(node)}, [], [node]
+        for name in value_calls[id(node)]:
+            for callee in by_name.get(name, ()):
+                if id(callee) not in seen:
+                    seen.add(id(callee))
+                    fillers.append(callee)
+                    stack.append(callee)
+        while stack:
+            cur = stack.pop()
+            for name in calls[id(cur)]:
+                for callee in by_name.get(name, ()):
+                    if id(callee) not in seen:
+                        seen.add(id(callee))
+                        fillers.append(callee)
+                        stack.append(callee)
+        readers = set()
+        for k in keys:
+            readers |= reads.get(k, set())
+        # functions that call a filler by (non-dunder) name decide what gets cached
+        # and when: Dialect.get / __getitem__ / classes -> _try_load
+        names = {f.name for f in fillers if not f.name.startswith("__")}
+        for other, _k in funcs:
+            if id(other) not in seen and calls[id(other)] & names:
+                seen.add(id(other))
+                fillers.append(other)
+        for f in fillers:
+            lo, hi = _span(f)
+            out.append((lo, hi, frozenset(readers), "globals" in keys))
+    return out
+
+
+def _cache_bits(info: FileInfo, old_tree, change: FileChange, new_to_old) -> int:
+    if os.environ.get("BR_IMPACT_CACHE", "1") != "1":
+        return 0
+    fillers = _cache_scan(old_tree)
+    if not fillers:
+        return 0
+    old_lines = set()
+    for hunk in change.hunks:
+        old_lines.update(n for n, _ in hunk.removed)
+        for n, _ in hunk.added:
+            lo, hi = _map_span((n, n), new_to_old)
+            if lo is not None:
+                old_lines.update(range(min(lo, hi), max(lo, hi) + 1))
+    bits = 0
+    for lo, hi, readers, module_wide in fillers:
+        if any(lo <= l <= hi for l in old_lines):
+            for line in readers:
+                bits |= info.cov(line, line)
+            if module_wide:
+                bits |= info.maps.module_users(info.module)
+            _log(f"{info.rel}: edit in a cache filler ({lo}-{hi}): + readers of the cache")
+    return bits
 
 
 # ---------------------------------------------------------------- import check
