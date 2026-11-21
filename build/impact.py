@@ -227,8 +227,20 @@ def main() -> int:
         log("no coverage results; writing no maps (selector falls back to all tests)")
         return 0
 
+    attr_workers = None
+    if os.environ.get("BR_IMPACT_ATTRS", "1") == "1":
+        start = time.time()
+        sys.path.insert(0, str(LIB))
+        import br_attr_build
+
+        try:
+            attr_workers = br_attr_build.run(root, work, out, env, options.jobs, options.reuse)
+        except Exception as exc:  # noqa: BLE001
+            log(f"attribute profile failed: {exc!r}")
+        log(f"attribute profile in {time.time() - start:.1f}s")
+
     start = time.time()
-    postprocess(root, out, probes, workers)
+    postprocess(root, out, probes, workers, attr_workers)
     log(f"postprocess in {time.time() - start:.1f}s")
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
@@ -239,7 +251,8 @@ def main() -> int:
     return 0
 
 
-def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> None:
+def postprocess(root: Path, out: Path, probes: dict, workers: list[dict],
+                attr_workers: list[dict] | None = None) -> None:
     # ---- tests and per-line test sets
     nodeids: set[str] = set()
     outcomes: dict[str, str] = {}
@@ -513,6 +526,10 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     (out / "modules.json").write_text(json.dumps(
         {"users": {k: sets.add(v) for k, v in sorted(module_users.items())},
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
+    if (out / "attrs").is_dir():
+        import br_attr_build
+
+        br_attr_build.postprocess(out, attr_workers, pos, by_class, by_module, ALL, sets)
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(

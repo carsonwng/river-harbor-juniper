@@ -29,6 +29,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -109,6 +110,31 @@ class Maps:
         if self._modules is None:
             self._modules = self._json("modules.json")
         return self._modules
+
+    def attrs(self) -> dict | None:
+        """The attribute-read profile (attrs/attrs.json), if built and sound."""
+        if not hasattr(self, "_attrs"):
+            self._attrs = None
+            try:
+                data = self._json("attrs/attrs.json")
+                if data.get("ok"):
+                    tracked = set(self._json("attrs/tracked.json"))
+                    data["tracked"] = tracked
+                    self._attrs = data
+                else:
+                    _log(f"attribute profile not usable: {data.get('problems')}")
+            except Exception as exc:  # noqa: BLE001
+                _log(f"no attribute profile: {exc!r}")
+        return self._attrs
+
+    def opaque(self) -> set[str]:
+        if not hasattr(self, "_opaque"):
+            self._opaque = set()
+            try:
+                self._opaque = set(self._json("attrs/opaque.json"))
+            except Exception:  # noqa: BLE001
+                self._opaque = None
+        return self._opaque
 
     def module_users(self, module: str | None) -> int:
         if not module:
@@ -408,6 +434,131 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
+    if bits and _diffable(change, old_tree, new_tree):
+        alt = _diff_bits(maps, path, new_text)
+        if alt is not None:
+            _log(f"{path}: import-time state diff selects {bin(alt).count('1')} "
+                 f"(base {bin(bits).count('1')})")
+            return alt
+    return bits
+
+
+# ---------------------------------------------------------------- class-level assignments
+#
+# An edit confined to class-level assignment statements changes the program only
+# through the values those statements bind at import time. We import the edited
+# sqlglot once (a subprocess, build/impact_lib/br_state.py diff) and compare every
+# class attribute (and every entry of class-level dicts) and module global with
+# the pristine fingerprints stored at build time: that is the full import-time
+# effect, after metaclasses, __init_subclass__, merged subclass tables and derived
+# tries/sets. Each changed (class, attribute[, key]) then selects the tests that
+# the attribute-read profile saw reading it at run time. Anything the profile
+# cannot vouch for falls back to the base selection.
+
+
+def _line_ok(tree, line: int) -> bool:
+    chain = _chain(tree, line)
+    if not chain:
+        return True  # blank or comment at module level
+    if any(isinstance(n, FUNC) for n in chain):
+        return False
+    stmt = chain[-1]
+    if isinstance(stmt, ast.ClassDef):
+        first = _first_body_line(stmt)
+        return first is not None and line >= first  # a comment inside a class body
+    outer = chain[:-1]
+    if not outer or not all(isinstance(n, ast.ClassDef) for n in outer):
+        return False  # module level, or under if/for/try in a class body
+    if not isinstance(stmt, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return False
+    for node in ast.walk(stmt):
+        if isinstance(node, ast.Lambda) and node.lineno <= line <= node.end_lineno:
+            return False  # lambda bodies: the base's lambda coverage is exact
+    return True
+
+
+def _diffable(change: FileChange, old_tree, new_tree) -> bool:
+    if os.environ.get("BR_IMPACT_DIFF", "1") != "1":
+        return False
+    lines = 0
+    for hunk in change.hunks:
+        for number, _ in hunk.removed:
+            lines += 1
+            if not _line_ok(old_tree, number):
+                return False
+        for number, _ in hunk.added:
+            lines += 1
+            if not _line_ok(new_tree, number):
+                return False
+    return lines > 0
+
+
+def _diff_bits(maps: Maps, rel: str, new_text: str) -> int | None:
+    profile = maps.attrs()
+    opaque = maps.opaque()
+    if profile is None or opaque is None:
+        return None
+    adir = maps.root / "attrs"
+    script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
+    if not script.exists() or not (adir / "state.json").exists():
+        return None
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    if (adir / "pyc").is_dir():
+        env["PYTHONPYCACHEPREFIX"] = str((adir / "pyc").resolve())
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot", str(maps.sqlglot),
+             "--state", str(adir / "state.json"), "--rel", rel],
+            input=new_text, capture_output=True, text=True, timeout=120, env=env,
+            cwd=str(adir))
+        result = json.loads(proc.stdout.strip().splitlines()[-1])
+    except Exception as exc:  # noqa: BLE001
+        _log(f"{rel}: state diff failed ({exc!r})")
+        return None
+    if "changes" not in result or result.get("volatile"):
+        _log(f"{rel}: state diff unusable: {result.get('error') or result.get('volatile')}")
+        return None
+    changes = result["changes"]
+    _log(f"{rel}: import-time changes {changes[:8]}")
+    attrs, keys, star, iters = profile["attrs"], profile["keys"], profile["star"], profile["iters"]
+    tables, tracked = profile["tables"], profile["tracked"]
+    asets = maps._json("attrs/sets.json")
+
+    def get(index) -> int:
+        if index is None:
+            return 0
+        item = asets[index]
+        if isinstance(item, str):
+            return int(item, 16)
+        b = 0
+        for p in item:
+            b |= 1 << p
+        return b
+
+    bits = get(profile["unsure"])
+
+    for ch in changes:
+        if ch[0] != "class":
+            return None  # module globals, new or removed classes: the base rule
+        _, ckey, attr, kfp, kind = ch
+        if ckey in opaque or attr.startswith("__") or kind in ("added", "removed"):
+            return None
+        tid = tables.get(f"{ckey}|{attr}")
+        b = get(attrs.get(f"{ckey}|*"))
+        if kind == "value":
+            if tid is None:
+                return None
+            b |= get(keys.get(tid, {}).get(kfp)) | get(star.get(tid))
+        elif tid is not None:
+            b |= get(attrs.get(f"{ckey}|{attr}")) | get(star.get(tid)) | get(iters.get(tid))
+            for index in keys.get(tid, {}).values():
+                b |= get(index)
+        elif attr in tracked:
+            b |= get(attrs.get(f"{ckey}|{attr}"))
+        else:
+            return None
+        bits |= b
     return bits
 
 
