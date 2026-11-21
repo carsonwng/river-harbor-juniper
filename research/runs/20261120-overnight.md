@@ -145,3 +145,10 @@ Followed from now on, on top of RUNBOOK.md.
 - **Incident (lead, about 23:2x):** another local agent killed up to 4 `br-label` containers by mount pattern
   (funny_hodgkin, objective_mendel, unruffled_torvalds, zen_driscoll, quirky_neumann). `label-local` was told to find runs that
   didn't finish cleanly, relabel those commits before publishing `validation/local-*`, and record it.
+- **`label-local` interim (about 23:25):** held-out set `validation/sets/local-20261120` (16 commits: 8 code, 4 fixture,
+  3 comment/docstring, 1 multi; 5 break nothing) on `validation/local-20261120` `7dac844`, draft PR #4. Labels come from full-suite
+  docker runs (`Dockerfile.label`, same base digest + lock), and 5 relabelled sample commits match answers.json exactly. None of its
+  containers were among the killed ones. `int/night-1948`: **0 misses on local-20261120** (docker total 172.2 s,
+  oracle 93.4 s), and **2 misses on m1 (42 commits): `8owm` (hive.py) and `doay` (parsers/risingwave.py)**, both
+  `* -> +` import-time edits. Sample 0 misses, 180.2 s. Batch B (16 more) is labelling, about 65 min.
+  local-20261120 is copied untracked into main's `validation/sets/` next to m1, so verify now covers both.
