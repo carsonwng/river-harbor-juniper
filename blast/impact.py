@@ -29,6 +29,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -492,6 +493,12 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
                 bits |= _new_line_bits(info, new_tree, number, new_to_old)
             if bits == maps.ALL:
                 break
+    if bits and bits != maps.ALL and _assign_only(change, old_tree, new_tree):
+        alt = _expr_state_bits(maps, path, new_text)
+        if alt is not None:
+            _log(f"{path}: expression attribute diff selects {bin(alt).count('1')} "
+                 f"(base {bin(bits).count('1')})")
+            return alt
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -865,6 +872,119 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- expression class attributes
+#
+# An edit confined to class-level assignments changes the program only through
+# the values those statements bind at import. The edited sqlglot is imported once
+# (build/impact_lib/br_state.py diff, from strat/impact-attrs) and every class
+# attribute, class-level dict entry and module global is compared with the
+# pristine fingerprints from the build: that is the whole import-time effect,
+# after __init_subclass__ (required_args), merged subclass tables, derived module
+# tables. When every change is a plain data attribute of a sqlglot Expr class
+# (arg_types, required_args, is_var_len_args, _sql_names, ...), the tests that can
+# see it are the ones that read that attribute of that class at run time: the
+# coverage pass records every such read through a descriptor (br_cov_plugin.py),
+# for the class it was read through and the class that defined the value. Any
+# other change (a module global, a parser or generator table, a new or removed
+# attribute or class), an entry the profile marks unsafe, or a failed diff keeps
+# the base selection; an edit that breaks an import selects every test.
+
+
+def _assign_line(tree, line: int) -> bool:
+    """The line is in a class-level assignment statement (not in a function, a
+    lambda, a class header or under a class-level if/for), or blank/comment."""
+    chain = _chain(tree, line)
+    if not chain:
+        return True
+    if any(isinstance(n, FUNC) for n in chain):
+        return False
+    stmt = chain[-1]
+    if isinstance(stmt, ast.ClassDef):
+        first = _first_body_line(stmt)
+        return first is not None and line >= first
+    outer = chain[:-1]
+    return bool(outer) and all(isinstance(n, ast.ClassDef) for n in outer)         and isinstance(stmt, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+
+
+def _assign_only(change: FileChange, old_tree, new_tree) -> bool:
+    if os.environ.get("BR_IMPACT_EXPRATTR", "1") != "1":
+        return False
+    seen = False
+    for hunk in change.hunks:
+        for number, _ in hunk.removed:
+            seen = True
+            if not _assign_line(old_tree, number):
+                return False
+        for number, _ in hunk.added:
+            seen = True
+            if not _assign_line(new_tree, number):
+                return False
+    return seen
+
+
+def _exprattr(maps: Maps) -> dict | None:
+    if not hasattr(maps, "_exprattr"):
+        data = None
+        try:
+            path = maps.root / "exprattr.json"
+            if path.exists():
+                data = json.loads(path.read_text("utf-8"))
+                if data.get("version") != 1 or "*" in data.get("unsafe", ()):
+                    data = None
+                else:
+                    data["tracked"] = set(data["tracked"])
+                    data["unsafe"] = set(data["unsafe"])
+        except Exception:  # noqa: BLE001
+            data = None
+        maps._exprattr = data
+    return maps._exprattr
+
+
+def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
+    profile = _exprattr(maps)
+    state = maps.root / "attrs" / "state.json"
+    script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
+    if profile is None or not state.exists() or not script.exists():
+        return None
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot",
+             str(maps.sqlglot.resolve()), "--state", str(state.resolve()), "--rel", rel],
+            input=new_text, capture_output=True, text=True, encoding="utf-8", timeout=120,
+            env=env, cwd=str(state.parent.resolve()))
+        lines = proc.stdout.strip().splitlines()
+        if not lines:
+            raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
+        result = json.loads(lines[-1])
+    except Exception as exc:  # noqa: BLE001
+        _log(f"{rel}: state diff failed ({exc!r})")
+        return None
+    if result.get("import_failed"):
+        _log(f"{rel}: {result.get('error')}: every test")
+        return maps.ALL
+    changes = result.get("changes")
+    if changes is None or result.get("volatile"):
+        _log(f"{rel}: state diff unusable: {result.get('error') or result.get('volatile')}")
+        return None
+    _log(f"{rel}: import-time changes {changes[:8]}")
+    if not changes:
+        return None  # nothing at import changed: the base rules decide
+    reads, tracked, unsafe = profile["reads"], profile["tracked"], profile["unsafe"]
+    bits = 0
+    for ch in changes:
+        if ch[0] != "class" or ch[4] not in ("value", "attr"):
+            return None
+        entry = f"{ch[1]}|{ch[2]}"
+        if entry not in tracked or entry in unsafe or f"{ch[1]}|*" in unsafe:
+            return None
+        index = reads.get(entry)
+        if index is not None:
+            bits |= maps.bits(index)
+    return bits
 
 
 # ---------------------------------------------------------------- relation profile

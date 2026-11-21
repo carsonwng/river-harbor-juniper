@@ -423,6 +423,18 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001  the selector works without it
         log(f"relprof failed, no relprof map: {exc!r}")
         (out / "relprof.json").unlink(missing_ok=True)
+    # pristine import-time state for the run-time state diff (br_state.py, from strat/impact-attrs)
+    start = time.time()
+    try:
+        sys.path.insert(0, str(LIB))
+        import br_state
+
+        (out / "attrs").mkdir(exist_ok=True)
+        br_state.build_state(root, out / "attrs" / "state.json")
+        log(f"state snapshot in {time.time() - start:.1f}s")
+    except Exception as exc:  # noqa: BLE001  the selector works without it
+        log(f"state snapshot failed: {exc!r}")
+        (out / "attrs" / "state.json").unlink(missing_ok=True)
     # bytecode for the pinned sources, after every suite pass: the run-time import
     # check (blast/impact_import.py) then only compiles the edited files. A stale
     # or missing .pyc only costs time, never correctness.
@@ -461,6 +473,10 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     ALL = (1 << len(tests)) - 1
 
     line_bits: dict[str, dict[int, int]] = {}
+    ea_reads: dict[str, int] = {}
+    ea_tracked: set[str] = set()
+    ea_unsafe: set[str] = set()
+    ea_ok = True
     for w in workers:
         wtests = w["tests"]
         expand: dict[int, int] = {}
@@ -486,6 +502,18 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 for code in codes:
                     acc |= bits_for(code)
                 target[int(line)] = acc
+
+        ea = w.get("exprattr")
+        if ea is None:
+            ea_ok = False
+        else:
+            for entry, codes in ea["reads"].items():
+                acc = ea_reads.get(entry, 0)
+                for code in codes:
+                    acc |= bits_for(code)
+                ea_reads[entry] = acc
+            ea_tracked.update(ea["tracked"])
+            ea_unsafe.update(ea["unsafe"])
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -726,6 +754,15 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     (out / "modules.json").write_text(json.dumps(
         {"users": {k: sets.add(v) for k, v in sorted(module_users.items())},
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
+    # expression class attribute reads (br_cov_plugin): only when every worker has them
+    (out / "exprattr.json").unlink(missing_ok=True)
+    if ea_ok and workers:
+        (out / "exprattr.json").write_text(json.dumps(
+            {"version": 1, "reads": {k: sets.add(v) for k, v in sorted(ea_reads.items())},
+             "tracked": sorted(ea_tracked), "unsafe": sorted(ea_unsafe)},
+            separators=(",", ":")), "utf-8")
+        log(f"expression attribute reads: {len(ea_reads)} entries, {len(ea_tracked)} tracked, "
+            f"{len(ea_unsafe)} unsafe")
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(
