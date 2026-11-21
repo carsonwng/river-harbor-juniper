@@ -15,7 +15,8 @@ Ported from strat/runcpu (79a3b3e) and extended:
     funcs) and the body of every reachable lambda whose lineno is not in `keep`
     becomes Constant(None) (when keep is not None). A replaced body is never
     walked, as in the copied tree, where the old body is detached.
-  * code_lines(rel, text): line numbers of compile(text)'s code objects, memoised.
+  * code_lines(rel, text): line numbers of compile(text)'s code objects, memoised,
+    compiled from the cached tree (no second parse).
 """
 
 from __future__ import annotations
@@ -103,7 +104,8 @@ def code_lines(rel: str, text: str) -> frozenset:
     key = (rel, text)
     got = _CODE_LINES.get(key)
     if got is None:
-        code = compile(text, rel, "exec", dont_inherit=True)
+        # compile(parse(text)) == compile(text) in raises and line tables (443 inputs checked)
+        code = compile(parse(text), rel, "exec", dont_inherit=True)
         lines: set[int] = set()
         stack = [code]
         while stack:

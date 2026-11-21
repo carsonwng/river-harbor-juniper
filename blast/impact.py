@@ -465,7 +465,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     try:
         old_tree = astcache.parse(old_text)
         new_tree = astcache.parse(new_text)
-        compile(new_text, path, "exec", dont_inherit=True)
+        compile(new_tree, path, "exec", dont_inherit=True)  # same raise as compile(new_text)
     except SyntaxError as exc:
         raise Unsafe(f"does not compile: {exc.msg}")
     if astcache.same(old_tree, new_tree):
