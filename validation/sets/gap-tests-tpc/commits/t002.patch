@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..0047a3d 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -7154,7 +7154,7 @@ WITH "date_dim_2" AS (
+   LEFT JOIN "_u_0" AS "_u_0"
+     ON "_u_0"."i_item_id" = "item"."i_item_id"
+   WHERE
+-    NOT "_u_0"."i_item_id" IS NULL
++    not "_u_0"."i_item_id" IS NULL
+   GROUP BY
+     "item"."i_item_id"
+ ), "cs" AS (

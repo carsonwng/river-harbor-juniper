@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..eb8a4a9 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -7556,7 +7556,7 @@ JOIN "ws_items" AS "ws_items"
+   AND "ws_items"."ws_item_rev" >= 0.9 * "ss_items"."ss_item_rev"
+ ORDER BY
+   "item_id",
+-  "ss_item_rev"
++  "ss_item_rev";
+ LIMIT 100;
+ 
+ --------------------------------------

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..f2ccfb7 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -317,7 +317,7 @@ select
+         sum(l_extendedprice * l_discount) as revenue
+ from
+         lineitem
+-where
++wher
+         CAST(l_shipdate AS DATE) >= date '1994-01-01'
+         and CAST(l_shipdate AS DATE) < date '1994-01-01' + interval '1' year
+         and l_discount between 0.06 - 0.01 and 0.06 + 0.01
