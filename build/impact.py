@@ -603,10 +603,11 @@ def main() -> int:
         test_imports = imports_future.result()
 
     # ---- optional passes, in priority order, while the budget lasts
-    # (BR_IMPACT_ORDER). Default: relprof first (the largest measured gain), then
-    # the forked coverage pass (strat/impact-isolate: closes the cross-test cache
-    # holes of 6 functions; without it the map is the in-process one, as in
-    # strat/impact-base), then the attribute/key read profile.
+    # (BR_IMPACT_ORDER). Default: relprof first (the largest measured gain), then the
+    # attribute/key read profile, then the forked coverage pass. The forked pass
+    # comes last because its effect on the map (strat/impact-isolate: the
+    # cross-test cache holes) is also in the committed fork supplement, merged when
+    # the pass does not run.
     rp_workers = None
     attr_workers = None
 
@@ -676,7 +677,7 @@ def main() -> int:
         return True
 
     passes = {"relprof": relprof_pass, "fork": fork_pass, "attrs": attrs_pass}
-    for name in os.environ.get("BR_IMPACT_ORDER", "relprof,fork,attrs").split(","):
+    for name in os.environ.get("BR_IMPACT_ORDER", "relprof,attrs,fork").split(","):
         name = name.strip()
         if name in passes and (name != "fork" or len(modes) > 1) and fits(name):
             passes.pop(name)()
