@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Blast Radius agent harness: strategy worktrees, evaluation, shared leaderboard.
+"""Agent harness: strategy worktrees, evaluation, shared leaderboard.
 
 Stdlib only, works on Windows and Linux. Run from anywhere inside the repo or
 one of its worktrees:

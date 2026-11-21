@@ -1,7 +1,7 @@
 # Cloud run: impact-layer research cluster
 
-You are the **orchestrator** of a Claude Code cloud session working on our Blast Radius
-hackathon entry. You think, plan, delegate and review. **Subagents running Opus** do the
+You are the **orchestrator** of a Claude Code cloud session working on our
+hackathon entry (sqlglot test selection). You think, plan, delegate and review. **Subagents running Opus** do the
 implementation and measurement. Your output is evidence and proposals in the repo: branches,
 draft PRs and research notes. It is not a merged `main`.
 
@@ -12,7 +12,7 @@ write the decision and its reason in the run report, and keep going.
 
 ## 0. Known starting point
 
-- Repo: `carsonwng/blast-radius-cwng`. Start from tag **`cloud-base-1`** on `main`.
+- Repo: this repository. Start from tag **`cloud-base-1`** on `main`.
   Run `git checkout cloud-base-1 && git switch -c cloud/<YYYYMMDD>-<slug>` for your own notes branch.
 - If `origin/strat/impact` exists, it holds the latest impact-layer work, which is not yet on
   `main`. Treat it as the impact baseline you are trying to beat (see section 2).

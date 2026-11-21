@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local scorer for the blast radius track. The rules are in SCORING.md.
+"""Local scorer for the track. The rules are in SCORING.md.
 
 Teams:    python3 score.py <data_dir> <answers.json> <output_file> [--cpu-seconds 1.5]
 Harness:  python3 score.py --batch < request.json

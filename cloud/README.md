@@ -9,7 +9,7 @@ tagged commit so every run begins at a known point.
 
 ## Launching
 
-1. Open a Claude Code cloud session on `carsonwng/blast-radius-cwng`.
+1. Open a Claude Code cloud session on this repository.
 2. Choose **Fable** as the session model. It is the orchestrator and thinker. The prompt tells it
    to spawn subagents with `model: "opus"`.
 3. Send: `Read cloud/impact-cluster.md and execute it exactly. Start from tag cloud-base-1.`

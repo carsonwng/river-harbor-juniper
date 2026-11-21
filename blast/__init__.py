@@ -1,4 +1,4 @@
-"""Blast Radius selector, in four independently owned layers:
+"""Test selector, in four independently owned layers:
 
     patch.parse -> triage.classify (per file) -> impact.select (deferred files) -> pack.split
 

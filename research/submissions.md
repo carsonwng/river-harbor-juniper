@@ -1,6 +1,6 @@
 # Practice submissions
 
-Limit: one submission per hour. Track page: https://www.joinbuilders.org/buildathon/tracks/blast-radius
+Limit: one submission per hour. Track page: not committed (ask the human).
 
 | # | Date | Commit | Contents | Sample (docker) | Practice board | Notes |
 | --- | --- | --- | --- | --- | --- | --- |

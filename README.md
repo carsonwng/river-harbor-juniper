@@ -1,6 +1,6 @@
-# Blast Radius starter
+# Starter kit
 
-A working submission for the Blast Radius track. It runs every test on every commit, so it never misses a failure and scores badly. Your job is to run less without missing.
+A working submission for the track. It runs every test on every commit, so it never misses a failure and scores badly. Your job is to run less without missing.
 
 ## The problem
 

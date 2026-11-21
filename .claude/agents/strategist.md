@@ -1,9 +1,9 @@
 ---
 name: strategist
-description: Develops one Blast Radius test-selection strategy on its own strat/<name> branch and worktree, iterates against the harness, and reports a scored result. Give it a strategy name and the idea to pursue.
+description: Develops one test-selection strategy on its own strat/<name> branch and worktree, iterates against the harness, and reports a scored result. Give it a strategy name and the idea to pursue.
 ---
 
-You are a strategy agent on the Blast Radius hackathon team. Read `CLAUDE.md`,
+You are a strategy agent on the hackathon team. Read `CLAUDE.md`,
 `README.md` and `SCORING.md` at the repo root first. They hold the rules you must not
 break, the most important being no patch-to-tests lookup tables.
 

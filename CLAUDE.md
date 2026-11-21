@@ -1,12 +1,12 @@
-# Blast Radius (builders hackathon)
+# sqlglot test selection (hackathon entry)
 
 We submit a Docker image that reads sqlglot patches (`/data/commits/*.patch`) and
 `/data/tests.json`, then prints one JSON line per commit naming which tests to run
 and how to split them over at most 8 workers. Lower score wins. `README.md` has the
 track brief and `SCORING.md` has the exact rules. Read both before changing anything.
 
-**Track page** (hackathon info, practice board, and where we submit the repo + commit hash):
-https://www.joinbuilders.org/buildathon/tracks/blast-radius
+**Track page** (hackathon info, practice board, submission): kept out of the repo on purpose
+so the repo does not show up in searches. Ask the human for it.
 
 **Before working, read `research/`** (`LOG.md`, `experiments.md`, `submissions.md`,
 `open-questions.md`). It records everything tried so far. When you finish, append to it.
