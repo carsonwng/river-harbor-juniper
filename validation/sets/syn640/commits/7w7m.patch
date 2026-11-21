@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/normalize.py b/sqlglot/optimizer/normalize.py
+index 8a81d34..8dc272c 100644
+--- a/sqlglot/optimizer/normalize.py
++++ b/sqlglot/optimizer/normalize.py
+@@ -132,7 +132,7 @@ def _predicate_lengths(
+ 
+     (A AND B) OR C -> [2, 2] because len(A OR C), len(B OR C).
+     """
+-    if depth > max_:
++    if depth <= max_:
+         yield depth
+         return
+ 

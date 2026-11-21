@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/snowflake.py b/sqlglot/generators/snowflake.py
+index c224f5f..2a27829 100644
+--- a/sqlglot/generators/snowflake.py
++++ b/sqlglot/generators/snowflake.py
+@@ -912,7 +912,7 @@ class SnowflakeGenerator(generator.Generator):
+         increment = f" INCREMENT {increment}" if increment else ""
+ 
+         order = expression.args.get("order")
+-        if order is not None:
++        if order is None:
+             order_clause = " ORDER" if order else " NOORDER"
+         else:
+             order_clause = ""

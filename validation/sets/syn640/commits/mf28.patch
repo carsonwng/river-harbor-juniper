@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/mysql.py b/sqlglot/generators/mysql.py
+index 91c1fef..7d110a2 100644
+--- a/sqlglot/generators/mysql.py
++++ b/sqlglot/generators/mysql.py
+@@ -530,7 +530,6 @@ class MySQLGenerator(generator.Generator):
+         "range",
+         "rank",
+         "read",
+-        "reads",
+         "read_write",
+         "real",
+         "recursive",

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/time.py b/sqlglot/time.py
+index 039baf1..c479412 100644
+--- a/sqlglot/time.py
++++ b/sqlglot/time.py
+@@ -101,7 +101,7 @@ TIMEZONES: set[str] = {
+         "Africa/Blantyre",
+         "Africa/Brazzaville",
+         "Africa/Bujumbura",
+-        "Africa/Cairo",
++        "Africa/Cairo",  # Handled by the parser
+         "Africa/Casablanca",
+         "Africa/Ceuta",
+         "Africa/Conakry",

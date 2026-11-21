@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_functions.sql b/tests/fixtures/optimizer/annotate_functions.sql
+index 494835d..42a6e39 100644
+--- a/tests/fixtures/optimizer/annotate_functions.sql
++++ b/tests/fixtures/optimizer/annotate_functions.sql
+@@ -6674,7 +6674,7 @@ REGEXP_REPLACE(tbl.str_col, tbl.str_col, tbl.str_col);
+ LONGTEXT;
+ 
+ # dialect: mysql
+-REGEXP_REPLACE(tbl.str_col, tbl.str_col, tbl.str_col, tbl.int_col);
++REGEXP_REPLACE(tbl.str_col, tbl.str_col, tbl.str_col, a tbl.int_col);
+ LONGTEXT;
+ 
+ # dialect: mysql

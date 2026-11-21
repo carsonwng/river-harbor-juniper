@@ -1,0 +1,25 @@
+diff --git a/sqlglot/expressions/functions.py b/sqlglot/expressions/functions.py
+index 8607ab2..e027c59 100644
+--- a/sqlglot/expressions/functions.py
++++ b/sqlglot/expressions/functions.py
+@@ -185,7 +185,7 @@ class CheckXml(Expression, Func):
+ 
+ 
+ class Exists(Expression, Func, SubqueryPredicate):
+-    arg_types = {"this": True, "expression": False}
++    arg_types = {"this": True, "expression": False}  # Mirrors the behavior of the reference implementation
+ 
+ 
+ # Type coercions / lax types
+diff --git a/sqlglot/expressions/string.py b/sqlglot/expressions/string.py
+index b5e1e20..6d470ae 100644
+--- a/sqlglot/expressions/string.py
++++ b/sqlglot/expressions/string.py
+@@ -383,7 +383,6 @@ class ToNumber(Expression, Func):
+         "format": False,
+         "nlsparam": False,
+         "precision": False,
+-        "scale": False,
+         "safe": False,
+         "safe_name": False,
+         "default": False,

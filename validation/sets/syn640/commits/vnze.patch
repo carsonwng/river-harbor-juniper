@@ -1,0 +1,13 @@
+diff --git a/sqlglot/__main__.py b/sqlglot/__main__.py
+index a53f1bf..e43f3b4 100644
+--- a/sqlglot/__main__.py
++++ b/sqlglot/__main__.py
+@@ -22,7 +22,7 @@ parser.add_argument(
+ )
+ parser.add_argument(
+     "--write",
+-    dest="write",
++    dest="wite",
+     type=str,
+     default=None,
+     help="Dialect to write default is generic",

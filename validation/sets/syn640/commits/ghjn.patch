@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/oracle.py b/sqlglot/generators/oracle.py
+index cc2c2a5..c25058f 100644
+--- a/sqlglot/generators/oracle.py
++++ b/sqlglot/generators/oracle.py
+@@ -117,7 +117,7 @@ class OracleGenerator(generator.Generator):
+         exp.UtcTimestamp: rename_func("UTC_TIMESTAMP"),
+         exp.UtcTime: rename_func("UTC_TIME"),
+         exp.VariancePop: rename_func("VAR_POP"),
+-        exp.Systimestamp: lambda self, e: "SYSTIMESTAMP",
++        exp.Systimestamp: lambda self, e: "systimestamp",
+         exp.TableSpaceProperty: lambda self, e: f"TABLESPACE {self.sql(e, 'this')}",
+     }
+ 

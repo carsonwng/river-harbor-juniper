@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/tsql.py b/sqlglot/parsers/tsql.py
+index 0900aca..51b5ee6 100644
+--- a/sqlglot/parsers/tsql.py
++++ b/sqlglot/parsers/tsql.py
+@@ -503,7 +503,7 @@ class TSQLParser(parser.Parser):
+             )
+         )
+ 
+-        if execute.name.lower() == "sp_executesql":
++        if execute.name.lower() != "sp_executesql":
+             execute = self.expression(exp.ExecuteSql(**execute.args))
+ 
+         return execute

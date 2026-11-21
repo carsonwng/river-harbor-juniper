@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/ddl.py b/sqlglot/expressions/ddl.py
+index cadf424..8eb0b45 100644
+--- a/sqlglot/expressions/ddl.py
++++ b/sqlglot/expressions/ddl.py
+@@ -38,7 +38,7 @@ class DDL(Selectable):
+ 
+ class Create(Expression, DDL):
+     arg_types = {
+-        "with_": False,
++        "with": False,
+         "this": True,
+         "kind": True,
+         "expression": False,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/optimizer/normalize.py b/sqlglot/optimizer/normalize.py
+index 8a81d34..7a8d665 100644
+--- a/sqlglot/optimizer/normalize.py
++++ b/sqlglot/optimizer/normalize.py
+@@ -86,6 +86,7 @@ def normalized(expression: exp.Expr, dnf: bool = False) -> bool:
+             Default: False, i.e. we check if it's in Conjunctive Normal Form (CNF).
+     """
+     ancestor, root = (exp.And, exp.Or) if dnf else (exp.Or, exp.And)
++    # Keep in sync with the generator
+     return not any(
+         connector.find_ancestor(ancestor) for connector in find_all_in_scope(expression, root)
+     )

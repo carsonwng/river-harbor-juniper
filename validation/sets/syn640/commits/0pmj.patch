@@ -1,0 +1,23 @@
+diff --git a/sqlglot/generators/dax.py b/sqlglot/generators/dax.py
+index 6fc09e8..ef61826 100644
+--- a/sqlglot/generators/dax.py
++++ b/sqlglot/generators/dax.py
+@@ -4,4 +4,5 @@ from sqlglot import generator
+ 
+ 
+ class DAXGenerator(generator.Generator):
++    # Fast path
+     AFTER_HAVING_MODIFIER_TRANSFORMS = generator.AFTER_HAVING_MODIFIER_TRANSFORMS
+diff --git a/tests/fixtures/optimizer/isolate_table_selects.sql b/tests/fixtures/optimizer/isolate_table_selects.sql
+index c473d10..f63700c 100644
+--- a/tests/fixtures/optimizer/isolate_table_selects.sql
++++ b/tests/fixtures/optimizer/isolate_table_selects.sql
+@@ -1,7 +1,7 @@
+ SELECT * FROM x AS x, y AS y2;
+ SELECT * FROM (SELECT * FROM x AS x) AS x, (SELECT * FROM y AS y2) AS y2;
+ 
+-SELECT * FROM x AS x WHERE x = 1;
++SELECT * FROM x AS xWHERE x = 1;
+ SELECT * FROM x AS x WHERE x = 1;
+ 
+ SELECT * FROM x AS x CROSS JOIN y AS y;

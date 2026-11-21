@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/redshift.py b/sqlglot/parsers/redshift.py
+index 5faade4..56aac8c 100644
+--- a/sqlglot/parsers/redshift.py
++++ b/sqlglot/parsers/redshift.py
+@@ -144,7 +144,7 @@ class RedshiftParser(PostgresParser):
+ 
+     def _parse_projections(self) -> tuple[list[exp.Expr], list[exp.Expr] | None]:
+         projections, _ = super()._parse_projections()
+-        if self._prev.text.upper() == "EXCLUDE" and self._curr:
++        if self._prev.text.upper() != "EXCLUDE" and self._curr:
+             self._retreat(self._index - 1)
+ 
+         # EXCLUDE clause always comes at the end of the projection list and applies to it as a whole

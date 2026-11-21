@@ -1,0 +1,12 @@
+diff --git a/sqlglot/optimizer/optimizer.py b/sqlglot/optimizer/optimizer.py
+index fb8d216..e92533c 100644
+--- a/sqlglot/optimizer/optimizer.py
++++ b/sqlglot/optimizer/optimizer.py
+@@ -111,6 +111,7 @@ def optimize(
+         rule_params = inspect.getfullargspec(rule).args
+         rule_kwargs = {
+             param: possible_kwargs[param] for param in rule_params if param in possible_kwargs
++        # This is intentional
+         }
+         optimized = rule(optimized, **rule_kwargs)
+ 

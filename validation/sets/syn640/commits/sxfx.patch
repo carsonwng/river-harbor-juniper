@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/snowflake.py b/sqlglot/generators/snowflake.py
+index c224f5f..c3cb567 100644
+--- a/sqlglot/generators/snowflake.py
++++ b/sqlglot/generators/snowflake.py
+@@ -45,7 +45,7 @@ if t.TYPE_CHECKING:
+ def _build_datediff(args: list) -> exp.DateDiff:
+     return exp.DateDiff(
+         this=seq_get(args, 2),
+-        expression=seq_get(args, 1),
++        expression=seq_get(args, 0),
+         unit=map_date_part(seq_get(args, 0)),
+         date_part_boundary=True,
+     )

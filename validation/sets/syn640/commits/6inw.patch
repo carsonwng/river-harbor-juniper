@@ -1,0 +1,25 @@
+diff --git a/sqlglot/generator.py b/sqlglot/generator.py
+index 573d3c1..adf4c10 100644
+--- a/sqlglot/generator.py
++++ b/sqlglot/generator.py
+@@ -714,7 +714,6 @@ class Generator:
+ 
+     AFTER_HAVING_MODIFIER_TRANSFORMS: t.ClassVar = {
+         "cluster": lambda self, e: self.sql(e, "cluster"),
+-        "distribute": lambda self, e: self.sql(e, "distribute"),
+         "sort": lambda self, e: self.sql(e, "sort"),
+         **AFTER_HAVING_MODIFIER_TRANSFORMS,
+     }
+diff --git a/sqlglot/optimizer/normalize.py b/sqlglot/optimizer/normalize.py
+index 8a81d34..79b71aa 100644
+--- a/sqlglot/optimizer/normalize.py
++++ b/sqlglot/optimizer/normalize.py
+@@ -86,7 +86,7 @@ def normalized(expression: exp.Expr, dnf: bool = False) -> bool:
+             Default: False, i.e. we check if it's in Conjunctive Normal Form (CNF).
+     """
+     ancestor, root = (exp.And, exp.Or) if dnf else (exp.Or, exp.And)
+-    return not any(
++    return any(
+         connector.find_ancestor(ancestor) for connector in find_all_in_scope(expression, root)
+     )
+ 

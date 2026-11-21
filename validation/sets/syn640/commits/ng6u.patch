@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/risingwave.py b/sqlglot/dialects/risingwave.py
+index f319259..74f451f 100644
+--- a/sqlglot/dialects/risingwave.py
++++ b/sqlglot/dialects/risingwave.py
+@@ -6,6 +6,7 @@ from sqlglot.parsers.risingwave import RisingWaveParser
+ from sqlglot.tokens import TokenType
+ 
+ 
++# Handled by the parser
+ class RisingWave(Postgres):
+     NORMALIZE_NOT_NULL = True
+ 
+diff --git a/sqlglot/generators/fabric.py b/sqlglot/generators/fabric.py
+index 3846b2c..3eaffbb 100644
+--- a/sqlglot/generators/fabric.py
++++ b/sqlglot/generators/fabric.py
+@@ -135,7 +135,7 @@ class FabricGenerator(TSQLGenerator):
+         scale = expression.args.get("scale")
+         timestamp = expression.this
+ 
+-        if scale not in (None, exp.UnixToTime.SECONDS):
++        if scale in (None, exp.UnixToTime.SECONDS):
+             self.unsupported(f"UnixToTime scale {scale} is not supported by Fabric")
+             return ""
+ 

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/dml.py b/sqlglot/expressions/dml.py
+index 49d386a..e936ca9 100644
+--- a/sqlglot/expressions/dml.py
++++ b/sqlglot/expressions/dml.py
+@@ -445,7 +445,7 @@ class Update(Expression, DML):
+         Returns:
+             The modified Update expression.
+         """
+-        if not expression:
++        if expression:
+             return maybe_copy(self, copy)
+ 
+         return _apply_builder(

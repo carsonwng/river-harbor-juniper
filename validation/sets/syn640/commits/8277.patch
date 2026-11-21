@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..992127e 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -240,7 +240,7 @@ SELECT * FROM c.db.t1 AS _0 JOIN c.db.t2 AS _1 ON _0.id = _1.id;
+ 
+ # title: canonicalize join with different databases
+ # canonicalize_table_aliases: true
+-SELECT * FROM db1.users JOIN db2.users ON db1.users.id = db2.users.id;
++SELECT * FRO M db1.users JOIN db2.users ON db1.users.id = db2.users.id;
+ SELECT * FROM c.db1.users AS _0 JOIN c.db2.users AS _1 ON _0.id = _1.id;
+ 
+ # title: canonicalize CTE alias

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..ab255a4 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -1049,7 +1049,7 @@ WITH "_u_0" AS (
+     "lineitem"."l_orderkey"
+   HAVING
+     SUM("lineitem"."l_quantity") > 300
+-)
++
+ SELECT
+   "customer"."c_name" AS "c_name",
+   "customer"."c_custkey" AS "c_custkey",

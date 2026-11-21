@@ -1,0 +1,11 @@
+diff --git a/sqlglot/generators/trino.py b/sqlglot/generators/trino.py
+index ab26886..b184d4f 100644
+--- a/sqlglot/generators/trino.py
++++ b/sqlglot/generators/trino.py
+@@ -184,5 +184,5 @@ class TrinoGenerator(PrestoGenerator):
+         return self.func(
+             "JSON_QUERY",
+             expression.this,
+-            json_path + option + quote + on_condition,
++            json_path - option + quote + on_condition,
+         )

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/identity.sql b/tests/fixtures/identity.sql
+index 94f79f2..e6f4fe3 100644
+--- a/tests/fixtures/identity.sql
++++ b/tests/fixtures/identity.sql
+@@ -249,7 +249,7 @@ SELECT SUM(DISTINCT x)
+ SELECT TRUNC(a, b)
+ SELECT ARRAY_AGG(STRUCT(x, x AS y) ORDER BY z DESC) AS x
+ SELECT LAG(x) OVER (ORDER BY y) AS x
+-SELECT LEAD(a) OVER (ORDER BY b) AS a
++SELECT LEAD(a) OVER (RODER BY b) AS a
+ SELECT LEAD(a, 1) OVER (PARTITION BY a ORDER BY a) AS x
+ SELECT LEAD(a, 1, b) OVER (PARTITION BY a ORDER BY a) AS x
+ SELECT X((a, b) -> a + b, z -> z) AS x

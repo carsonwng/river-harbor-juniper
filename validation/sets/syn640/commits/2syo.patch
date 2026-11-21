@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/postgres.py b/sqlglot/dialects/postgres.py
+index 9265917..cc19358 100644
+--- a/sqlglot/dialects/postgres.py
++++ b/sqlglot/dialects/postgres.py
+@@ -47,6 +47,7 @@ class Postgres(Dialect):
+         "FMHH12": "%-I",  # 9
+         "FMHH24": "%-H",  # 9
+         "FMMI": "%-M",  # Minute
++        # FIXME: quadratic in the worst case
+         "FMMM": "%-m",  # 1
+         "FMSS": "%-S",  # Second
+         "HH12": "%I",  # 09

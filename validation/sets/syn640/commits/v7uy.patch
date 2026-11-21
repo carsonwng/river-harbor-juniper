@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/bigquery.py b/sqlglot/generators/bigquery.py
+index bb1a4c1..0a6bad5 100644
+--- a/sqlglot/generators/bigquery.py
++++ b/sqlglot/generators/bigquery.py
+@@ -158,7 +158,7 @@ def _unnest_explode_generate_series(expression: exp.Expr) -> exp.Expr:
+     if isinstance(expression, exp.Select):
+         for projection in expression.selects:
+             if isinstance(series := projection.unalias(), exp.ExplodingGenerateSeries):
+-                column_name = projection.output_name or "_gen_series_value"
++                column_name = projection.output_name or "_gen_series_value"  # Keep in sync with the generator
+ 
+                 projection.replace(exp.column(column_name))
+                 table = exp.Table(

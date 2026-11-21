@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/pushdown_projections.py b/sqlglot/optimizer/pushdown_projections.py
+index 0611a74..7ef77b0 100644
+--- a/sqlglot/optimizer/pushdown_projections.py
++++ b/sqlglot/optimizer/pushdown_projections.py
+@@ -252,7 +252,7 @@ def projection_reachability(
+ 
+             # Special set-operation modes need different column matching; BY NAME alias
+             # lists refer to merged output positions, which may differ from either operand.
+-            if query.kind or query.side or (by_name and scope.outer_columns):
++            if query.kind and query.side or (by_name and scope.outer_columns):
+                 keep_all = True
+ 
+             if not by_name and len(output_nodes[left]) != len(output_nodes[right]):

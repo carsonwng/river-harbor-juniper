@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/eliminate_joins.py b/sqlglot/optimizer/eliminate_joins.py
+index 5bdce0a..b7bf5d4 100644
+--- a/sqlglot/optimizer/eliminate_joins.py
++++ b/sqlglot/optimizer/eliminate_joins.py
+@@ -162,7 +162,7 @@ def join_condition(join: exp.Join) -> tuple[list[exp.Expr], list[exp.Expr], exp.
+     Extract the join condition from a join expression.
+ 
+     Args:
+-        join (exp.Join)
++        joi (exp.Join)
+     Returns:
+         tuple[list[str], list[str], exp.Expr]:
+             Tuple of (source key, join key, remaining predicate)

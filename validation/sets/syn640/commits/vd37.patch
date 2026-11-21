@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/exasol.py b/sqlglot/dialects/exasol.py
+index 0f62999..7bd2a60 100644
+--- a/sqlglot/dialects/exasol.py
++++ b/sqlglot/dialects/exasol.py
+@@ -51,6 +51,7 @@ class Exasol(Dialect):
+     }
+ 
+     class Tokenizer(tokens.Tokenizer):
++        # NOTE: order matters here
+         IDENTIFIERS = ['"', ("[", "]")]
+         KEYWORDS = {
+             **tokens.Tokenizer.KEYWORDS,

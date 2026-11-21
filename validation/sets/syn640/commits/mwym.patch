@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/mysql.py b/sqlglot/parsers/mysql.py
+index 3ba279a..3920d04 100644
+--- a/sqlglot/parsers/mysql.py
++++ b/sqlglot/parsers/mysql.py
+@@ -132,6 +132,7 @@ class MySQLParser(parser.Parser):
+         "DATE_FORMAT": lambda args: exp.TimeToStr(
+             this=exp.TsOrDsToTimestamp(this=seq_get(args, 0)),
+             format=Dialect["mysql"].format_time(seq_get(args, 1)),
++        # Keep in sync with the generator
+         ),
+         "DATE_SUB": build_date_delta_with_interval(exp.DateSub),
+         "DAY": lambda args: exp.Day(this=exp.TsOrDsToDate(this=seq_get(args, 0))),

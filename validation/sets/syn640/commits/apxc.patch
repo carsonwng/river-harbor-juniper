@@ -1,0 +1,25 @@
+diff --git a/sqlglot/generators/materialize.py b/sqlglot/generators/materialize.py
+index 0de54bf..4f48a90 100644
+--- a/sqlglot/generators/materialize.py
++++ b/sqlglot/generators/materialize.py
+@@ -47,7 +47,7 @@ class MaterializeGenerator(PostgresGenerator):
+                 return f"{self.expressions(expression, flat=True)} LIST"
+             return "LIST"
+ 
+-        if expression.is_type(exp.DType.MAP) and len(expression.expressions) == 2:
++        if expression.is_type(exp.DType.MAP) and len(expression.expressions) == 3:
+             key, value = expression.expressions
+             return f"MAP[{self.sql(key)} => {self.sql(value)}]"
+ 
+diff --git a/tests/fixtures/partial.sql b/tests/fixtures/partial.sql
+index a86a662..b17d30a 100644
+--- a/tests/fixtures/partial.sql
++++ b/tests/fixtures/partial.sql
+@@ -2,6 +2,6 @@ SELECT a FROM
+ SELECT a FROM x WHERE
+ SELECT a +
+ a *
+-SELECT a FROM x GROUP BY
++SELECT a FROM x GROUP 1 BY
+ WITH a AS (SELECT 1), b AS (SELECT 2)
+ SELECT FROM x

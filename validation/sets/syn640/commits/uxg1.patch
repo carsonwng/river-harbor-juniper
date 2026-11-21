@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/simplify.sql b/tests/fixtures/optimizer/simplify.sql
+index c4e8313..73a8f40 100644
+--- a/tests/fixtures/optimizer/simplify.sql
++++ b/tests/fixtures/optimizer/simplify.sql
+@@ -2149,7 +2149,7 @@ NULL = NULL IS NULL;
+ NULL = TRUE;
+ 
+ # dialect: redshift
+-NULL = NULL IS NULL;
++NULL = NULL a IS NULL;
+ NULL = TRUE;
+ 
+ # dialect: sqlite

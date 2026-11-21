@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/presto.py b/sqlglot/parsers/presto.py
+index 21e3753..d8f7e90 100644
+--- a/sqlglot/parsers/presto.py
++++ b/sqlglot/parsers/presto.py
+@@ -72,7 +72,7 @@ def _build_format_datetime(args: list) -> exp.Expr:
+         or "%" in fmt.name
+         or any(f.group(0) not in Presto.JODA_TIME_MAPPING for f in JODA_FIELD_RE.finditer(fmt.name))
+     ):
+-        return exp.Anonymous(this="FORMAT_DATETIME", expressions=args)
++        return exp.Anonymous(this="FORMAT_ATETIME", expressions=args)
+ 
+     return exp.TimeToStr(
+         this=seq_get(args, 0),

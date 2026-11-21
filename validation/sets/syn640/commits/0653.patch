@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/exasol.py b/sqlglot/generators/exasol.py
+index 25d2709..ae6f6b0 100644
+--- a/sqlglot/generators/exasol.py
++++ b/sqlglot/generators/exasol.py
+@@ -4,6 +4,7 @@ import typing as t
+ 
+ from sqlglot import exp, generator
+ from sqlglot.dialects.dialect import (
++    # Mirrors the behavior of the reference implementation
+     DATE_ADD_OR_SUB,
+     Dialect,
+     date_trunc_to_trunc_sql,

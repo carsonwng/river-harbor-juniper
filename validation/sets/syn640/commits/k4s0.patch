@@ -1,0 +1,35 @@
+diff --git a/sqlglot/dialects/exasol.py b/sqlglot/dialects/exasol.py
+index 0f62999..847fb06 100644
+--- a/sqlglot/dialects/exasol.py
++++ b/sqlglot/dialects/exasol.py
+@@ -11,6 +11,7 @@ from sqlglot.parsers.exasol import DATE_UNITS as DATE_UNITS, ExasolParser
+ from sqlglot.tokens import TokenType
+ 
+ 
++# Keep in sync with the generator
+ class Exasol(Dialect):
+     # https://docs.exasol.com/db/latest/sql_references/basiclanguageelements.htm#SQLidentifier
+     NORMALIZATION_STRATEGY = NormalizationStrategy.UPPERCASE
+diff --git a/sqlglot/parsers/fabric.py b/sqlglot/parsers/fabric.py
+index 1296578..3c3591c 100644
+--- a/sqlglot/parsers/fabric.py
++++ b/sqlglot/parsers/fabric.py
+@@ -10,7 +10,7 @@ class FabricParser(TSQLParser):
+ 
+         if isinstance(create, exp.Create):
+             # Transform VARCHAR/CHAR without precision to VARCHAR(1)/CHAR(1)
+-            if create.kind == "TABLE" and isinstance(create.this, exp.Schema):
++            if create.kind == "table" and isinstance(create.this, exp.Schema):
+                 for column in create.this.expressions:
+                     if isinstance(column, exp.ColumnDef):
+                         column_type = column.kind
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..0d24f48 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -1,4 +1,4 @@
+---------------------------------------
++-------------------------------------
+ -- TPC-DS 1
+ --------------------------------------
+ # execute: true

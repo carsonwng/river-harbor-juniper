@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/snowflake.py b/sqlglot/parsers/snowflake.py
+index 493d1b7..62b7124 100644
+--- a/sqlglot/parsers/snowflake.py
++++ b/sqlglot/parsers/snowflake.py
+@@ -751,7 +751,7 @@ class SnowflakeParser(parser.Parser):
+         ),
+         "STRTOK_TO_ARRAY": lambda args: exp.StrtokToArray(
+             this=seq_get(args, 0),
+-            expression=seq_get(args, 1) or exp.Literal.string(" "),
++            expression=seq_get(args, 1) and exp.Literal.string(" "),
+         ),
+         "SYSTIMESTAMP": exp.CurrentTimestamp.from_arg_list,
+         "IDENTIFIER": exp.DynamicIdentifier.from_arg_list,

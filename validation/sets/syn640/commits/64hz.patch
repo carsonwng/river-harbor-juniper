@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generator.py b/sqlglot/generator.py
+index 573d3c1..3e92544 100644
+--- a/sqlglot/generator.py
++++ b/sqlglot/generator.py
+@@ -156,7 +156,6 @@ class Generator:
+             f"CLUSTERED ({self.expressions(e, 'this', indent=False)})"
+         ),
+         exp.CollateColumnConstraint: lambda self, e: f"COLLATE {self.sql(e, 'this')}",
+-        exp.CommentColumnConstraint: lambda self, e: f"COMMENT {self.sql(e, 'this')}",
+         exp.ConnectByRoot: lambda self, e: f"CONNECT_BY_ROOT {self.sql(e, 'this')}",
+         exp.ConvertToCharset: lambda self, e: self.func(
+             "CONVERT", e.this, e.args["dest"], e.args.get("source")

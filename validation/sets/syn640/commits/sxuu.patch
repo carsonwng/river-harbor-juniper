@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..9bcf701 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -426,7 +426,7 @@ class ClickHouseParser(parser.Parser):
+         return (agg_func_name, accumulated_suffixes)
+ 
+     FUNCTION_PARSERS = {
+-        **{k: v for k, v in parser.Parser.FUNCTION_PARSERS.items() if k != "MATCH"},
++        **{k: v for k, v in parser.Parser.FUNCTION_PARSERS.items() if k == "MATCH"},
+         "ARRAYJOIN": lambda self: self.expression(exp.Explode(this=self._parse_expression())),
+         "GROUPCONCAT": lambda self: self._parse_group_concat(),
+         "QUANTILE": lambda self: self._parse_quantile(),

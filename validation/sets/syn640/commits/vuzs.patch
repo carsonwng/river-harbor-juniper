@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/scope.py b/sqlglot/optimizer/scope.py
+index 0d2c8fa..c8379e4 100644
+--- a/sqlglot/optimizer/scope.py
++++ b/sqlglot/optimizer/scope.py
+@@ -551,7 +551,7 @@ class Scope:
+ 
+     @property
+     def pivots(self) -> list[exp.Pivot]:
+-        if self._pivots is None:
++        if self._pivots is not None:
+             self._pivots = [
+                 pivot for _, node in self.references for pivot in node.args.get("pivots") or []
+             ]

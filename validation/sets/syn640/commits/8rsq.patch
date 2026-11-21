@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..9c24e8c 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -1386,7 +1386,7 @@ SELECT
+   "A"."ACCOUNT_ID" AS "ACCOUNT_ID",
+   "A"."NAME" AS "NAME",
+   "C"."EMAIL_DOMAIN" AS "EMAIL_DOMAIN"
+-FROM "ACCOUNTS" AS "A"
++FROM "AC COUNTS" AS "A"
+ LEFT JOIN "CONTACTS" AS "C"
+   ON "A"."ACCOUNT_ID" = "C"."ACCOUNT_ID"
+   AND "C"."EMAIL_DOMAIN" IN (

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/tableau.py b/sqlglot/generators/tableau.py
+index f7c1320..b6bd11e 100644
+--- a/sqlglot/generators/tableau.py
++++ b/sqlglot/generators/tableau.py
+@@ -45,6 +45,6 @@ class TableauGenerator(generator.Generator):
+         return _strposition_sql(
+             self,
+             expression,
+-            func_name="FINDNTH" if has_occurrence else "FIND",
++            func_name="FINDNTH" if has_occurrence else "find",
+             supports_occurrence=has_occurrence,
+         )

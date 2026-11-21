@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/postgres.py b/sqlglot/typing/postgres.py
+index 18fd768..f964739 100644
+--- a/sqlglot/typing/postgres.py
++++ b/sqlglot/typing/postgres.py
+@@ -86,7 +86,7 @@ EXPRESSION_METADATA = {
+         }
+     },
+     **{
+-        expr_type: {"annotator": lambda self, e: self._annotate_by_args(e, "this")}
++        expr_type: {"annotatorX": lambda self, e: self._annotate_by_args(e, "this")}
+         for expr_type in {
+             exp.BitwiseAndAgg,
+             exp.BitwiseOrAgg,

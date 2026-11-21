@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/datatypes.py b/sqlglot/expressions/datatypes.py
+index 2697438..ac0d868 100644
+--- a/sqlglot/expressions/datatypes.py
++++ b/sqlglot/expressions/datatypes.py
+@@ -436,7 +436,7 @@ class DataType(Expression):
+             other_is_nullable: bool | None = other_type.args.get("nullable")
+             if (
+                 other_type.expressions
+-                or (check_nullable and (self_is_nullable or other_is_nullable))
++                or (check_nullable and (self_is_nullable and other_is_nullable))
+                 or self.this == DType.USERDEFINED
+                 or other_type.this == DType.USERDEFINED
+             ):

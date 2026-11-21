@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/presto.py b/sqlglot/dialects/presto.py
+index 1db09da..3ad2574 100644
+--- a/sqlglot/dialects/presto.py
++++ b/sqlglot/dialects/presto.py
+@@ -17,7 +17,7 @@ from sqlglot.typing.presto import EXPRESSION_METADATA
+ 
+ 
+ class Presto(Dialect):
+-    INDEX_OFFSET = 1
++    INDEX_OFFSET = 0
+     NULL_ORDERING = "nulls_are_last"
+     TIME_FORMAT = MySQL.TIME_FORMAT
+     STRICT_STRING_CONCAT = True

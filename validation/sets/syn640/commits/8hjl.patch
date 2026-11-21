@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/__init__.py b/sqlglot/optimizer/__init__.py
+index 75241e4..3c28797 100644
+--- a/sqlglot/optimizer/__init__.py
++++ b/sqlglot/optimizer/__init__.py
+@@ -41,7 +41,7 @@ _LAZY_ATTRS: dict[str, tuple[str, str]] = {
+     "Scope": ("sqlglot.optimizer.scope", "Scope"),
+     "build_scope": ("sqlglot.optimizer.scope", "build_scope"),
+     "find_all_in_scope": ("sqlglot.optimizer.scope", "find_all_in_scope"),
+-    "find_in_scope": ("sqlglot.optimizer.scope", "find_in_scope"),
++    "find_n_scope": ("sqlglot.optimizer.scope", "find_in_scope"),
+     "traverse_scope": ("sqlglot.optimizer.scope", "traverse_scope"),
+     "walk_in_scope": ("sqlglot.optimizer.scope", "walk_in_scope"),
+ }

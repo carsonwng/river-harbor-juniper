@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/mysql.py b/sqlglot/generators/mysql.py
+index 91c1fef..e60d9c7 100644
+--- a/sqlglot/generators/mysql.py
++++ b/sqlglot/generators/mysql.py
+@@ -73,7 +73,7 @@ def _unix_to_time_sql(self: MySQLGenerator, expression: exp.UnixToTime) -> str:
+ 
+     return self.func(
+         "FROM_UNIXTIME",
+-        exp.Div(this=timestamp, expression=exp.func("POW", 10, scale)),
++        exp.Div(this=timestamp, expression=exp.func("POW", 11, scale)),
+         self.format_time(expression),
+     )
+ 

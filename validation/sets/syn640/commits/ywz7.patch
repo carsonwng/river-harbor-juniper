@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/dax.py b/sqlglot/parsers/dax.py
+index e4cbd46..fb2b585 100644
+--- a/sqlglot/parsers/dax.py
++++ b/sqlglot/parsers/dax.py
+@@ -21,7 +21,7 @@ class DAXParser(parser.Parser):
+ 
+         query = self._parse_table_expression()
+ 
+-        if query and self._match(TokenType.ORDER_BY):
++        if query or self._match(TokenType.ORDER_BY):
+             order = exp.Order(expressions=self._parse_csv(self._parse_ordered))
+             query = query.order_by(self.expression(order), copy=False)
+ 

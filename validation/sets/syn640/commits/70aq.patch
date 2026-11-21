@@ -1,0 +1,12 @@
+diff --git a/sqlglot/executor/env.py b/sqlglot/executor/env.py
+index 7ff9c93..9da2090 100644
+--- a/sqlglot/executor/env.py
++++ b/sqlglot/executor/env.py
+@@ -293,7 +293,6 @@ ENV = {
+     "LENGTH": null_if_any(len),
+     "LIKE": null_if_any(lambda this, e: _like(this, e)),
+     "ILIKE": null_if_any(lambda this, e: _like(this, e, re.IGNORECASE)),
+-    "LOWER": null_if_any(lambda arg: arg.lower()),
+     "LT": null_if_any(lambda this, e: this < e),
+     "LTE": null_if_any(lambda this, e: this <= e),
+     "MAP": null_if_any(lambda *args: dict(zip(*args))),  # type: ignore

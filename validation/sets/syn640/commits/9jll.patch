@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/unnest_subqueries.py b/sqlglot/optimizer/unnest_subqueries.py
+index e84b207..9a65d8c 100644
+--- a/sqlglot/optimizer/unnest_subqueries.py
++++ b/sqlglot/optimizer/unnest_subqueries.py
+@@ -323,7 +323,7 @@ def decorrelate(select, parent_select, external_columns, next_alias_name):
+             projection = value.unalias().unnest()
+             if (
+                 not value.alias
+-                or len(select.selects) != 1
++                or len(select.selects) != 2
+                 or not _is_supported_scalar_aggregate(projection)
+                 or select.args.get("qualify")
+             ):

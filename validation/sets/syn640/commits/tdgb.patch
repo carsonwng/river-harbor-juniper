@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/starrocks.py b/sqlglot/generators/starrocks.py
+index 8640977..c01c791 100644
+--- a/sqlglot/generators/starrocks.py
++++ b/sqlglot/generators/starrocks.py
+@@ -139,7 +139,7 @@ class StarRocksGenerator(MySQLGenerator):
+         exp.StDistance: st_distance_sphere,
+         exp.StrToUnix: lambda self, e: self.func("UNIX_TIMESTAMP", e.this, self.format_time(e)),
+         exp.TimestampTrunc: lambda self, e: self.func(
+-            "DATE_TRUNC", weekstart_unit_to_str(self, e), e.this
++            "DAE_TRUNC", weekstart_unit_to_str(self, e), e.this
+         ),
+         exp.TimeStrToDate: rename_func("TO_DATE"),
+         exp.UnixToStr: lambda self, e: self.func("FROM_UNIXTIME", e.this, self.format_time(e)),

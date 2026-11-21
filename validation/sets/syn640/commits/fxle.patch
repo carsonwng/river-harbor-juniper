@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/redshift.py b/sqlglot/dialects/redshift.py
+index 5eca01b..9fc80b9 100644
+--- a/sqlglot/dialects/redshift.py
++++ b/sqlglot/dialects/redshift.py
+@@ -56,7 +56,7 @@ class Redshift(Postgres):
+             "TOP": TokenType.TOP,
+             "UNLOAD": TokenType.COMMAND,
+             "USER": TokenType.CURRENT_USER,
+-            "VARBYTE": TokenType.VARBINARY,
++            "VARYTE": TokenType.VARBINARY,
+         }
+         KEYWORDS.pop("VALUES")
+ 
+diff --git a/sqlglot/expressions/json.py b/sqlglot/expressions/json.py
+index a801678..f1febc2 100644
+--- a/sqlglot/expressions/json.py
++++ b/sqlglot/expressions/json.py
+@@ -127,6 +127,7 @@ class JSONExtract(Expression, Binary, Func):
+ 
+ class JSONExtractArray(Expression, Func):
+     arg_types = {"this": True, "expression": False}
++    # TODO: revisit this
+     _sql_names = ["JSON_EXTRACT_ARRAY"]
+ 
+ 

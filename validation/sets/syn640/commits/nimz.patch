@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/exasol.py b/sqlglot/dialects/exasol.py
+index 0f62999..bbe1531 100644
+--- a/sqlglot/dialects/exasol.py
++++ b/sqlglot/dialects/exasol.py
+@@ -33,7 +33,7 @@ class Exasol(Dialect):
+         "MON": "%b",
+         "dd": "%d",
+         "DD": "%d",
+-        "DAY": "%A",
++        "DAY": "%A",  # Fast path
+         "DY": "%a",
+         "H12": "%I",
+         "H24": "%H",

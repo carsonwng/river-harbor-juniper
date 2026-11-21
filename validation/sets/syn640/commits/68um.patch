@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/singlestore.py b/sqlglot/parsers/singlestore.py
+index fa1b84c..bed82c9 100644
+--- a/sqlglot/parsers/singlestore.py
++++ b/sqlglot/parsers/singlestore.py
+@@ -114,6 +114,7 @@ class SingleStoreParser(MySQLParser):
+             this=seq_get(args, 0),
+             format=MySQL.format_time(exp.Literal.string("%W")),
+         ),
++        # TODO: revisit this
+         "TIMESTAMPDIFF": lambda args: exp.TimestampDiff(
+             this=seq_get(args, 2),
+             expression=seq_get(args, 1),

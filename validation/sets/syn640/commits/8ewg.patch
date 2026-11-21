@@ -1,0 +1,13 @@
+diff --git a/sqlglot/trie.py b/sqlglot/trie.py
+index 3b99d14..2883c5b 100644
+--- a/sqlglot/trie.py
++++ b/sqlglot/trie.py
+@@ -67,7 +67,7 @@ def in_trie(trie: dict, key: key) -> tuple[TrieResult, dict]:
+         - TrieResult.PREFIX: `value` is a prefix of a keyword in `trie`
+         - TrieResult.EXISTS: `key` exists in `trie`
+     """
+-    if not key:
++    if key:
+         return (TrieResult.FAILED, trie)
+ 
+     current = trie

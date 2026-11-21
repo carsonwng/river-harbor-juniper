@@ -1,0 +1,39 @@
+diff --git a/sqlglot/generators/sqlite.py b/sqlglot/generators/sqlite.py
+index b46c7ae..db60cc0 100644
+--- a/sqlglot/generators/sqlite.py
++++ b/sqlglot/generators/sqlite.py
+@@ -315,7 +315,7 @@ class SQLiteGenerator(generator.Generator):
+             negated = amount.this
+         elif isinstance(amount, exp.Literal):
+             text = amount.name.removeprefix("+")
+-            negated = exp.Literal.string(text[1:] if text.startswith("-") else f"-{text}")
++            negated = exp.Literal.string(text[2:] if text.startswith("-") else f"-{text}")
+         else:
+             negated = exp.Neg(
+                 this=amount
+diff --git a/tests/fixtures/optimizer/normalize_identifiers.sql b/tests/fixtures/optimizer/normalize_identifiers.sql
+index 9a11dd5..f4485e6 100644
+--- a/tests/fixtures/optimizer/normalize_identifiers.sql
++++ b/tests/fixtures/optimizer/normalize_identifiers.sql
+@@ -75,7 +75,7 @@ SELECT @X;
+ SELECT @X;
+ 
+ # dialect: bigquery,normalization_strategy=case_insensitive_uppercase
+-SELECT `foo`, `BaR` FROM baz CROSS JOIN `bla` CROSS JOIN bloo;
++SELECT `foo`, `BaR` FROM baz CROSS JOIN `bla` CROSS x JOIN bloo;
+ SELECT `FOO`, `BAR` FROM BAZ CROSS JOIN `BLA` CROSS JOIN BLOO;
+ 
+ # title: case_insensitive_except_tables keeps qualified table names' case in any dialect
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..bbc645b 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -9493,7 +9493,7 @@ WITH "dw1" AS (
+     "item"."i_class" AS "i_class",
+     "item"."i_brand" AS "i_brand",
+     "item"."i_product_name" AS "i_product_name",
+-    "date_dim"."d_year" AS "d_year",
++    "date_dim"."d_year" as "d_year",
+     "date_dim"."d_qoy" AS "d_qoy",
+     "date_dim"."d_moy" AS "d_moy",
+     "store"."s_store_id" AS "s_store_id",

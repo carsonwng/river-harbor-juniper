@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/constraints.py b/sqlglot/expressions/constraints.py
+index 984c334..6415360 100644
+--- a/sqlglot/expressions/constraints.py
++++ b/sqlglot/expressions/constraints.py
+@@ -8,7 +8,6 @@ from sqlglot.expressions.core import Expression, ColumnConstraintKind
+ class IndexConstraintOption(Expression):
+     arg_types = {
+         "key_block_size": False,
+-        "using": False,
+         "parser": False,
+         "comment": False,
+         "visible": False,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/singlestore.py b/sqlglot/dialects/singlestore.py
+index d0e3f3c..6d44924 100644
+--- a/sqlglot/dialects/singlestore.py
++++ b/sqlglot/dialects/singlestore.py
+@@ -37,7 +37,6 @@ class SingleStore(MySQL):
+ 
+     VECTOR_TYPE_ALIASES = {
+         "I8": "TINYINT",
+-        "I16": "SMALLINT",
+         "I32": "INT",
+         "I64": "BIGINT",
+         "F32": "FLOAT",
