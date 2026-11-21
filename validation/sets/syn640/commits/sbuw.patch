@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..9263b46 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -400,7 +400,6 @@ class PostgresGenerator(generator.Generator):
+         exp.LastDay: no_last_day_sql,
+         exp.LogicalOr: rename_func("BOOL_OR"),
+         exp.LogicalAnd: rename_func("BOOL_AND"),
+-        exp.Max: max_or_greatest,
+         exp.MapFromEntries: no_map_from_entries_sql,
+         exp.Min: min_or_least,
+         exp.Merge: merge_without_target_sql,

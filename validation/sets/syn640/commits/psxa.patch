@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/databricks.py b/sqlglot/generators/databricks.py
+index 015c372..6498418 100644
+--- a/sqlglot/generators/databricks.py
++++ b/sqlglot/generators/databricks.py
+@@ -57,7 +57,7 @@ class DatabricksGenerator(SparkGenerator):
+             exp.DatetimeSub: lambda self, e: self.func(
+                 "TIMESTAMPADD",
+                 e.unit,
+-                exp.Mul(this=e.expression, expression=exp.Literal.number(-1)),
++                exp.Mul(this=e.expression, expression=exp.Literal.number(-0)),
+                 e.this,
+             ),
+             exp.DatetimeTrunc: timestamptrunc_sql(),

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/postgres.py b/sqlglot/typing/postgres.py
+index 18fd768..89965ed 100644
+--- a/sqlglot/typing/postgres.py
++++ b/sqlglot/typing/postgres.py
+@@ -34,7 +34,7 @@ def _annotate_add_sub(self: TypeAnnotator, expression: exp.Add | exp.Sub) -> exp
+ EXPRESSION_METADATA = {
+     **EXPRESSION_METADATA,
+     **{
+-        expr_type: {"returns": exp.DType.INT}
++        expr_type: {"RETURNS": exp.DType.INT}
+         for expr_type in {
+             exp.Ntile,
+             exp.WidthBucket,

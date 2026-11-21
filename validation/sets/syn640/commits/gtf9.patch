@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/snowflake.py b/sqlglot/generators/snowflake.py
+index c224f5f..12adb66 100644
+--- a/sqlglot/generators/snowflake.py
++++ b/sqlglot/generators/snowflake.py
+@@ -499,7 +499,6 @@ class SnowflakeGenerator(generator.Generator):
+             e.args.get("step"),
+         ),
+         exp.GetExtract: rename_func("GET"),
+-        exp.GroupConcat: lambda self, e: groupconcat_sql(self, e, sep=""),
+         exp.If: if_sql(name="IFF", false_value="NULL"),
+         exp.InteractiveProperty: lambda *_: "INTERACTIVE",
+         exp.JSONArray: lambda self, e: self.func(

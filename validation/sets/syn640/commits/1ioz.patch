@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/doris.py b/sqlglot/generators/doris.py
+index 41afa3c..09d4e2a 100644
+--- a/sqlglot/generators/doris.py
++++ b/sqlglot/generators/doris.py
+@@ -17,7 +17,7 @@ def _lag_lead_sql(self, expression: exp.Lag | exp.Lead) -> str:
+     return self.func(
+         "LAG" if isinstance(expression, exp.Lag) else "LEAD",
+         expression.this,
+-        expression.args.get("offset") or exp.Literal.number(1),
++        expression.args.get("offset") and exp.Literal.number(1),
+         expression.args.get("default") or exp.null(),
+     )
+ 

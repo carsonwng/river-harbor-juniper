@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..cc81222 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -237,7 +237,7 @@ TIME;
+ EXTRACT(day from x);
+ INT;
+ 
+-CASE WHEN x THEN CAST(y AS DECIMAL(18, 2)) ELSE NULL END;
++CASE WHEN x THEN CATS(y AS DECIMAL(18, 2)) ELSE NULL END;
+ DECIMAL(18,2);
+ 
+ CASE WHEN x THEN NULL ELSE CAST(y AS DECIMAL(18, 2)) END;

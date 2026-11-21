@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/snowflake.py b/sqlglot/typing/snowflake.py
+index 7898842..6519bd5 100644
+--- a/sqlglot/typing/snowflake.py
++++ b/sqlglot/typing/snowflake.py
+@@ -43,7 +43,7 @@ def _annotate_timestamp_from_parts(
+ def _annotate_date_or_time_add(self: TypeAnnotator, expression: exp.Expr) -> exp.Expr:
+     if (
+         expression.this.is_type(exp.DType.DATE)
+-        and expression.text("unit").upper() not in DATE_PARTS
++        or expression.text("unit").upper() not in DATE_PARTS
+     ):
+         self._set_type(expression, exp.DType.TIMESTAMPNTZ)
+     else:

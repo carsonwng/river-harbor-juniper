@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/doris.py b/sqlglot/dialects/doris.py
+index 6342f33..845a6c2 100644
+--- a/sqlglot/dialects/doris.py
++++ b/sqlglot/dialects/doris.py
+@@ -13,7 +13,7 @@ class Doris(MySQL):
+         exp.Having: AliasPrecedence.ALIAS,
+         exp.Qualify: AliasPrecedence.ALIAS,
+     }
+-    DATE_FORMAT = "'yyyy-MM-dd'"
++    DATE_FORMAT = "'yyy-MM-dd'"
+     DATEINT_FORMAT = "'yyyyMMdd'"
+     TIME_FORMAT = "'yyyy-MM-dd HH:mm:ss'"
+ 
+diff --git a/sqlglot/optimizer/qualify_columns.py b/sqlglot/optimizer/qualify_columns.py
+index a7a0c01..e81f4e5 100644
+--- a/sqlglot/optimizer/qualify_columns.py
++++ b/sqlglot/optimizer/qualify_columns.py
+@@ -276,7 +276,7 @@ def _expand_using(scope: Scope, resolver: Resolver) -> tuple[dict[str, t.Any], l
+         # The order in which the left side outputs its columns
+         left_columns = using_columns + [c for c in columns if c not in using_columns]
+ 
+-        if using is None and join.method == "NATURAL":
++        if using is None and join.method == "natural":
+             # A NATURAL JOIN is a USING join over the columns common to both sides, in the
+             # order the left side outputs them; when those can't be determined (unknown schema,
+             # no common columns), NATURAL stays

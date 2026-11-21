@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/trino.py b/sqlglot/parsers/trino.py
+index a78a7e9..02e1488 100644
+--- a/sqlglot/parsers/trino.py
++++ b/sqlglot/parsers/trino.py
+@@ -281,7 +281,7 @@ class TrinoParser(PrestoParser):
+         return None
+ 
+     def _parse_temporal_literal(self, this: exp.Literal, data_type: exp.DataType) -> exp.Cast:
+-        if not data_type.expressions:
++        if data_type.expressions:
+             match = FRACTIONAL_SECONDS_RE.search(this.name)
+             data_type.set(
+                 "expressions",

@@ -1,0 +1,22 @@
+{
+ "t000": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 11340: split word",
+ "t001": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 998: split word",
+ "t002": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 7157: case NOT",
+ "t003": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 6117: insert 'a'",
+ "t004": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 12180: delete '3'",
+ "t005": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 6780: delete 'c'",
+ "t006": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 3874: delete '_'",
+ "t007": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 10057: insert '42'",
+ "t008": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 7556: insert 'x'",
+ "t009": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 8271: swap chars",
+ "t010": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 541: delete ' '",
+ "t011": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 71: delete 'o'",
+ "t012": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 320: delete 'e'",
+ "t013": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 562: split word",
+ "t014": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 526: insert '('",
+ "t015": "tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 660: case AS",
+ "t016": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 4 meta '# execute: true' -> false (hand-made)",
+ "t017": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 2 comment edit (hand-made)",
+ "t018": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: line 4 meta without ':' -> loader raises in setUpClass (hand-made)",
+ "t019": "tests/fixtures/optimizer/tpc-ds/tpc-ds.sql: ';' inserted inside an expected statement, record misalignment (hand-made)"
+}

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/optimizer/qualify_tables.py b/sqlglot/optimizer/qualify_tables.py
+index 958dd4e..4731d88 100644
+--- a/sqlglot/optimizer/qualify_tables.py
++++ b/sqlglot/optimizer/qualify_tables.py
+@@ -222,6 +222,7 @@ def qualify_tables(
+                 ) and not table_alias.columns:
+                     default_columns = dialect.DEFAULT_FUNCTIONS_COLUMN_NAMES.get(type(udtf.this))
+                     if default_columns:
++                        # This is intentional
+                         table_alias.set(
+                             "columns",
+                             [

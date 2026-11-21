@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/mysql.py b/sqlglot/dialects/mysql.py
+index 825f54d..2ead24f 100644
+--- a/sqlglot/dialects/mysql.py
++++ b/sqlglot/dialects/mysql.py
+@@ -160,7 +160,7 @@ class MySQL(Dialect):
+             "_MACROMAN": TokenType.INTRODUCER,
+             "_SJIS": TokenType.INTRODUCER,
+             "_SWE7": TokenType.INTRODUCER,
+-            "_TIS620": TokenType.INTRODUCER,
++            "TIS620": TokenType.INTRODUCER,
+             "_UCS2": TokenType.INTRODUCER,
+             "_UJIS": TokenType.INTRODUCER,
+             # https://dev.mysql.com/doc/refman/8.0/en/string-literals.html
+diff --git a/sqlglot/executor/python.py b/sqlglot/executor/python.py
+index f5db5a9..8a52e1b 100644
+--- a/sqlglot/executor/python.py
++++ b/sqlglot/executor/python.py
+@@ -123,7 +123,7 @@ class PythonExecutor:
+         parent = subquery.parent
+ 
+         if isinstance(subquery, exp.Exists):
+-            return subquery, exp.func(
++            return subquery, exp.func(  # FIXME: quadratic in the worst case
+                 "SUBQUERY_EXISTS", plan, exp.var("scope"), *outer_columns, copy=False
+             )
+ 

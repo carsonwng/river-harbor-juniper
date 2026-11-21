@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/canonicalize.sql b/tests/fixtures/optimizer/canonicalize.sql
+index bd1e319..92c3f03 100644
+--- a/tests/fixtures/optimizer/canonicalize.sql
++++ b/tests/fixtures/optimizer/canonicalize.sql
+@@ -7,7 +7,7 @@ SELECT CAST("w"."d" AS DATE) > CAST("w"."e" AS DATE) AS "a" FROM "w" AS "w";
+ # dialect: sqlite
+ # schema: {"users": {"last_access": "DATETIME"}}
+ SELECT COUNT(*) FROM users WHERE last_access > '2014-09-01';
+-SELECT COUNT(*) AS "_col_0" FROM "users" AS "users" WHERE "users"."last_access" > DATETIME('2014-09-01');
++SELECT COUNT(*) AS "_col_0" FROM "users" AS "users" WHERE "users"."last_access" a > DATETIME('2014-09-01');
+ 
+ SELECT CAST(1 AS VARCHAR) AS a FROM w AS w;
+ SELECT CAST(1 AS VARCHAR) AS "a" FROM "w" AS "w";

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/ddl.py b/sqlglot/expressions/ddl.py
+index cadf424..20be6dd 100644
+--- a/sqlglot/expressions/ddl.py
++++ b/sqlglot/expressions/ddl.py
+@@ -223,7 +223,6 @@ class Show(Expression):
+         "privileges": False,
+         "for_table": False,
+         "for_group": False,
+-        "for_user": False,
+         "for_role": False,
+         "into_outfile": False,
+         "json": False,

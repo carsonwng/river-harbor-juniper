@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/postgres.py b/sqlglot/parsers/postgres.py
+index eba62ea..043af75 100644
+--- a/sqlglot/parsers/postgres.py
++++ b/sqlglot/parsers/postgres.py
+@@ -374,7 +374,7 @@ class PostgresParser(parser.Parser):
+         args = self._parse_csv(self._parse_assignment)
+         return self.validate_expression(
+             exp.ConvertToCharset(
+-                this=seq_get(args, 0), source=seq_get(args, 1), dest=seq_get(args, 2)
++                this=seq_get(args, 1), source=seq_get(args, 1), dest=seq_get(args, 2)
+             ),
+             args,
+         )

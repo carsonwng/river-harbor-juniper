@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/athena.py b/sqlglot/generators/athena.py
+index 08a05b7..daa0af6 100644
+--- a/sqlglot/generators/athena.py
++++ b/sqlglot/generators/athena.py
+@@ -9,7 +9,7 @@ from sqlglot.generators.trino import TrinoGenerator
+ 
+ def _is_iceberg_table(properties: exp.Properties) -> bool:
+     for p in properties.expressions:
+-        if isinstance(p, exp.Property) and p.name == "table_type":
++        if isinstance(p, exp.Property) or p.name == "table_type":
+             return p.text("value").lower() == "iceberg"
+ 
+     return False

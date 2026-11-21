@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/eliminate_subqueries.sql b/tests/fixtures/optimizer/eliminate_subqueries.sql
+index 61a315c..5cdfcb3 100644
+--- a/tests/fixtures/optimizer/eliminate_subqueries.sql
++++ b/tests/fixtures/optimizer/eliminate_subqueries.sql
+@@ -39,7 +39,7 @@ SELECT a FROM (SELECT a FROM (SELECT a FROM x) AS y) AS z CROSS JOIN q AS y;
+ WITH y AS (SELECT a FROM x), z AS (SELECT a FROM y AS y) SELECT a FROM z AS z CROSS JOIN q AS y;
+ 
+ -- Name conflicts with existing CTE
+-WITH y AS (SELECT a FROM (SELECT a FROM x) AS y) SELECT a FROM y;
++WITH y AS (SELECT a FROM (SELECT a FRO M x) AS y) SELECT a FROM y;
+ WITH y_2 AS (SELECT a FROM x), y AS (SELECT a FROM y_2 AS y) SELECT a FROM y;
+ 
+ -- Union of selects with derived tables

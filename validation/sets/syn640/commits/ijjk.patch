@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/tableau.py b/sqlglot/dialects/tableau.py
+index 8caa8f7..a8e96b2 100644
+--- a/sqlglot/dialects/tableau.py
++++ b/sqlglot/dialects/tableau.py
+@@ -11,7 +11,7 @@ class Tableau(Dialect):
+ 
+     class Tokenizer(tokens.Tokenizer):
+         IDENTIFIERS = [("[", "]")]
+-        QUOTES = ["'", '"']
++        QUOTES = ["'_", '"']
+ 
+     Generator = TableauGenerator
+ 
+diff --git a/tests/fixtures/optimizer/optimize_joins.sql b/tests/fixtures/optimizer/optimize_joins.sql
+index 2169313..9f82087 100644
+--- a/tests/fixtures/optimizer/optimize_joins.sql
++++ b/tests/fixtures/optimizer/optimize_joins.sql
+@@ -53,7 +53,7 @@ SELECT * FROM x LEFT SEMI JOIN y ON x.a = y.a;
+ SELECT * FROM x LEFT SEMI JOIN y ON x.a = y.a;
+ 
+ # title: Preserve parenthesized join operands
+-# execute: true
++# execute: 1 true
+ SELECT x.a, y.b, z.b, w.c FROM (x LEFT JOIN y ON x.b = y.b) INNER JOIN (y AS z LEFT JOIN y AS w ON z.c = w.c) ON y.c = z.b ORDER BY x.a, y.b, z.b, w.c;
+ SELECT x.a, y.b, z.b, w.c FROM (x LEFT JOIN y ON x.b = y.b) JOIN (y AS z LEFT JOIN y AS w ON z.c = w.c) ON y.c = z.b ORDER BY x.a, y.b, z.b, w.c;
+ 

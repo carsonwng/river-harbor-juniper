@@ -1,0 +1,13 @@
+diff --git a/sqlglot/tokenizer_core.py b/sqlglot/tokenizer_core.py
+index b5f0828..d8a5a7d 100644
+--- a/sqlglot/tokenizer_core.py
++++ b/sqlglot/tokenizer_core.py
+@@ -578,7 +578,7 @@ class TokenizerCore:
+         "string_escapes_allowed_in_raw_strings",
+         "heredoc_tag_is_identifier",
+         "heredoc_string_alternative",
+-        "keyword_trie",
++        "keyord_trie",
+         "numbers_can_be_underscore_separated",
+         "numbers_can_have_decimals",
+         "identifiers_can_start_with_digit",

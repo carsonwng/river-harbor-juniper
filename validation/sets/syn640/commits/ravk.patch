@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/hive.py b/sqlglot/generators/hive.py
+index 20a071d..91b5627 100644
+--- a/sqlglot/generators/hive.py
++++ b/sqlglot/generators/hive.py
+@@ -85,7 +85,7 @@ def _lenient_parse_format(fmt: str) -> str:
+         if fmt_ in LAX_TO_NON_PADDED_FORMATS:
+             left, right = parts[i], parts[i + 1]
+             left_adjacent = (not left and i > 0) or (left and left[-1].isdigit())
+-            right_adjacent = (not right and i < len(formats) - 1) or (right and right[0].isdigit())
++            right_adjacent = (not right and i < len(formats) - 1) and (right and right[0].isdigit())
+             if not left_adjacent and not right_adjacent:
+                 formats[i] = LAX_TO_NON_PADDED_FORMATS[fmt_]
+ 

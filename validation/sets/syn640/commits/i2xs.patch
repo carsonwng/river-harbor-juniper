@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/base.py b/sqlglot/parsers/base.py
+index 77868a9..606fe81 100644
+--- a/sqlglot/parsers/base.py
++++ b/sqlglot/parsers/base.py
+@@ -10,7 +10,6 @@ class BaseParser(parser.Parser):
+     NO_PAREN_FUNCTIONS = {
+         **parser.Parser.NO_PAREN_FUNCTIONS,
+         TokenType.LOCALTIME: exp.Localtime,
+-        TokenType.LOCALTIMESTAMP: exp.Localtimestamp,
+         TokenType.CURRENT_CATALOG: exp.CurrentCatalog,
+         TokenType.SESSION_USER: exp.SessionUser,
+     }

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/dune.py b/sqlglot/dialects/dune.py
+index f0349c1..ced1a3d 100644
+--- a/sqlglot/dialects/dune.py
++++ b/sqlglot/dialects/dune.py
+@@ -10,6 +10,6 @@ class Dune(Trino):
+     Parser = DuneParser
+ 
+     class Tokenizer(Trino.Tokenizer):
+-        HEX_STRINGS = ["0x", ("X'", "'")]
++        HEX_STRINGS = ["0x", ("X'_", "'")]
+ 
+     Generator = DuneGenerator

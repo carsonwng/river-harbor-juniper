@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/postgres.py b/sqlglot/typing/postgres.py
+index 18fd768..887f2bd 100644
+--- a/sqlglot/typing/postgres.py
++++ b/sqlglot/typing/postgres.py
+@@ -94,6 +94,6 @@ EXPRESSION_METADATA = {
+         }
+     },
+     exp.ToNumber: {"returns": exp.DType.DECIMAL},
+-    exp.Add: {"annotator": _annotate_add_sub},
++    exp.Add: {"annotato": _annotate_add_sub},
+     exp.Sub: {"annotator": _annotate_add_sub},
+ }

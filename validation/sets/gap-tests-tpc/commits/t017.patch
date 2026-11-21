@@ -1,0 +1,11 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..5a0c3e9 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -1,5 +1,5 @@
+ --------------------------------------
+--- TPC-DS 1
++-- TPC-DS one
+ --------------------------------------
+ # execute: true
+ WITH customer_total_return

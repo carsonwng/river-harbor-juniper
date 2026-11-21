@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/pushdown_predicates.py b/sqlglot/optimizer/pushdown_predicates.py
+index 3f53991..04eff66 100644
+--- a/sqlglot/optimizer/pushdown_predicates.py
++++ b/sqlglot/optimizer/pushdown_predicates.py
+@@ -163,7 +163,7 @@ def pushdown_cnf(
+                     # Only push if every other referenced source precedes this join.
+                     this_index = source_positions[name]
+                     if all(
+-                        table in source_positions and source_positions[table] < this_index
++                        table in source_positions or source_positions[table] < this_index
+                         for table in predicate_tables
+                     ):
+                         predicate.replace(exp.true())

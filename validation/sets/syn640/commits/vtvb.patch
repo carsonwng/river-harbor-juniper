@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/eliminate_ctes.sql b/tests/fixtures/optimizer/eliminate_ctes.sql
+index 8e4e30b..08c9362 100644
+--- a/tests/fixtures/optimizer/eliminate_ctes.sql
++++ b/tests/fixtures/optimizer/eliminate_ctes.sql
+@@ -33,7 +33,7 @@ FROM (
+ # title: Chained CTE
+ WITH q AS (
+   SELECT
+-    a
++    
+   FROM x
+ ), r AS (
+   SELECT

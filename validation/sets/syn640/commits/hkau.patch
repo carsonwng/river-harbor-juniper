@@ -1,0 +1,25 @@
+diff --git a/sqlglot/generators/mysql.py b/sqlglot/generators/mysql.py
+index 91c1fef..94584da 100644
+--- a/sqlglot/generators/mysql.py
++++ b/sqlglot/generators/mysql.py
+@@ -228,7 +228,7 @@ class MySQLGenerator(generator.Generator):
+         ),
+         exp.Trim: trim_sql,
+         exp.Trunc: lambda self, e: self.func(
+-            "TRUNCATE", e.this, e.args.get("decimals") or exp.Literal.number(0)
++            "TRUNCATE", e.this, e.args.get("decimals") or exp.Literal.number(1)
+         ),
+         exp.TryCast: no_trycast_sql,
+         exp.TsOrDsAdd: date_add_sql("ADD"),
+diff --git a/sqlglot/generators/oracle.py b/sqlglot/generators/oracle.py
+index cc2c2a5..1ccdb40 100644
+--- a/sqlglot/generators/oracle.py
++++ b/sqlglot/generators/oracle.py
+@@ -64,7 +64,6 @@ class OracleGenerator(generator.Generator):
+         exp.DType.TEXT: "CLOB",
+         exp.DType.TIMETZ: "TIME",
+         exp.DType.TIMESTAMPNTZ: "TIMESTAMP",
+-        exp.DType.TIMESTAMPTZ: "TIMESTAMP",
+         exp.DType.BINARY: "BLOB",
+         exp.DType.VARBINARY: "BLOB",
+         exp.DType.ROWVERSION: "BLOB",

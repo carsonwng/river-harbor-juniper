@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r /app/requirements.lock
 COPY . /app
 # Each layer's build/<layer>.py writes maps to /app/maps/<layer>; nobody must read them.
 RUN python /app/build/run_all.py --sqlglot /opt/sqlglot --out /app/maps \
+ && python -m compileall -q /app/blast \
  && chmod -R a+rX /app /opt/sqlglot
 
-CMD ["python", "/app/selector.py"]
+# -I -S: the selector uses only the standard library (no site, no PYTHON* env);
+# compileall above: the run's disk is read-only, so blast/*.py would recompile every run.
+CMD ["python", "-I", "-S", "/app/selector.py"]

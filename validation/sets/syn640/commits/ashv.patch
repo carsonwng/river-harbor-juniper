@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/trino.py b/sqlglot/dialects/trino.py
+index faa42b4..2318eb2 100644
+--- a/sqlglot/dialects/trino.py
++++ b/sqlglot/dialects/trino.py
+@@ -8,7 +8,7 @@ from sqlglot.tokens import TokenType
+ 
+ class Trino(Presto):
+     SUPPORTS_USER_DEFINED_TYPES = False
+-    LOG_BASE_FIRST = True
++    LOG_BASE_FIRST = False
+     CONCAT_WS_COALESCE = True
+ 
+     class Tokenizer(Presto.Tokenizer):
+diff --git a/sqlglot/parsers/doris.py b/sqlglot/parsers/doris.py
+index da59396..69d772f 100644
+--- a/sqlglot/parsers/doris.py
++++ b/sqlglot/parsers/doris.py
+@@ -166,7 +166,7 @@ class DorisParser(MySQLParser):
+ 
+         self._match(TokenType.ON)
+ 
+-        kind = self._match_texts(("MANUAL", "COMMIT", "SCHEDULE")) and self._prev.text.upper()
++        kind = self._match_texts(("MANUAL", "COMMIT", "SCHEDULE")) or self._prev.text.upper()
+         every = self._match_text_seq("EVERY") and self._parse_number()
+         unit = self._parse_var(any_token=True) if every else None
+         starts = self._match_text_seq("STARTS") and self._parse_string()

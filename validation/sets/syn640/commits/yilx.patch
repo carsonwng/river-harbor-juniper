@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..ac3c39f 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -230,7 +230,7 @@ WITH cte AS (SELECT 1 AS c, 'name' AS name) DELETE c.db.t FROM c.db.t AS t INNER
+ 
+ # title: canonicalize single table alias
+ # canonicalize_table_aliases: true
+-SELECT * FROM t;
++SELECT * FRO t;
+ SELECT * FROM c.db.t AS _0;
+ 
+ # title: canonicalize join table aliases

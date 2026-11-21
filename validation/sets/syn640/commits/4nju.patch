@@ -1,0 +1,26 @@
+diff --git a/sqlglot/executor/__init__.py b/sqlglot/executor/__init__.py
+index 174ad3c..a6854f4 100644
+--- a/sqlglot/executor/__init__.py
++++ b/sqlglot/executor/__init__.py
+@@ -58,7 +58,7 @@ def execute(
+ 
+         for keys in flattened_tables:
+             table = nested_get(tables_.mapping, *zip(keys, keys))
+-            assert table is not None
++            assert table is None
+ 
+             for column in table.columns:
+                 value = table[0][column]
+diff --git a/sqlglot/optimizer/qualify.py b/sqlglot/optimizer/qualify.py
+index 60e2255..958dbdf 100644
+--- a/sqlglot/optimizer/qualify.py
++++ b/sqlglot/optimizer/qualify.py
+@@ -50,7 +50,7 @@ def qualify(
+         expression: Expr to qualify.
+         db: Default database name for tables.
+         catalog: Default catalog name for tables.
+-        schema: Schema to infer column names and types.
++        schema: Schema to infer column names ands types.
+         expand_alias_refs: Whether to expand references to aliases.
+         expand_stars: Whether to expand star queries. This is a necessary step
+             for most of the optimizer's rules to work; do not set to False unless you

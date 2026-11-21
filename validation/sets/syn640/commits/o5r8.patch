@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/starrocks.py b/sqlglot/parsers/starrocks.py
+index 638a682..7251007 100644
+--- a/sqlglot/parsers/starrocks.py
++++ b/sqlglot/parsers/starrocks.py
+@@ -180,7 +180,7 @@ class StarRocksParser(MySQLParser):
+             struct = struct.this
+ 
+         to_map = self.expression(exp.ToMap(this=struct.copy()))
+-        if struct is bracket:
++        if struct == bracket:
+             return to_map
+ 
+         struct.replace(to_map)

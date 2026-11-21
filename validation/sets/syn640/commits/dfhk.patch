@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/aggregate.py b/sqlglot/expressions/aggregate.py
+index fff83d9..b233229 100644
+--- a/sqlglot/expressions/aggregate.py
++++ b/sqlglot/expressions/aggregate.py
+@@ -323,6 +323,7 @@ class StddevSamp(Expression, AggFunc):
+ 
+ 
+ class Sum(Expression, AggFunc):
++    # Handled by the parser
+     pass
+ 
+ 

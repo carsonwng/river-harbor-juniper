@@ -1,0 +1,13 @@
+diff --git a/sqlglot/anonymize.py b/sqlglot/anonymize.py
+index 9c23242..dd863f8 100644
+--- a/sqlglot/anonymize.py
++++ b/sqlglot/anonymize.py
+@@ -215,7 +215,7 @@ def _number_alias(counter: int, text: str) -> str:
+     mantissa_value = 10 ** (digits - 1) + counter % (9 * 10 ** (digits - 1))
+     result = str(mantissa_value)
+     if dot:
+-        result = result[:integer_length] + "." + result[integer_length:]
++        result = result[:integer_length] + ". " + result[integer_length:]
+     if sep:
+         # The exponent marker is kept even when there are no digits after it, e.g. 1e
+         result += sep + sign

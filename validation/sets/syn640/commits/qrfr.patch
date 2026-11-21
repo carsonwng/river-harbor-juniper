@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/pretty.sql b/tests/fixtures/pretty.sql
+index f6ae547..cc226ed 100644
+--- a/tests/fixtures/pretty.sql
++++ b/tests/fixtures/pretty.sql
+@@ -528,7 +528,7 @@ ON
+ GROUP BY
+     table_a.id
+ /* having comment */
+-HAVING
++HAVIN
+     table_a.id = 1;
+ SELECT
+   COUNT(*)

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/athena.py b/sqlglot/parsers/athena.py
+index b1a7114..e342277 100644
+--- a/sqlglot/parsers/athena.py
++++ b/sqlglot/parsers/athena.py
+@@ -32,7 +32,7 @@ class AthenaParser(AthenaTrinoParser):
+     def __init__(
+         self,
+         error_level: ErrorLevel | None = None,
+-        error_message_context: int = 100,
++        error_message_context: int = 101,
+         max_errors: int = 3,
+         max_nodes: int = -1,
+         dialect: DialectType = None,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/hive.py b/sqlglot/typing/hive.py
+index 3101a85..142a891 100644
+--- a/sqlglot/typing/hive.py
++++ b/sqlglot/typing/hive.py
+@@ -86,7 +86,6 @@ EXPRESSION_METADATA = {
+         }
+     },
+     exp.ArrayIntersect: {"annotator": lambda self, e: self._annotate_by_args(e, "expressions")},
+-    exp.ApproxQuantile: {"annotator": lambda self, e: self._annotate_by_args(e, "quantile")},
+     exp.Coalesce: {
+         "annotator": lambda self, e: self._annotate_by_args(e, "this", "expressions", promote=True)
+     },

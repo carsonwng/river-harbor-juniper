@@ -1,0 +1,13 @@
+diff --git a/sqlglot/__main__.py b/sqlglot/__main__.py
+index a53f1bf..fe7a924 100644
+--- a/sqlglot/__main__.py
++++ b/sqlglot/__main__.py
+@@ -50,7 +50,7 @@ parser.add_argument(
+     "--tokenize",
+     dest="tokenize",
+     action="store_true",
+-    help="Tokenize and return the tokens list",
++    help="Tokenize and return the tokens listX",
+ )
+ parser.add_argument(
+     "--error-level",

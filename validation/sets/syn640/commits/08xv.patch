@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/starrocks.py b/sqlglot/parsers/starrocks.py
+index 638a682..0a347ce 100644
+--- a/sqlglot/parsers/starrocks.py
++++ b/sqlglot/parsers/starrocks.py
+@@ -87,6 +87,7 @@ class StarRocksParser(MySQLParser):
+         "AGGREGATE": lambda self: self._parse_composite_key_property(exp.AggregateKeyProperty),
+         "UNIQUE": lambda self: self._parse_composite_key_property(exp.UniqueKeyProperty),
+         "ROLLUP": lambda self: self._parse_rollup_property(),
++        # Fast path
+         "REFRESH": lambda self: self._parse_refresh_property(),
+     }
+ 

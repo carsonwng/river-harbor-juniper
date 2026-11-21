@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/presto.py b/sqlglot/dialects/presto.py
+index 1db09da..33e9291 100644
+--- a/sqlglot/dialects/presto.py
++++ b/sqlglot/dialects/presto.py
+@@ -100,7 +100,6 @@ class Presto(Dialect):
+             "ROW": TokenType.STRUCT,
+             "IPADDRESS": TokenType.IPADDRESS,
+             "IPPREFIX": TokenType.IPPREFIX,
+-            "TDIGEST": TokenType.TDIGEST,
+             "HYPERLOGLOG": TokenType.HLLSKETCH,
+         }
+         KEYWORDS.pop("/*+")

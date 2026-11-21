@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..e05833b 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -719,7 +719,7 @@ class ClickHouseParser(parser.Parser):
+         # WITH <identifier> AS <subquery expression>
+         cte: exp.CTE | exp.FunctionSpecification | None = self._try_parse(super()._parse_cte)
+ 
+-        if not cte:
++        if cte:
+             # WITH <expression> AS <identifier>
+             cte = self.expression(
+                 exp.CTE(this=self._parse_assignment(), alias=self._parse_table_alias(), scalar=True)

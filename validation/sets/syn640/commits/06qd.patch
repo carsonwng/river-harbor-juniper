@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parser.py b/sqlglot/parser.py
+index 456314b..b02b589 100644
+--- a/sqlglot/parser.py
++++ b/sqlglot/parser.py
+@@ -8196,7 +8196,7 @@ class Parser:
+     def _parse_unique_key(self) -> exp.Expr | None:
+         if (
+             self._curr
+-            and self._curr.token_type != TokenType.IDENTIFIER
++            and self._curr.token_type == TokenType.IDENTIFIER
+             and self._curr.text.upper() in self.CONSTRAINT_PARSERS
+         ):
+             return None

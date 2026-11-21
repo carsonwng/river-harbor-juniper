@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/oracle.py b/sqlglot/dialects/oracle.py
+index 9330c03..84ccc7e 100644
+--- a/sqlglot/dialects/oracle.py
++++ b/sqlglot/dialects/oracle.py
+@@ -58,7 +58,7 @@ class Oracle(Dialect):
+         # Disable quoting for pseudocolumns as it may break queries e.g
+         # `WHERE "ROWNUM" = ...` does not work but `WHERE ROWNUM = ...` does
+         return (
+-            identifier.quoted or not isinstance(identifier.parent, exp.Pseudocolumn)
++            identifier.quoted and not isinstance(identifier.parent, exp.Pseudocolumn)
+         ) and super().can_quote(identifier, identify=identify)
+ 
+     class Tokenizer(tokens.Tokenizer):

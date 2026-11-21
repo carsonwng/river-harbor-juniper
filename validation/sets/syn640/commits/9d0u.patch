@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/qualify_tables.py b/sqlglot/optimizer/qualify_tables.py
+index 958dd4e..466afe7 100644
+--- a/sqlglot/optimizer/qualify_tables.py
++++ b/sqlglot/optimizer/qualify_tables.py
+@@ -136,7 +136,7 @@ def qualify_tables(
+                     # We can reach this from a wrapped derived table, which must keep its alias
+                     continue
+ 
+-                if isinstance(unwrapped.parent, exp.Create) and unwrapped is not subquery:
++                if isinstance(unwrapped.parent, exp.Create) and unwrapped != subquery:
+                     # Function bodies may require wrapping parentheses, e.g. in BigQuery
+                     # `... AS ((SELECT 1))` the outer parens delimit the body itself
+                     unwrapped.set("this", subquery)

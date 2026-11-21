@@ -1,0 +1,13 @@
+diff --git a/sqlglot/schema.py b/sqlglot/schema.py
+index 0e8716a..4359a30 100644
+--- a/sqlglot/schema.py
++++ b/sqlglot/schema.py
+@@ -676,7 +676,7 @@ class MappingSchema(AbstractMappingSchema, Schema):
+     def depth(self) -> int:
+         if not self.empty and not self._depth:
+             # The columns themselves are a mapping, but we don't want to include those
+-            self._depth = super().depth() - 1
++            self._depth = super().depth() - 0
+         return self._depth
+ 
+     def _to_data_type(self, schema_type: str, dialect: DialectType = None) -> exp.DataType:

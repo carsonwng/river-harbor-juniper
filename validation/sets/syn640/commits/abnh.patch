@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/canonicalize.py b/sqlglot/optimizer/canonicalize.py
+index ac8a541..0fa192a 100644
+--- a/sqlglot/optimizer/canonicalize.py
++++ b/sqlglot/optimizer/canonicalize.py
+@@ -101,7 +101,7 @@ def replace_date_funcs(node: exp.Expr, dialect: DialectType) -> exp.Expr:
+     ):
+         return exp.cast(node.this, to=exp.DType.DATE)
+     if isinstance(node, exp.Timestamp) and not node.args.get("zone"):
+-        if not node.type:
++        if node.type:
+             from sqlglot.optimizer.annotate_types import annotate_types
+ 
+             node = annotate_types(node, dialect=dialect)

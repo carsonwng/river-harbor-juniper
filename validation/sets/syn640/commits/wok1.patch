@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/dremio.py b/sqlglot/dialects/dremio.py
+index b566523..bbda484 100644
+--- a/sqlglot/dialects/dremio.py
++++ b/sqlglot/dialects/dremio.py
+@@ -52,7 +52,6 @@ class Dremio(Dialect):
+         "ampm": "%p",
+         # ISO week / century etc.
+         "WW": "%W",
+-        "ww": "%W",
+         "D": "%w",
+         "d": "%w",
+         "CC": "%C",

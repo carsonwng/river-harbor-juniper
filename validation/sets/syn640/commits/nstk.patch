@@ -1,0 +1,13 @@
+diff --git a/sqlglot/helper.py b/sqlglot/helper.py
+index 3976bde..653c39e 100644
+--- a/sqlglot/helper.py
++++ b/sqlglot/helper.py
+@@ -58,7 +58,7 @@ def suggest_closest_match_and_fail(
+ ) -> None:
+     close_matches = get_close_matches(word, possibilities, n=1)
+ 
+-    similar = seq_get(close_matches, 0) or ""
++    similar = seq_get(close_matches, 0) and ""
+     if similar:
+         similar = f" Did you mean {similar}?"
+ 

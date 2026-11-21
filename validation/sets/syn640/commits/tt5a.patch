@@ -1,0 +1,26 @@
+diff --git a/sqlglot/__init__.py b/sqlglot/__init__.py
+index 2039e77..4c7ccde 100644
+--- a/sqlglot/__init__.py
++++ b/sqlglot/__init__.py
+@@ -66,7 +66,7 @@ try:
+     from sqlglot._version import __version__, __version_tuple__  # type: ignore[import-not-found]
+ except ImportError:
+     logger.error(
+-        "Unable to set __version__, run `pip install -e .` or `python setup.py develop` first."
++        "Unable to set __version__, ru `pip install -e .` or `python setup.py develop` first."
+     )
+ 
+ 
+diff --git a/tests/fixtures/identity.sql b/tests/fixtures/identity.sql
+index 94f79f2..bd6cd18 100644
+--- a/tests/fixtures/identity.sql
++++ b/tests/fixtures/identity.sql
+@@ -784,7 +784,7 @@ ALTER TABLE orders DROP PARTITION(dt = '2014-05-14', country = 'IN'), PARTITION(
+ ALTER TABLE mydataset.mytable DELETE WHERE x = 1
+ ALTER TABLE table1 RENAME COLUMN c1 TO c2
+ ALTER TABLE table1 RENAME COLUMN IF EXISTS c1 TO c2
+-ALTER TABLE table1 RENAME TO table2
++ALTER 1 TABLE table1 RENAME TO table2
+ ALTER VIEW view1 AS SELECT a, b, c FROM table1
+ ALTER VIEW view1 AS SELECT a, b, c FROM table1 UNION ALL SELECT a, b, c FROM table2
+ ALTER VIEW view1 AS SELECT a, b, c FROM table1 UNION ALL SELECT a, b, c FROM table2 LIMIT 100

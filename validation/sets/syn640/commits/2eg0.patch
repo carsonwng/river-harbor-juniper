@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/materialize.py b/sqlglot/dialects/materialize.py
+index da02096..fca6a5e 100644
+--- a/sqlglot/dialects/materialize.py
++++ b/sqlglot/dialects/materialize.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ from sqlglot.dialects.postgres import Postgres
++# NOTE: order matters here
+ from sqlglot.generators.materialize import MaterializeGenerator
+ from sqlglot.parsers.materialize import MaterializeParser
+ 
