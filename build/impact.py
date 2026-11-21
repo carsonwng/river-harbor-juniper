@@ -94,17 +94,20 @@ def run_probes(root: Path, work: Path, env: dict, jobs: int) -> dict[str, dict]:
     return results
 
 
-def run_coverage(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
-    cov_dir = work / "cov"
+def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none") -> list[dict]:
+    """One instrumented suite pass. mode "fork": every test in its own fork of the
+    post-collection process (br_cov_plugin.py, BR_IMPACT_ISOLATE)."""
+    cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
     cov_dir.mkdir(parents=True, exist_ok=True)
-    env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir))
+    env = dict(env, BR_IMPACT_ROOT=str(root), BR_IMPACT_OUT=str(cov_dir),
+               BR_IMPACT_ISOLATE="fork" if mode == "fork" else "none")
     command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "br_cov_plugin", "-q",
                "-n", str(jobs), "--dist", "load", "tests"]
     start = time.time()
     proc = subprocess.run(command, cwd=str(root), env=env, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True, errors="replace")
     tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
-    log(f"pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
+    log(f"pytest ({mode}) exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
     return [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
 
 
@@ -177,6 +180,63 @@ def bound_names(tree: ast.AST) -> set[str]:
 # ---------------------------------------------------------------- main
 
 
+def static_importers(root: Path, trees: dict, deps: dict, sqlglot_modules: set[str],
+                     by_module: dict[str, int]) -> dict[str, int]:
+    """sqlglot module -> tests whose test file imports it, directly or through other
+    test modules and sqlglot's own imports (probe). If an edit makes a module's
+    import raise, these tests fail at collection ("the file cannot be imported")
+    even if they never run its code. Function-level imports count too."""
+    def module_of(rel: str) -> str:
+        parts = list(Path(rel).with_suffix("").parts)
+        if parts[-1] == "__init__":
+            parts = parts[:-1]
+        return ".".join(parts)
+
+    graph: dict[str, set[str]] = {}
+    for rel, tree in trees.items():
+        if not rel.startswith("tests/"):
+            continue
+        name = module_of(rel)
+        package = name if rel.endswith("__init__.py") else name.rpartition(".")[0]
+        found: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    found.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ""
+                if node.level:
+                    pkg = package.split(".")
+                    pkg = pkg[:len(pkg) - node.level + 1]
+                    base = ".".join(pkg + ([base] if base else []))
+                found.add(base)
+                for alias in node.names:
+                    found.add(f"{base}.{alias.name}")
+        graph[name] = found
+    tests_files = {module_of(t): bits for t, bits in by_module.items()}
+    out: dict[str, int] = {}
+    for test_mod, bits in tests_files.items():
+        seen: set[str] = set()
+        stack = [test_mod]
+        while stack:
+            mod = stack.pop()
+            if mod in seen:
+                continue
+            seen.add(mod)
+            # importing a.b.c imports a and a.b first
+            parts = mod.split(".")
+            for i in range(1, len(parts)):
+                stack.append(".".join(parts[:i]))
+            if mod in graph:
+                stack.extend(graph[mod])
+            elif mod in sqlglot_modules:
+                stack.extend(deps.get(mod, ()))
+        for mod in seen:
+            if mod in sqlglot_modules:
+                out[mod] = out.get(mod, 0) | bits
+    return out
+
+
 class Sets:
     def __init__(self) -> None:
         self.index: dict[int, int] = {}
@@ -197,6 +257,9 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=int(os.environ.get("BR_IMPACT_JOBS", "4")))
     parser.add_argument("--work", type=Path, help="keep raw results here (default: temp)")
     parser.add_argument("--reuse", action="store_true", help="reuse raw results in --work")
+    parser.add_argument("--isolate", choices=("none", "fork", "both"),
+                        default=os.environ.get("BR_IMPACT_ISOLATE", "both"),
+                        help="coverage pass(es): in-process, forked per test, or the union")
     options = parser.parse_args()
     root = options.sqlglot.resolve()
     out = options.out
@@ -217,12 +280,20 @@ def main() -> int:
         (work / "probe.json").write_text(json.dumps(probes), "utf-8")
     log(f"import probe: {len(probes)} modules in {time.time() - start:.1f}s")
 
-    start = time.time()
-    if options.reuse and list((work / "cov").glob("cov-*.json")):
-        workers = [json.loads(p.read_text("utf-8")) for p in sorted((work / "cov").glob("cov-*.json"))]
-    else:
-        workers = run_coverage(root, work, env, options.jobs)
-    log(f"coverage: {len(workers)} workers in {time.time() - start:.1f}s")
+    workers = []
+    modes = ["none", "fork"] if options.isolate == "both" else [options.isolate]
+    for mode in modes:
+        start = time.time()
+        cov_dir = work / ("cov-fork" if mode == "fork" else "cov")
+        if options.reuse and list(cov_dir.glob("cov-*.json")):
+            got = [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
+        else:
+            got = run_coverage(root, work, env, options.jobs, mode)
+        log(f"coverage ({mode}): {len(got)} workers in {time.time() - start:.1f}s")
+        if not got:
+            log(f"coverage ({mode}) produced nothing; using the other passes only")
+            continue
+        workers.extend(got)
     if not workers:
         log("no coverage results; writing no maps (selector falls back to all tests)")
         return 0
@@ -245,7 +316,10 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     outcomes: dict[str, str] = {}
     for w in workers:
         nodeids.update(t for t in w["tests"] if not t.startswith("collect::"))
-        outcomes.update(w["outcomes"])
+        for nodeid, outcome in w["outcomes"].items():
+            # a test that did not pass in any pass stays unsure
+            if outcomes.get(nodeid, "passed") in ("passed", "skipped"):
+                outcomes[nodeid] = outcome
     tests = sorted(nodeids)
     pos = {t: i for i, t in enumerate(tests)}
     by_class: dict[str, int] = {}
@@ -473,6 +547,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
             if key.split(":", 1)[0] == module:
                 bits |= klass_bits
         direct[module] = bits
+    importers = static_importers(root, trees, deps, set(module_names(root)), by_module)
     module_users: dict[str, int] = {}
     for module in module_names(root):
         if module in core_modules:
@@ -482,7 +557,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         for other, loaded in deps.items():
             if module in loaded:
                 bits |= direct.get(other, 0)
-        module_users[module] = bits
+        module_users[module] = bits | importers.get(module, 0)
 
     # ---- write
     sets = Sets()

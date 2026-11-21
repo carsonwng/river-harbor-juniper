@@ -336,6 +336,7 @@ class FileInfo:
         self.line_sets = self.data["lines"]
         self.import_lines = self.data["import"]
         code = compile(source, rel, "exec", dont_inherit=True)
+        self.code = code
         self.code_lines: set[int] = set()
         stack = [code]
         while stack:
@@ -392,15 +393,21 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     try:
         old_tree = ast.parse(old_text)
         new_tree = ast.parse(new_text)
-        compile(new_text, path, "exec", dont_inherit=True)
+        new_code = compile(new_text, path, "exec", dont_inherit=True)
     except SyntaxError as exc:
         raise Unsafe(f"does not compile: {exc.msg}")
     if ast.dump(old_tree) == ast.dump(new_tree):
         _log(f"{path}: AST unchanged")
         return 0
     info = FileInfo(maps, path, old_text)
+    info.new_tree = new_tree
     old_to_new = {o: n for n, o in new_to_old.items()}
-    bits = 0
+    # tests that read this file's source text (ast.parse, inspect, linecache):
+    # recorded as line 0 by the build; any AST change can change what they see
+    bits = info.cov(0, 0)
+    bits |= _semantic_bits(info, new_code)
+    if _touches_import_time(info, old_tree, new_tree, change):
+        bits |= _subprocess_bits(info)
     for hunk in change.hunks:
         for number, text in hunk.removed:
             bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
@@ -579,7 +586,165 @@ def _old_line_bits(info, tree, line, text, hunk, new_lines, old_to_new) -> int:
         if lam is not None:
             return lam
     base = _scope_users(info, chain, index)
-    return _name_bits(info, _bound(stmt), base)
+    names = _bound(stmt)
+    read_later = names & _later_import_loads(parent, stmt) if names and _scope(chain, index) else set()
+    if read_later and not read_later <= _new_class_bindings(info, _scope(chain, index)):
+        # a later statement of the same class body reads the name while the class
+        # is created: removing or breaking this binding can make the module's
+        # import raise, which fails every user of the module, not just the class's
+        return info.maps.module_users(info.module)
+    return _name_bits(info, names, base)
+
+
+def _new_class_bindings(info: "FileInfo", parts: list[str]) -> set[str]:
+    """Names the class at `parts` binds in its body in the new file (empty if gone)."""
+    nodes = getattr(info, "new_tree", ast.Module(body=[])).body
+    klass = None
+    for part in parts:
+        klass = next((n for n in nodes if isinstance(n, ast.ClassDef) and n.name == part), None)
+        if klass is None:
+            return set()
+        nodes = klass.body
+    out: set[str] = set()
+    for node in nodes:  # plain bindings only: X.pop(...) mutates but does not bind
+        if isinstance(node, FUNC + (ast.ClassDef,)):
+            out.add(node.name)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            out.update((a.asname or a.name).split(".")[0] for a in node.names)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)) and node.__dict__.get("value", 1) is not None:
+            for target in node.targets if isinstance(node, ast.Assign) else [node.target]:
+                for sub in ast.walk(target):
+                    if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+                        out.add(sub.id)
+    return out
+
+
+def _later_import_loads(parent, stmt) -> set[str]:
+    """Names loaded by the statements after `stmt` in `parent`'s body that run while
+    the scope is created: everything but function and nested class bodies (which
+    cannot see a class scope), keeping decorators, defaults and bases."""
+    body = getattr(parent, "body", [])
+    out: set[str] = set()
+    try:
+        later = body[body.index(stmt) + 1:]
+    except ValueError:
+        return out
+    stack = list(later)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, FUNC + (ast.Lambda,)):
+            stack.extend(getattr(node, "decorator_list", []))
+            args = node.args
+            stack.extend(args.defaults)
+            stack.extend(d for d in args.kw_defaults if d is not None)
+            continue
+        if isinstance(node, ast.ClassDef):
+            stack.extend(node.bases)
+            stack.extend(node.decorator_list)
+            stack.extend(k.value for k in node.keywords)
+            continue
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            out.add(node.id)
+        stack.extend(ast.iter_child_nodes(node))
+    return out
+
+
+# ---------------------------------------------------------------- whole-function semantics
+
+CO_GENERATOR_LIKE = 0x20 | 0x80 | 0x100 | 0x200  # generator, coroutine, async generator
+
+
+def _functions(code) -> dict[str, list]:
+    out: dict[str, list] = {}
+    stack = [code]
+    while stack:
+        co = stack.pop()
+        for const in co.co_consts:
+            if hasattr(const, "co_code"):
+                out.setdefault(const.co_qualname, []).append(const)
+                stack.append(const)
+    return out
+
+
+def _code_lines(co) -> set[int]:
+    lines: set[int] = set()
+    stack = [co]
+    while stack:
+        c = stack.pop()
+        lines.update(l for _, _, l in c.co_lines() if l)
+        stack.extend(k for k in c.co_consts if hasattr(k, "co_code"))
+    return lines
+
+
+def _semantic_bits(info: "FileInfo", new_code) -> int:
+    """Edits that change a function as a whole, not just the statement they sit in:
+    it becomes or stops being a generator/coroutine (every call changes, even calls
+    that never run a body line), or a name that was global or free becomes local
+    (a removed `global`, a new assignment: earlier reads now raise). Those select
+    every test that ran the function, plus the readers of its name for the first."""
+    old_f, new_f = _functions(info.code), _functions(new_code)
+    bits = 0
+    for qual in old_f.keys() & new_f.keys():
+        olds, news = old_f[qual], new_f[qual]
+        flags_changed = sorted(c.co_flags & CO_GENERATOR_LIKE for c in olds) != \
+            sorted(c.co_flags & CO_GENERATOR_LIKE for c in news)
+        old_local = set().union(*(set(c.co_varnames) | set(c.co_cellvars) | set(c.co_freevars)
+                                  for c in olds))
+        old_global = set().union(*(set(c.co_names) for c in olds))
+        new_local = set().union(*(set(c.co_varnames) | set(c.co_cellvars) | set(c.co_freevars)
+                                  for c in news))
+        shadowed = (new_local - old_local) & old_global
+        if not flags_changed and not shadowed:
+            continue
+        lines: set[int] = set()
+        for co in olds:
+            lines |= _code_lines(co)
+        for line in lines:
+            bits |= info.cov(line, line) | info.import_bits(line, line)
+        if flags_changed:
+            name = qual.rsplit(".", 1)[-1]
+            entry = info.maps.names().get(name)
+            base = info.maps.module_users(info.module)
+            bits |= base if entry is None or entry[1] else info.maps.bits(entry[0]) & base
+        _log(f"{info.rel}: {qual} changes as a whole (generator={flags_changed}, "
+             f"shadowed={sorted(shadowed)})")
+    return bits
+
+
+# ---------------------------------------------------------------- import time and processes
+
+
+def _import_level(tree, line: int) -> bool:
+    """Whether `line` runs while its module is imported (not in a function body)."""
+    chain = _chain(tree, line)
+    fi = _func_index(chain)
+    if fi is None:
+        return True
+    first = _first_body_line(chain[fi])
+    return first is None or line < first  # decorators, signature, defaults
+
+
+def _touches_import_time(info: "FileInfo", old_tree, new_tree, change) -> bool:
+    for hunk in change.hunks:
+        for number, _ in hunk.removed:
+            if _import_level(old_tree, number) or info.import_lines.get(str(number)):
+                return True
+        for number, _ in hunk.added:
+            if _import_level(new_tree, number):
+                return True
+    return False
+
+
+def _subprocess_bits(info: "FileInfo") -> int:
+    """Tests that start processes (recorded as line -1 of sqlglot/__init__.py) may
+    import sqlglot there (test_lazy_load): an import-time edit of a module that
+    `import sqlglot` loads can change what they see."""
+    core = info.maps.modules().get("core", [])
+    if info.module not in core:
+        return 0
+    data = info.maps.file("sqlglot/__init__.py") or {}
+    index = data.get("lines", {}).get("-1")
+    return info.maps.bits(index) if index is not None else 0
 
 
 def _doc_bits(info: FileInfo) -> int:
