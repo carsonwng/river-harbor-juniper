@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..b2c6ba5 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -657,7 +657,7 @@ order by
+         value desc;
+ WITH "supplier_2" AS (
+   SELECT
+-    "supplier"."s_suppkey" AS "s_suppkey",
++    "supplier"."s_suppkey" as "s_suppkey",
+     "supplier"."s_nationkey" AS "s_nationkey"
+   FROM "supplier" AS "supplier"
+ ), "nation_2" AS (
