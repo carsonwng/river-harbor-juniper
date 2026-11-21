@@ -111,6 +111,149 @@ def run_coverage(root: Path, work: Path, env: dict, jobs: int, mode: str = "none
     return [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
 
 
+def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
+    """Suite pass on a throwaway copy of the checkout with every single-operator
+    comparison in sqlglot/ recorded by br_relprof_plugin (source files unchanged;
+    the plugin rewrites the AST at import)."""
+    rp_dir = work / "relprof"
+    if rp_dir.exists():
+        shutil.rmtree(rp_dir)
+    rp_dir.mkdir(parents=True)
+    copy = Path(tempfile.mkdtemp(prefix="br-relprof-src-")) / "sqlglot"
+    shutil.copytree(root, copy, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc",
+                                                              ".pytest_cache"))
+    try:
+        env = dict(env, BR_IMPACT_ROOT=str(copy), BR_IMPACT_OUT=str(rp_dir),
+                   PYTHONPATH=os.pathsep.join([str(copy), str(LIB)]))
+        command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p",
+                   "br_relprof_plugin", "-q", "-n", str(jobs), "--dist", "load", "tests"]
+        start = time.time()
+        # the image build has 10 minutes: past this, give up on the profile (the
+        # selector then keeps the coverage behaviour)
+        limit = float(os.environ.get("BR_RELPROF_TIMEOUT", 420 if jobs >= 4 else 1500))
+        try:
+            proc = subprocess.run(command, cwd=str(copy), env=env, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, text=True, errors="replace",
+                                  timeout=limit)
+        except subprocess.TimeoutExpired:
+            log(f"relprof pass exceeded {limit:.0f}s; no relprof map")
+            return []
+        tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
+        log(f"relprof pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
+    finally:
+        shutil.rmtree(copy.parent, ignore_errors=True)
+    return [json.loads(p.read_text("utf-8")) for p in sorted(rp_dir.glob("relprof-*.json"))]
+
+
+def relprof_post(out: Path, cov_workers: list[dict], rp_workers: list[dict]) -> None:
+    """relprof.json: per comparison site "rel:line:col" the union of relation
+    signatures over every evaluation in the whole pass (tests, collection, and
+    outside any test), and the tests that evaluated it (bitset over meta tests)."""
+    meta = json.loads((out / "meta.json").read_text("utf-8"))
+    tests = meta["tests"]
+    pos = {t: i for i, t in enumerate(tests)}
+    by_class: dict[str, int] = {}
+    by_module: dict[str, int] = {}
+    for t, i in pos.items():
+        by_class[t.rsplit("::", 1)[0]] = by_class.get(t.rsplit("::", 1)[0], 0) | (1 << i)
+        mod = t.split("::", 1)[0]
+        by_module[mod] = by_module.get(mod, 0) | (1 << i)
+    seen: set[str] = set()
+    outcomes: dict[str, str] = {}
+    sigs: dict[str, set[int]] = {}
+    evals: dict[str, int] = {}
+    values: dict[str, set[str]] = {}
+    opaque: set[str] = set()
+    for w in rp_workers:
+        wtests = w["tests"]
+        sites = w["sites"]
+        seen.update(t for t in wtests if not t.startswith("collect::"))
+        outcomes.update(w["outcomes"])
+        expand: dict[int, int] = {}
+
+        def bits_for(code: int) -> int:
+            got = expand.get(code)
+            if got is None:
+                idx, phase = divmod(code, 4)
+                key = wtests[idx]
+                if phase == 3:
+                    got = by_module.get(key[len("collect::"):], 0)
+                elif phase == 1:
+                    got = 1 << pos[key] if key in pos else 0
+                else:
+                    got = by_class.get(key.rsplit("::", 1)[0], 0) | (
+                        1 << pos[key] if key in pos else 0)
+                expand[code] = got
+            return got
+
+        for site in sites:  # instrumented (compiled) sites, evaluated or not
+            sigs.setdefault(site, set())
+        for item in w["outside"]:
+            site = sites[item >> 16]
+            sigs.setdefault(site, set()).add(item & 0xFFFF)
+        for sid, vals in w.get("values", {}).items():
+            site = sites[int(sid)]
+            if site in opaque:
+                continue
+            bucket = values.setdefault(site, set())
+            bucket.update(json.dumps(v) for v in vals)
+        for sid in w.get("opaque", []):
+            opaque.add(sites[sid])
+            values.pop(sites[sid], None)
+        for item, codes in w["records"].items():
+            item = int(item)
+            site = sites[item >> 16]
+            sigs.setdefault(site, set()).add(item & 0xFFFF)
+            acc = evals.get(site, 0)
+            for code in codes:
+                acc |= bits_for(code)
+            evals[site] = acc
+    for site in [s for s, v in values.items() if len(v) > 256]:
+        opaque.add(site)  # too many distinct values to be worth re-evaluating
+        del values[site]
+    cov_outcomes: dict[str, str] = {}
+    for w in cov_workers:
+        cov_outcomes.update(w["outcomes"])
+    missing = sorted(set(tests) - seen)
+    spawned: set[str] = set()
+    for w in rp_workers:
+        for key in w.get("spawned", []):
+            if key.startswith("<outside>"):
+                log(f"relprof: child process outside any test: {key}")
+                missing.append("<a child process started outside any test>")
+            elif key.startswith("collect::"):
+                mod = key[len("collect::"):]
+                spawned.update(t for t in tests if t.split("::", 1)[0] == mod)
+            else:
+                spawned.add(key)
+    # tests whose profile may be cut short or differ from the coverage pass
+    unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped")
+                    or outcomes.get(t, "passed") != cov_outcomes.get(t, "passed")
+                    or t in spawned)
+    set_index: dict[int, int] = {}
+    set_items: list[str] = []
+
+    def add(bits: int) -> int:
+        got = set_index.get(bits)
+        if got is None:
+            got = set_index[bits] = len(set_items)
+            set_items.append(format(bits, "x"))
+        return got
+
+    data = {"version": 1, "complete": not missing, "missing": missing[:50],
+            "unsure": unsure,
+            "sites": {s: [sorted(v), add(evals.get(s, 0))] for s, v in sorted(sigs.items())},
+            # literal-comparison sites: distinct values of the non-literal side
+            # (tagged [type, value]); null when some value was not recordable
+            "values": {**{s: None for s in sorted(opaque)},
+                       **{s: [json.loads(x) for x in sorted(v)]
+                          for s, v in sorted(values.items()) if s not in opaque}},
+            "sets": set_items}
+    (out / "relprof.json").write_text(json.dumps(data, separators=(",", ":")), "utf-8")
+    log(f"relprof: {len(sigs)} evaluated sites, {len(missing)} tests missing, "
+        f"{len(unsure)} unsure: {unsure[:5]}")
+
+
 # ---------------------------------------------------------------- code analysis
 
 
@@ -332,6 +475,24 @@ def main() -> int:
     start = time.time()
     postprocess(root, out, probes, workers, test_imports)
     log(f"postprocess in {time.time() - start:.1f}s")
+
+    # relation profile of comparison sites (second, separate suite pass)
+    start = time.time()
+    try:
+        if options.reuse and list((work / "relprof").glob("relprof-*.json")):
+            rp_workers = [json.loads(p.read_text("utf-8"))
+                          for p in sorted((work / "relprof").glob("relprof-*.json"))]
+        else:
+            rp_workers = run_relprof(root, work, env, options.jobs)
+        log(f"relprof pass: {len(rp_workers)} workers in {time.time() - start:.1f}s")
+        if not rp_workers:
+            raise RuntimeError("no relprof results")
+        start = time.time()
+        relprof_post(out, workers, rp_workers)
+        log(f"relprof postprocess in {time.time() - start:.1f}s")
+    except Exception as exc:  # noqa: BLE001  the selector works without it
+        log(f"relprof failed, no relprof map: {exc!r}")
+        (out / "relprof.json").unlink(missing_ok=True)
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
     for dirpath, _dirs, files in os.walk(out):
