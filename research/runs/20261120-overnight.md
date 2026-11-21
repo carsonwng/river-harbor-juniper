@@ -168,3 +168,6 @@ Followed from now on, on top of RUNBOOK.md.
 - **Deadline knob mismatch:** combo reads `BR_BUILD_DEADLINE` (default 510 in `build/impact.py`, no Dockerfile ENV line),
   but the ladder names `BR_BUILD_DEADLINE_S`, default 555. Asked the lead. Default plan: variant `int/night-2354-d555` adding
   `ENV BR_BUILD_DEADLINE=555`.
+- **Lead reply (00:0x):** submit `int/night-2354` as is (combo's 510 default, no ENV line), only with 0 misses on sample, m1 (70)
+  and local-20261120. No d555 variant yet: it's unclear whether combo's 75 s reserve sits inside the deadline or on top. The lead will
+  send corrected ladder values in `BR_BUILD_DEADLINE` units. On any miss: don't submit; send the lead the commits and failing tests.
