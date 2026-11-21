@@ -4,6 +4,11 @@ Integration agent, night of 2026-11-21 (04:00-05:00). Base: `origin/int/night-01
 (`24f5e6d` = origin/main + strat/gap-mix), the best m1-safe practice entry (244.9 s).
 
 **Best branch: `int/night-0434-all`** = 0147 + gap-tests + gap-expr (ported) + gap-heavy.
+It is `int/night-0405-expr` (`ae47472`) with `int/night-0406-heavy` merged on top.
+
+**Practice result:** `int/night-0405-expr` (`ae47472`, gap-tests + gap-expr + prefilter) was
+submission 6 and scored **213.9 s** (210.365 s simulated in all three runs, about 3.55 s CPU,
+0 missed), down from 0147's 244.9 s. The gap-tests + gap-expr gains transfer as predicted.
 
 ## Combinations tried (docker `br.py verify`, host builder, all sets 0 misses)
 
@@ -54,6 +59,11 @@ variance, not gap-tests. Layer effects below were isolated inside one image inst
   snapshot, then the instr pass, then gap-mix's compileall.
 
 ## Build time (`eval --docker --scorer-limits --cold`, 4 CPU / 8 GB, local)
+
+`ae47472` (0405-expr): 371.3 s total; coverage 81.8 s, relprof 200.0 s, state snapshot 8.7 s,
+impact step 302.7 s. Simulated 123.0 s, 0 misses.
+
+`int/night-0434-all`:
 
 428.8 s total (target 420, limit 600): coverage 79.3 s, relprof 206.2 s, state snapshot
 9.9 s, instr 52.9 s (19/19 tests), impact step 360.6 s, triage 8.6 s. Simulated 121.6 s,
