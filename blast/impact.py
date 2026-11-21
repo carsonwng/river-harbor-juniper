@@ -1312,7 +1312,7 @@ def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) ->
     profile = maps.attrs()
     opaque = maps.opaque()
     if use_profile and (profile is None or opaque is None):
-        return None
+        use_profile = False  # no read profile (pass dropped): still check the import
     adir = (maps.root / "attrs").resolve()
     script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
     if not script.exists() or not (adir / "state.json").exists():
