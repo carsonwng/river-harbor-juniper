@@ -496,7 +496,12 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         if alt is not None:
             _log(f"{path}: class attribute diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
-            return alt
+            if alt == maps.ALL:
+                return alt  # the edited sqlglot no longer imports
+            # both are supersets of the tests that can change, so is their
+            # intersection; tests outside the profile (maps.always) still run
+            maps.pruned = True
+            return alt & bits
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
