@@ -188,6 +188,15 @@ that is not provable without evaluating the loader on the new text (triage layer
   2.03 s; syn 400: 33.6 vs 30.4 s (about 8 ms per commit). The cost is the 2.4 MB JSON
   load plus compiling and walking the old file, only when a profiled test is in the bits.
 
+**Expected cost for budgeting.** About 371 CPU-s for the 14 tests: their plain seconds
+(about 82 s), times about 2-3 for instruction events and the fresh-process setUpClass,
+plus about 6-8 s of suite collection per process. At 4 jobs that is about 120 s wall.
+The pass is deadline-aware: `BR_INSTR_BUDGET` (150 s), `BR_IMPACT_DEADLINE` (450 s after
+the impact step began), and, when set, `BR_BUILD_DEADLINE_S` after `BR_BUILD_START`
+(epoch seconds; default the impact step start). With under 40 s left it skips, and the
+selector keeps every heavy test. With committed pinned maps, `instr.json` (2.4 MB) can be
+produced once and committed, compressed.
+
 ## Dead ends
 
 - Global INSTRUCTION events (all code): about 45 s per test, mostly sqlglot module

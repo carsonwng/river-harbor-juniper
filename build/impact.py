@@ -492,6 +492,11 @@ def main() -> int:
         budget = float(os.environ.get("BR_INSTR_BUDGET", "150"))
         overall = float(os.environ.get("BR_IMPACT_DEADLINE", "450"))
         deadline = min(start + budget, began + overall)
+        # whole-build deadline (combine's convention): BR_BUILD_DEADLINE_S seconds after
+        # BR_BUILD_START (epoch seconds; default: when this impact step began)
+        if os.environ.get("BR_BUILD_DEADLINE_S"):
+            build_start = float(os.environ.get("BR_BUILD_START") or began)
+            deadline = min(deadline, build_start + float(os.environ["BR_BUILD_DEADLINE_S"]))
         if deadline - time.time() < 40:
             raise RuntimeError(f"no time left ({time.time() - began:.0f}s into the impact build)")
         results = run_instr(root, work, env, options.jobs, chosen, deadline)
