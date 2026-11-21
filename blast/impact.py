@@ -95,6 +95,28 @@ class Maps:
             self._files[rel] = json.loads(path.read_text("utf-8")) if path.exists() else None
         return self._files[rel]
 
+    def relprof(self) -> dict | None:
+        """Relation profile of comparison sites (build/impact.py relprof_post)."""
+        if not hasattr(self, "_relprof"):
+            path = self.root / "relprof.json"
+            data = None
+            try:
+                if path.exists():
+                    data = json.loads(path.read_text("utf-8"))
+                    if data.get("version") != 1 or not data.get("complete"):
+                        data = None
+            except Exception:  # noqa: BLE001
+                data = None
+            if data is not None:
+                pos = {t: i for i, t in enumerate(self.tests)}
+                unsure = 0
+                for t in data.get("unsure", []):
+                    if t in pos:
+                        unsure |= 1 << pos[t]
+                data["unsure_bits"] = unsure
+            self._relprof = data
+        return self._relprof
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -157,6 +179,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
     if maps is None:
         return ctx.all_tests
     bits = 0
+    maps.pruned = False
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -168,6 +191,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
+    if not bits and maps.pruned and maps.always:
+        return set(maps.always)  # tests the profile never ran
     return maps.to_tests(bits) if bits else set()
 
 
@@ -408,6 +433,15 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
+    if bits:
+        try:
+            refined = _relprof_refine(info, old_tree, new_tree, bits)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"{path}: relprof error {exc!r}")
+            refined = None
+        if refined is not None:
+            maps.pruned = True
+            return refined
     return bits
 
 
@@ -643,3 +677,150 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- relation profile
+#
+# An edit that only swaps the operator of single-operator comparisons (same
+# operands, every other AST node identical) can change a run only at an evaluation
+# of an edited comparison where the old and the new operator give different
+# results: until the first such evaluation the patched program is the pinned one,
+# step for step. build/impact.py records, for every comparison site, the relation
+# signature of every evaluation in a whole suite pass (each operator's result on
+# the operands: false, true, raises, or unknown when evaluating it would not be
+# provably pure). If every recorded signature at every edited site gives the same
+# known result (true or false) under both operators, no evaluation can be the
+# first divergence, and no test can change, except the tests the profile does not
+# vouch for (failed or behaved differently in the profile pass, started a child
+# process, or were not in it). Everything else keeps the coverage selection.
+
+_OP_INDEX = {ast.Is: 0, ast.IsNot: 1, ast.Eq: 2, ast.NotEq: 3, ast.Lt: 4, ast.LtE: 5,
+             ast.Gt: 6, ast.GtE: 7}
+_T, _F = 1, 0
+
+
+def _op_swaps(old_tree, new_tree):
+    """[(old Compare node, old op index, new op index)] when the new tree is the old
+    one with only the operators of single-operator comparisons replaced; else None."""
+    old_cmp = [n for n in ast.walk(old_tree) if isinstance(n, ast.Compare)]
+    new_cmp = [n for n in ast.walk(new_tree) if isinstance(n, ast.Compare)]
+    if len(old_cmp) != len(new_cmp):
+        return None
+    swaps = []
+    for a, b in zip(old_cmp, new_cmp):
+        ta = [type(o) for o in a.ops]
+        tb = [type(o) for o in b.ops]
+        if ta == tb:
+            continue
+        if len(ta) != 1 or len(tb) != 1 or ta[0] not in _OP_INDEX or tb[0] not in _OP_INDEX:
+            return None  # chained comparisons and in/not in are not profiled
+        swaps.append((a, _OP_INDEX[ta[0]], _OP_INDEX[tb[0]]))
+    if not swaps:
+        return None
+    saved = [(node, node.ops) for node, _o, _n in swaps]
+    rev = {v: k for k, v in _OP_INDEX.items()}
+    for node, _o, n in swaps:
+        node.ops = [rev[n]()]
+    try:
+        same = ast.dump(old_tree) == ast.dump(new_tree)
+    finally:
+        for node, ops in saved:
+            node.ops = ops
+    return swaps if same else None
+
+
+def _parents(tree):
+    out = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            out[child] = node
+    return out
+
+
+# (parent type, field) through which a child expression is always evaluated when
+# the parent is; anything else (BoolOp tails, IfExp branches, lambdas,
+# comprehensions, ...) may skip it
+_ALWAYS = {(ast.If, "test"), (ast.While, "test"), (ast.Return, "value"),
+           (ast.Assign, "value"), (ast.AnnAssign, "value"), (ast.AugAssign, "value"),
+           (ast.Expr, "value"), (ast.Assert, "test"), (ast.Call, "args"),
+           (ast.Call, "func"), (ast.keyword, "value"), (ast.UnaryOp, "operand"),
+           (ast.IfExp, "test"), (ast.Attribute, "value"), (ast.Subscript, "value"),
+           (ast.Subscript, "slice"), (ast.Tuple, "elts"), (ast.List, "elts"),
+           (ast.BinOp, "left"), (ast.BinOp, "right"), (ast.Starred, "value")}
+
+
+def _unconditional(node, parents):
+    """Statement containing `node`, and whether executing that statement always
+    evaluates `node` (unless an earlier operand raises)."""
+    always = True
+    while True:
+        parent = parents.get(node)
+        if parent is None:
+            return None, False
+        field = None
+        for name, value in ast.iter_fields(parent):
+            if value is node or (isinstance(value, list) and any(v is node for v in value)):
+                field = name
+                break
+        if isinstance(parent, ast.stmt):
+            if (type(parent), field) not in _ALWAYS:
+                always = False
+            return parent, always
+        if isinstance(parent, ast.BoolOp):
+            if parent.values[0] is not node:
+                always = False
+        elif (type(parent), field) not in _ALWAYS:
+            always = False
+        node = parent
+
+
+_LITERAL_WARN = (str, bytes, int, float, complex, tuple)
+
+
+def _relprof_refine(info: FileInfo, old_tree, new_tree, bits: int) -> int | None:
+    """Bits to keep when the profile proves the edit inert, else None."""
+    rp = info.maps.relprof()
+    if rp is None:
+        return None
+    swaps = _op_swaps(old_tree, new_tree)
+    if not swaps:
+        return None
+    sites = rp["sites"]
+    parents = _parents(old_tree)
+    for node, old_op, new_op in swaps:
+        if new_op in (0, 1):
+            # `x is <literal>` is a SyntaxWarning at compile time
+            for side in (node.left, node.comparators[0]):
+                if isinstance(side, ast.Constant) and isinstance(side.value, _LITERAL_WARN) \
+                        and not isinstance(side.value, bool):
+                    return None
+        key = f"{info.rel}:{node.lineno}:{node.col_offset}"
+        entry = sites.get(key)
+        if entry is None:
+            _log(f"relprof: {key} not instrumented")
+            return None
+        sigs, eval_index = entry
+        for sig in sigs:
+            a = (sig >> (2 * old_op)) & 3
+            b = (sig >> (2 * new_op)) & 3
+            if a != b or a not in (_T, _F):
+                _log(f"relprof: {key} diverges ({sig:#06x})")
+                return None
+        # consistency with the coverage pass: a comparison every execution of its
+        # statement evaluates must have been evaluated by every test covering it
+        stmt, always = _unconditional(node, parents)
+        if stmt is None:
+            return None
+        if always:
+            lo = stmt.lineno
+            first = _first_body_line(stmt)
+            hi = first - 1 if first is not None and first > lo else stmt.end_lineno
+            if isinstance(stmt, (ast.If, ast.While)):
+                hi = stmt.test.end_lineno
+            covered = info.cov(lo, hi)
+            evaluated = int(rp["sets"][eval_index], 16)
+            if covered & ~evaluated & ~rp["unsure_bits"]:
+                _log(f"relprof: {key} covered by tests that never evaluated it")
+                return None
+        _log(f"relprof: {key} {len(sigs)} signatures agree under op {old_op}->{new_op}")
+    return bits & rp["unsure_bits"]
