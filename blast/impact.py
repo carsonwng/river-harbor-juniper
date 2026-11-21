@@ -493,7 +493,8 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
                 bits |= _new_line_bits(info, new_tree, number, new_to_old)
             if bits == maps.ALL:
                 break
-    if bits and bits != maps.ALL and _assign_only(change, old_tree, new_tree):
+    if (bits and bits != maps.ALL and _assign_only(change, old_tree, new_tree)
+            and _in_tracked_classes(maps, path, change, old_tree, new_tree)):
         alt = _expr_state_bits(maps, path, new_text)
         if alt is not None:
             _log(f"{path}: expression attribute diff selects {bin(alt).count('1')} "
@@ -940,6 +941,34 @@ def _exprattr(maps: Maps) -> dict | None:
             data = None
         maps._exprattr = data
     return maps._exprattr
+
+
+def _in_tracked_classes(maps: Maps, rel: str, change: FileChange, old_tree, new_tree) -> bool:
+    """Every edited line sits in a class the attribute profile tracks (a sqlglot Expr
+    class with plain data attributes). Otherwise the state diff is not run: a changed
+    attribute of any other class is untracked, so the diff could only keep the base
+    selection, and skipping it saves the edited sqlglot's import (about 0.3-1 s of CPU
+    per commit). Skipping always keeps the base selection, so this never drops a test."""
+    profile = _exprattr(maps)
+    if profile is None:
+        return False
+    classes = profile.get("tracked_classes")
+    if classes is None:
+        classes = profile["tracked_classes"] = {e.split("|", 1)[0] for e in profile["tracked"]}
+    module = rel[:-3].replace("/", ".")
+    if module.endswith(".__init__"):
+        module = module[: -len(".__init__")]
+    seen = False
+    for tree, lines in ((old_tree, [n for h in change.hunks for n, _ in h.removed]),
+                        (new_tree, [n for h in change.hunks for n, _ in h.added])):
+        for line in lines:
+            names = [n.name for n in _chain(tree, line) if isinstance(n, ast.ClassDef)]
+            if not names:
+                continue  # blank or comment line (_assign_only placed it)
+            if f"{module}:{'.'.join(names)}" not in classes:
+                return False
+            seen = True
+    return seen
 
 
 def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
