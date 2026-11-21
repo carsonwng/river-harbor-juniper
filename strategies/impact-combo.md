@@ -60,9 +60,50 @@ Result = hard | (narrowed or plain coverage bits), plus the tests the map cannot
   time + 10 s stops recording, and the test becomes unsure (always kept). relprof pass:
   252 -> 180 s (dev container), 160 s on the cold builder.
 
+## Fork supplement (keeps isolate's cache-hole fix without the fork pass)
+
+What the forked pass adds to the map is small and a property of the pinned commit: the
+forked test sets of 5 functions / 70 lines where it sees more tests than the shared
+process (per-process caches: `generator._build_dispatch`, the `Generator.__init__`
+cache-miss branch, the dialect registry), and 2 state-dependent functions
+(`_Dialect._try_load`, `_Dialect.get`). `build/impact.py --reuse --work W
+--make-fork-supplement F` writes them from a build that ran both passes. Two builds gave
+identical output; the union is committed as `build/impact_lib/fork_supplement.json`
+(134 KB). A build without the forked pass merges it (lines -> union, then the
+state-dependent widening). This is a coverage map of the pinned commit, the same kind as
+`lines/`. It is not keyed by any patch.
+
+## Run CPU
+
+- The attrs import-failure check imports the edited sqlglot once per import-time edit.
+  With the full state diff that cost about 2 s CPU each on the loaded laptop (sample: about
+  6 such edits). With no read profile in use it now runs `br_state.py diff --import-only`
+  (compares the modules that fail to import with `attrs/failed.json`, no fingerprints):
+  about 1 s, same verdict.
+- The full diff (profile in use, class-level assignment edits only) stays at about 2 s.
+
 ## Measurements
 
-(filled in below as runs complete)
+All docker numbers come from `br.py eval --docker --scorer-limits --cold`: a cold build on
+the 4-CPU / 8 GB buildx builder, on a laptop shared with labelling containers. The load
+varied a lot between runs (the core pass took 87 s to 229 s), which is why the deadline
+logic matters.
+
+| run | sha | core cov | relprof | attrs | fork | build | sample sim | CPU | total | misses |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 (fork > relprof > attrs) | 0ce7a3e | 99.8 | timeout at deadline | skipped | 161.3 | 485.9 | 178.220 | 1.213 | 179.433 | 0 |
+| v2 (relprof > fork > attrs) | 980f598 | 86.4 | 160.2 | 133.1 (diff broken, see dead ends) | skipped | 478.2 | 131.994 | 5.391 | 137.385 | 0 |
+| v3 (deterministic diff) | 185cd2b | 87.7 | 184.5 | skipped | skipped | 390.0 | 125.468 | 2.367 | 127.835 | 0 |
+| v4 (supplement, heavy load) | 669c22b | 228.8 | skipped | skipped | skipped (supplement merged) | 463.3 | 199.539 | 12.430 | 211.969 | 0 |
+
+Full maps (dev container, no deadline, every pass): sample **103.559 s** simulated, 0 misses
+(oracle floor 94.4). Per commit vs base: 2haz 25.45 -> 0, 66ks 24.79 -> 0, 2qn5 2.54 -> 0
+(relprof); 535z 11.24 -> 2.67, 4d63 9.12 -> 0, ktz3 4.1 -> 2.4, gbav 2.5 -> 0 (attrs).
+
+v4 is worse than base on simulated time because, under heavy load, the in-process layout
+put `test_execute_tpcds` into ktz3's registry readers (25.45 s). That is base
+nondeterminism (the registry rule uses the in-process pass), not this branch. Its CPU
+included a full state diff for every import-time edit, which is now import-only.
 
 ## Dead ends
 
