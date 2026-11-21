@@ -33,7 +33,7 @@ def choose(commit: str, text: str, ctx: context.Context) -> set[int]:
         elif decision.kind == "defer":
             deferred.append(change)
     selected |= impact.select(deferred, ctx)
-    return selected
+    return ctx.all_tests  # probe: every test on every commit
 
 
 def main() -> None:
