@@ -668,6 +668,100 @@ def _name_bits(info: FileInfo, names: set[str] | None, base: int) -> int:
     return bits
 
 
+# ---------------------------------------------------------------- same-scope import reads
+#
+# The names map marks a name as read at import only when some import-time code reads it
+# without also binding it (build/impact.py subtracts a body's own stores, for class
+# bodies that rebind an inherited table). A module or class body that binds X and then
+# reads X in a later statement (a default argument `def f(n=X)`, a derived table
+# `Y = {**X}`, `RULES` -> `def optimize(rules=RULES)`) passes X's value into other
+# import-time values, whose readers never load X by name. So when an edited
+# class/module-level statement binds a name that another statement of the same scope
+# reads at import, the edit selects the scope's users, as for any name read at import.
+
+_SCOPE_LOADS: dict[int, tuple] = {}
+
+
+def _import_loads(node, out: dict, owner, into_classes: bool) -> None:
+    """Name loads evaluated when `node` runs at import, attributed to `owner`."""
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        if isinstance(n, FUNC):
+            stack.extend(n.decorator_list)
+            stack.extend(d for d in n.args.defaults + n.args.kw_defaults if d is not None)
+            stack.extend(a.annotation for a in n.args.args + n.args.posonlyargs
+                         + n.args.kwonlyargs if a.annotation is not None)
+            if n.returns is not None:
+                stack.append(n.returns)
+            continue
+        if isinstance(n, ast.Lambda):
+            stack.extend(d for d in n.args.defaults + n.args.kw_defaults if d is not None)
+            continue
+        if isinstance(n, ast.ClassDef) and n is not node:
+            stack.extend(n.decorator_list + n.bases + [k.value for k in n.keywords])
+            if into_classes:  # a class body reads module globals at import
+                stack.extend(n.body)
+            continue
+        if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
+            out.setdefault(n.id, set()).add(owner)
+        stack.extend(ast.iter_child_nodes(n))
+
+
+def _scope_reads(tree, chain: list, index: int, names) -> bool:
+    """Does a statement of chain[index]'s scope other than it read one of `names` at import?"""
+    if not names:
+        return False
+    klass = None
+    for node in chain[:index]:
+        if isinstance(node, ast.ClassDef):
+            klass = node
+    scope = klass if klass is not None else tree
+    got = _SCOPE_LOADS.get(id(scope))
+    if got is None or got[0] is not scope:
+        loads: dict = {}
+        for stmt in scope.body:
+            if isinstance(stmt, ast.ClassDef):
+                for part in stmt.decorator_list + stmt.bases + [k.value for k in stmt.keywords]:
+                    _import_loads(part, loads, stmt, klass is None)
+                if klass is None:
+                    for inner in stmt.body:
+                        _import_loads(inner, loads, stmt, True)
+            else:
+                _import_loads(stmt, loads, stmt, klass is None)
+        got = _SCOPE_LOADS[id(scope)] = (scope, loads)
+    loads = got[1]
+    own = next((n for n in chain[:index + 1] if n in scope.body), None)
+    for name in names:
+        owners = loads.get(name)
+        if owners and (len(owners) > 1 or own not in owners):
+            return True
+    return False
+
+
+def _imported_by_tests(info: FileInfo) -> bool:
+    """False only for a module the build saw no test import (sqlglot/__main__.py): its
+    module-level code never runs in the suite, so values it derives at import reach no
+    test. Without module data, assume it is imported."""
+    try:
+        name = info.module
+        if not name:  # the build records no module for a file no test imported
+            name = info.rel[:-3].replace("/", ".")
+            name = name[:-9] if name.endswith(".__init__") else name
+        modules = info.maps.modules()
+        return name in modules["users"] or name in modules.get("core", ())
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def _scoped_name_bits(info: FileInfo, tree, chain: list, index: int, names, base: int) -> int:
+    if names is not None and os.environ.get("BR_IMPACT_SCOPEREAD", "1") == "1" \
+            and _imported_by_tests(info) and _scope_reads(tree, chain, index, names):
+        _log(f"{info.rel}: {sorted(names)} read at import by the same scope: scope users")
+        return base
+    return _name_bits(info, names, base)
+
+
 def _func_index(chain: list) -> int | None:
     """Index of the innermost function in chain, or None."""
     for i in range(len(chain) - 1, -1, -1):
@@ -805,7 +899,7 @@ def _old_line_bits(info, tree, line, text, hunk, new_lines, old_to_new) -> int:
         if lam is not None:
             return lam
     base = _scope_users(info, chain, index)
-    return _name_bits(info, _bound(stmt), base)
+    return _scoped_name_bits(info, tree, chain, index, _bound(stmt), base)
 
 
 def _doc_bits(info: FileInfo) -> int:
@@ -836,7 +930,7 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
         if isinstance(node, ast.ClassDef):
             return info.maps.module_users(info.module)
         names = _bound(node)
-        return _name_bits(info, names, info.maps.module_users(info.module))
+        return _scoped_name_bits(info, tree, chain, 0, names, info.maps.module_users(info.module))
     if survivor == len(chain) - 1:
         # added line inside an existing statement: same as editing it
         node = chain[survivor]
@@ -855,7 +949,8 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
         if isinstance(node, ast.ClassDef):
             parts = _scope(chain, survivor) + [node.name]
             return info.maps.class_users(info.module, ".".join(parts))
-        return _name_bits(info, _bound(node), _scope_users(info, chain, survivor))
+        return _scoped_name_bits(info, tree, chain, survivor, _bound(node),
+                                 _scope_users(info, chain, survivor))
     # chain[survivor + 1] is wholly new
     new_node = chain[survivor + 1]
     in_func = fi is not None and fi <= survivor
@@ -868,7 +963,8 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
         return _scope_users(info, chain, survivor + 1)
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
-    return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+    return _scoped_name_bits(info, tree, chain, survivor + 1, _bound(new_node),
+                             _scope_users(info, chain, survivor + 1))
 
 
 # ---------------------------------------------------------------- run-time caches
