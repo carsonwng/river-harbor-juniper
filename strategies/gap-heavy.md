@@ -123,6 +123,15 @@ pass also stops at `BR_IMPACT_DEADLINE` (450 s into the impact step, default), a
 On this host it would have been skipped. On an unloaded 4-core build (coverage about 60 s,
 relprof about 125 s) it has about 250 s left.
 
+On top of `strat/gap-recall` `cd65792` (scratch merge; only `build/impact.py` conflicted,
+both passes kept), local, docker-built maps plus the instr map: sample 130.322 s sim,
+0 misses; **m1 296.670 s sim, 0 misses**. The recall import check closes `8owm`, and the
+gate's decisions are unchanged.
+
+The synthetic set is `validation/generate.py --sqlglot <pinned> -n 400 --seed 4242`,
+regenerated in a private scratch dir. An earlier copy in the shared job tmp dir had been
+contaminated by another agent's patches, and no number here comes from it.
+
 Selections on syn, before -> after: #1490 26->24, #1106 71->65, #1224 75->68, #1107 39->34,
 #1123 43->38, #1428 46->40, #1440 54->51. Sample: `bj7g` drops #1382 (3.6 -> 2.2 s).
 
