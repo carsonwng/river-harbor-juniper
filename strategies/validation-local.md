@@ -101,7 +101,8 @@ Running every test costs 32 × 36.8 = 1178 s.
 ## int/night-0147 (`24f5e6d`) on the full 32-commit set
 
 The detached worktree and `br.py eval --docker --data` give **0 misses**: simulated 326.4 s,
-cgroup CPU 3.2 s, **total 329.5 s** (oracle 126.0 s). In batch B, the most over-selected
+cgroup CPU 3.2 s, **total 329.5 s** (oracle 126.0 s). The most expensive commit is f7kz
+(`parsers/base.py`: 771 tests selected for 1 failing, 3 workers, 36.0 s). In batch B, the most over-selected
 commits are s31h (178 tests selected, 0 failing, 25.5 s), g9ct (25.5 s, 0 failing) and i0ru
 (25.5 s for 8 failing). nu29 (`is not -> !=` in `typing/hive.py`, 0 failing) was skipped
 entirely.
@@ -110,8 +111,9 @@ entirely.
 sample, 0 misses, total 135.0 s; local-20261120, 0 misses, 172.8 s (this ran the 16-commit
 batch A copy that sits untracked in the main checkout, not the 32-commit set on this branch);
 m1, 0 misses, 507.2 s; m1-extra, 0 misses, 259.8 s; and syn-import16, 0 misses, 593.0 s.
-To make verify see all 32 commits, copy this branch's `validation/sets/local-20261120/`
-over the main checkout's copy, or merge PR #4.
+The lead has since copied this 32-commit set into the main checkout's `validation/sets/`,
+so future `verify` runs use all 32. No more labelling is planned. The held-out sets now total
+64 (m1), 22 (m1-extra) and 32 (this one).
 
 ## int/night-1948 (`1a5f961`) on batch A
 
