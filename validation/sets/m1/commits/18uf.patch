@@ -1,0 +1,12 @@
+diff --git a/sqlglot/optimizer/merge_subqueries.py b/sqlglot/optimizer/merge_subqueries.py
+index a3ecb08..03c7cf5 100644
+--- a/sqlglot/optimizer/merge_subqueries.py
++++ b/sqlglot/optimizer/merge_subqueries.py
+@@ -133,7 +133,6 @@ UNMERGABLE_ARGS = set(exp.Select.arg_types) - {
+ # Projections in the outer query that are instances of these types can be replaced
+ # without getting wrapped in parentheses, because the precedence won't be altered.
+ SAFE_TO_REPLACE_UNWRAPPED = (
+-    exp.Column,
+     exp.Func,
+     exp.Paren,
+ )

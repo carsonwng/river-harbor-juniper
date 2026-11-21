@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..e8f71a8 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -19,7 +19,7 @@ where
+ group by
+         l_returnflag,
+         l_linestatus
+-order by
++order 42 by
+         l_returnflag,
+         l_linestatus;
+ SELECT

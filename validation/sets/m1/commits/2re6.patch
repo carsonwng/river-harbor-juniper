@@ -1,0 +1,26 @@
+diff --git a/sqlglot/generators/hive.py b/sqlglot/generators/hive.py
+index 20a071d..f16ed17 100644
+--- a/sqlglot/generators/hive.py
++++ b/sqlglot/generators/hive.py
+@@ -132,7 +132,7 @@ def _add_date_sql(self: HiveGenerator, expression: DATE_ADD_OR_SUB) -> str:
+     if isinstance(increment, exp.Literal):
+         value = increment.to_py() if increment.is_number else int(increment.name)
+         increment = exp.Literal.number(value * multiplier)
+-    elif multiplier != 1:
++    elif multiplier == 1:
+         increment *= exp.Literal.number(multiplier)
+ 
+     return self.func(func, expression.this, increment)
+diff --git a/sqlglot/generators/risingwave.py b/sqlglot/generators/risingwave.py
+index bb4ccba..936fc98 100644
+--- a/sqlglot/generators/risingwave.py
++++ b/sqlglot/generators/risingwave.py
+@@ -26,7 +26,7 @@ class RisingWaveGenerator(PostgresGenerator):
+         return Generator.computedcolumnconstraint_sql(self, expression)
+ 
+     def datatype_sql(self, expression: exp.DataType) -> str:
+-        if expression.is_type(exp.DType.MAP) and len(expression.expressions) == 2:
++        if expression.is_type(exp.DType.MAP) and len(expression.expressions) != 2:
+             key_type, value_type = expression.expressions
+             return f"MAP({self.sql(key_type)}, {self.sql(value_type)})"
+ 

@@ -1,0 +1,47 @@
+{
+ "084y": [
+  "code sqlglot/optimizer/eliminate_ctes.py: 1 -> 2"
+ ],
+ "0lnu": [
+  "fixture tests/fixtures/optimizer/pushdown_predicates.sql: line 34: insert 'AS'"
+ ],
+ "0rur": [
+  "fixture tests/fixtures/optimizer/optimize_joins.sql: line 11: insert 'NULL'"
+ ],
+ "0xw8": [
+  "code sqlglot/dialects/redshift.py: string \"%b\" -> \"b\""
+ ],
+ "18uf": [
+  "code sqlglot/optimizer/merge_subqueries.py: drop element line 136: exp.Column,"
+ ],
+ "1a8p": [
+  "code sqlglot/generator.py: and -> or"
+ ],
+ "1tbb": [
+  "fixture tests/fixtures/optimizer/eliminate_joins.sql: line 100: insert 'NULL'",
+  "code sqlglot/dialects/hive.py: True -> False"
+ ],
+ "26kc": [
+  "code sqlglot/executor/env.py: drop element line 294: \"LIKE\": null_if_any(lambda this, e: _like(this, e)),"
+ ],
+ "28pq": [
+  "code sqlglot/planner.py: and -> or",
+  "fixture tests/fixtures/optimizer/qualify_columns__with_invisible.sql: line 23: delete 'a'"
+ ],
+ "2re6": [
+  "code sqlglot/generators/risingwave.py: == -> !=",
+  "code sqlglot/generators/hive.py: != -> =="
+ ],
+ "3bd7": [
+  "comment sqlglot/generators/duckdb.py: docstring line 245: supports -> a supports"
+ ],
+ "3nvz": [
+  "code sqlglot/dialects/doris.py: drop element line 13: exp.Having: AliasPrecedence.ALIAS,"
+ ],
+ "48oa": [
+  "fixture tests/fixtures/optimizer/qualify_tables.sql: line 283: delete 'a'"
+ ],
+ "4mef": [
+  "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 22: insert '42'"
+ ]
+}

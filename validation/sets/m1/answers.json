@@ -1,0 +1,92 @@
+{
+ "commits": {
+  "084y": {
+   "failing": [],
+   "kind": "code"
+  },
+  "0lnu": {
+   "failing": [
+    1377
+   ],
+   "kind": "fixture"
+  },
+  "0rur": {
+   "failing": [
+    1362
+   ],
+   "kind": "fixture"
+  },
+  "0xw8": {
+   "failing": [
+    586
+   ],
+   "kind": "code"
+  },
+  "18uf": {
+   "failing": [
+    1343
+   ],
+   "kind": "code"
+  },
+  "1a8p": {
+   "failing": [
+    218
+   ],
+   "kind": "code"
+  },
+  "1tbb": {
+   "failing": [
+    139,
+    424,
+    1325
+   ],
+   "kind": "multi"
+  },
+  "26kc": {
+   "failing": [
+    1106,
+    1115,
+    1116
+   ],
+   "kind": "code"
+  },
+  "28pq": {
+   "failing": [
+    1096,
+    1384
+   ],
+   "kind": "multi"
+  },
+  "2re6": {
+   "failing": [
+    424,
+    434,
+    650,
+    974
+   ],
+   "kind": "multi"
+  },
+  "3bd7": {
+   "failing": [],
+   "kind": "comment"
+  },
+  "3nvz": {
+   "failing": [],
+   "kind": "code"
+  },
+  "48oa": {
+   "failing": [
+    1417
+   ],
+   "kind": "fixture"
+  },
+  "4mef": {
+   "failing": [
+    1107,
+    1123,
+    1441
+   ],
+   "kind": "fixture"
+  }
+ }
+}

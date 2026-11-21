@@ -1,0 +1,26 @@
+diff --git a/sqlglot/planner.py b/sqlglot/planner.py
+index cdf8bbd..a052814 100644
+--- a/sqlglot/planner.py
++++ b/sqlglot/planner.py
+@@ -246,7 +246,7 @@ class Step:
+                         continue
+ 
+                     # a bare column is a reference to an output name
+-                    if isinstance(key, exp.Column) and not key.table and key.name in distinct.group:
++                    if isinstance(key, exp.Column) and not key.table or key.name in distinct.group:
+                         continue
+ 
+                     key = key.copy()
+diff --git a/tests/fixtures/optimizer/qualify_columns__with_invisible.sql b/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
+index a65b183..727068b 100644
+--- a/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
++++ b/tests/fixtures/optimizer/qualify_columns__with_invisible.sql
+@@ -20,7 +20,7 @@ SELECT x.b AS b FROM x AS x CROSS JOIN (SELECT x.b AS b FROM x AS x) AS _0;
+ -- Expand *
+ --------------------------------------
+ SELECT * FROM x;
+-SELECT x.a AS a FROM x AS x;
++SELECT x.a AS  FROM x AS x;
+ 
+ SELECT * FROM y CROSS JOIN z ON y.b = z.b;
+ SELECT y.b AS b, z.b AS b FROM y AS y CROSS JOIN z AS z ON y.b = z.b;

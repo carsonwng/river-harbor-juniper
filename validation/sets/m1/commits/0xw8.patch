@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/redshift.py b/sqlglot/dialects/redshift.py
+index 5eca01b..23a61c4 100644
+--- a/sqlglot/dialects/redshift.py
++++ b/sqlglot/dialects/redshift.py
+@@ -29,7 +29,7 @@ class Redshift(Postgres):
+ 
+     TIME_MAPPING = {
+         **Postgres.TIME_MAPPING,
+-        "MON": "%b",
++        "MON": "b",
+         "MONTH": "%B",
+     }
+ 

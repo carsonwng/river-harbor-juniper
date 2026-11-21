@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/hive.py b/sqlglot/dialects/hive.py
+index ad0e128..0305c43 100644
+--- a/sqlglot/dialects/hive.py
++++ b/sqlglot/dialects/hive.py
+@@ -18,7 +18,7 @@ from sqlglot.typing.hive import EXPRESSION_METADATA
+ 
+ class Hive(Dialect):
+     ALIAS_POST_TABLESAMPLE = True
+-    IDENTIFIERS_CAN_START_WITH_DIGIT = True
++    IDENTIFIERS_CAN_START_WITH_DIGIT = False
+     SUPPORTS_USER_DEFINED_TYPES = False
+     SAFE_DIVISION = True
+     COLUMN_ALIAS_PRECEDENCE = {
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..f209f6e 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -97,7 +97,7 @@ SELECT
+   x.a
+ FROM x
+ LEFT JOIN (
+-  SELECT DISTINCT
++ NULL  SELECT DISTINCT
+     y.b,
+     y.c
+   FROM y

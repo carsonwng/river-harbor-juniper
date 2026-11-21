@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generator.py b/sqlglot/generator.py
+index 573d3c1..51e508e 100644
+--- a/sqlglot/generator.py
++++ b/sqlglot/generator.py
+@@ -4982,7 +4982,7 @@ class Generator:
+ 
+         if self.dialect.LOG_BASE_FIRST is False:
+             this, expr = expr, this
+-        elif self.dialect.LOG_BASE_FIRST is None and expr:
++        elif self.dialect.LOG_BASE_FIRST is None or expr:
+             if this.name in ("2", "10"):
+                 return self.func(f"LOG{this.name}", expr)
+ 
