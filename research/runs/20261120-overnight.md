@@ -128,3 +128,9 @@ Followed from now on, on top of RUNBOOK.md.
   (sample 176.9 s, -1%), doesn't beat the best submitted sample total by 2%, so it doesn't qualify under 4.1. Per the lead, an
   unused slot is better than an m1-failing candidate.
 - **Agent:** none started (`label-local` still running; budget is one at a time).
+
+## Cycle 5 (22:51 EST)
+
+- **Orient:** slot OPEN. `strat/impact-combo` still isn't on origin. m1 grew to **42** commits; the local untracked copy is
+  refreshed. origin/main gained `012cc2f` (scorer-like build timing, shared CPU budget) and `efc2ea4` (build budget research).
+- **Submission: slot unused** (no m1-safe candidate on origin). `label-local` is still running.
