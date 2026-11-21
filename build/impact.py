@@ -608,7 +608,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         for other, loaded in deps.items():
             if module in loaded:
                 bits |= direct.get(other, 0)
-        module_users[module] = bits | importers.get(module, 0)
+        module_users[module] = bits
 
     # ---- write
     sets = Sets()
@@ -638,6 +638,8 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         {k: sets.add(v) for k, v in sorted(class_users.items())}, separators=(",", ":")), "utf-8")
     (out / "modules.json").write_text(json.dumps(
         {"users": {k: sets.add(v) for k, v in sorted(module_users.items())},
+         "importers": {k: sets.add(v | module_users.get(k, 0))
+                       for k, v in sorted(importers.items())},
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")

@@ -116,6 +116,15 @@ class Maps:
         index = self.modules()["users"].get(module)
         return self.ALL if index is None else self.bits(index)
 
+    def crash_users(self, module: str | None) -> int:
+        """Tests that fail if importing `module` raises: its users plus every test
+        whose file imports it (directly or through other modules), which then fails
+        at collection. Maps without the importers entry: the users."""
+        if not module:
+            return self.ALL
+        index = self.modules().get("importers", {}).get(module)
+        return self.module_users(module) | (0 if index is None else self.bits(index))
+
     def class_users(self, module: str | None, qualname: str) -> int:
         index = self.classes().get(f"{module}:{qualname}")
         if index is None:
@@ -370,7 +379,9 @@ class FileInfo:
             if "core" in modules:
                 return self.maps.ALL
             for module in modules:
-                bits |= self.maps.module_users(module)
+                # it runs at import: a value change reaches the module's users, an
+                # exception fails every test whose file imports it
+                bits |= self.maps.crash_users(module)
         return bits
 
 
@@ -604,7 +615,7 @@ def _old_line_bits(info, tree, line, text, hunk, new_lines, old_to_new) -> int:
         # a later statement of the same class body reads the name while the class
         # is created: removing or breaking this binding can make the module's
         # import raise, which fails every user of the module, not just the class's
-        return info.maps.module_users(info.module)
+        return info.maps.crash_users(info.module)
     return _name_bits(info, names, base)
 
 
