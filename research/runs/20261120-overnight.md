@@ -115,3 +115,7 @@ Followed from now on, on top of RUNBOOK.md.
   An unused slot is preferred. Submissions 2 and 3 stay on the board but are **not safe final picks**.
 - The fix is expected in `strat/impact-combo` (isolate crash-users rule + attrs import check), which is pushed only once
   the sample and m1 both show 0 misses.
+- **Confirmed by docker verify (about 22:10):** `int/night-2120` `53eff6e` sample 133.683 s, 0 misses; **m1 577.186 s
+  (sim 573.012, CPU 4.174), 1 miss: `8owm`. VERIFY FAIL.** `int/night-1948` shares the base impact layer and is
+  taken as failing too (per the lead; not re-run). No candidate on origin passes m1, so the next slot goes unused
+  unless `strat/impact-combo` lands and passes.
