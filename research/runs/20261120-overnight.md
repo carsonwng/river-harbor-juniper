@@ -211,3 +211,10 @@ Followed from now on, on top of RUNBOOK.md.
 
 - Slot OPEN. No new commits on candidate branches since cycle 9. Combo's pinned-maps version isn't on origin yet (`strat/impact-combo` is still
   `f629b5d`, notes only). No m1-safe candidate beats submission 5 (sample 135.5) by 2%. **Slot unused.** No agents (thin until 03:40).
+
+## Cycle 11 (03:42 EST, normal mode resumed)
+
+- Slot OPEN. No new commits on any candidate branch. Combo pinned maps are still not on origin. No m1-safe candidate beats submission 5 by 2%.
+  **Slot unused.**
+- `label-local`: batch B (due about 00:30) produced nothing; no br-label containers are running and the branch is still at `7dac844`. Asked it to
+  finish batch B if its labels are clean, relabel what's missing (60 min cap), or write up batch A and finish. No new agent (one at a time).
