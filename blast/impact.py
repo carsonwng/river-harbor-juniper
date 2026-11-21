@@ -495,6 +495,12 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             _log(f"{path}: expression attribute diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
             return alt
+    if bits and path.startswith(TYPING) and _outside_functions(change, old_tree, new_tree):
+        alt = _typing_meta_bits(maps, path, new_text)
+        if alt is not None:
+            _log(f"{path}: typing metadata diff selects {bin(alt).count('1')} "
+                 f"(base {bin(bits).count('1')})")
+            return alt
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -1003,6 +1009,92 @@ def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
         if entry not in tracked or entry in unsafe or f"{ch[1]}|*" in unsafe:
             return None
         index = reads.get(entry)
+        if index is not None:
+            bits |= maps.bits(index)
+    return bits
+
+
+# ---------------------------------------------------------------- typing metadata tables
+#
+# (strat/r2-ledger) sqlglot.typing.* modules build EXPRESSION_METADATA tables
+# (expression class -> annotation spec); every dialect class copies one, and the
+# optimizer's TypeAnnotator looks entries up by the class of the node it annotates.
+# The base rules give a module-level edit there every user of the module, or every
+# test for sqlglot/typing/__init__.py, which the core import loads. An edit outside
+# every function body changes the program only through what the module binds at
+# import. br_meta.py imports the edited sqlglot once and compares (1) the whole
+# import-time state with the pristine snapshot (br_state.py) and (2) every metadata
+# table entry by entry. When the only differences are table entries, a test can see
+# the edit only by looking up one of the changed keys, by reading a table as a whole
+# (iteration, copy to a plain dict, comparison), or by reading code objects or source:
+# the coverage pass records the first two per test (br_cov_plugin), code_readers.json
+# the third. Anything else (another binding changed, a key that is not an expression
+# class, a missing map, a failed diff) keeps the base selection; an edit that breaks
+# an import selects every test.
+
+TYPING = "sqlglot/typing/"
+
+
+def _outside_functions(change: FileChange, old_tree, new_tree) -> bool:
+    seen = False
+    for tree, lines in ((old_tree, [n for h in change.hunks for n, _ in h.removed]),
+                        (new_tree, [n for h in change.hunks for n, _ in h.added])):
+        for line in lines:
+            seen = True
+            if any(isinstance(n, FUNC) for n in _chain(tree, line)):
+                return False
+    return seen
+
+
+def _metaread(maps: Maps) -> dict | None:
+    if not hasattr(maps, "_metaread"):
+        data = None
+        try:
+            path = maps.root / "metaread.json"
+            if path.exists():
+                raw = json.loads(path.read_text("utf-8"))
+                if raw.get("version") == 1:
+                    data = raw["reads"]
+        except Exception:  # noqa: BLE001
+            data = None
+        maps._metaread = data
+    return maps._metaread
+
+
+def _typing_meta_bits(maps: Maps, rel: str, new_text: str) -> int | None:
+    reads = _metaread(maps)
+    readers = maps.code_readers()
+    state = maps.root / "attrs" / "state.json"
+    pristine = maps.root / "attrs" / "meta.json"
+    script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_meta.py"
+    if reads is None or readers is None or not state.exists() or not pristine.exists()             or not script.exists():
+        return None
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot",
+             str(maps.sqlglot.resolve()), "--state", str(state.resolve()),
+             "--meta", str(pristine.resolve()), "--rel", rel],
+            input=new_text, capture_output=True, text=True, encoding="utf-8", timeout=120,
+            env=env, cwd=str(state.parent.resolve()))
+        lines = proc.stdout.strip().splitlines()
+        if not lines:
+            raise RuntimeError(f"no output, exit {proc.returncode}: {proc.stderr[-300:]}")
+        result = json.loads(lines[-1])
+    except Exception as exc:  # noqa: BLE001
+        _log(f"{rel}: typing metadata diff failed ({exc!r})")
+        return None
+    if result.get("import_failed"):
+        _log(f"{rel}: {result.get('error')}: every test")
+        return maps.ALL
+    if result.get("foreign") or result.get("bad_keys") or "keys" not in result:
+        _log(f"{rel}: typing metadata diff not confined to tables: {result.get('foreign', [])[:4]}")
+        return None
+    _log(f"{rel}: typing metadata keys changed {result['keys'][:8]}")
+    bits = readers
+    for key in ["*"] + list(result["keys"]):
+        index = reads.get(key)
         if index is not None:
             bits |= maps.bits(index)
     return bits

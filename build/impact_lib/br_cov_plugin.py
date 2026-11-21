@@ -122,19 +122,21 @@ PHASES = {"setup": 0, "call": 1, "teardown": 2, "collect": 3}
 
 
 def _begin():
-    global _cur, _types, _rcur
+    global _cur, _types, _rcur, _mcur
     _cur = set()
     _types = set()
     _rcur = set()
+    _mcur = set()
     M.restart_events()
 
 
 def _end(key: str, phase: str):
-    global _cur, _types, _rcur
-    lines, types, reads = _cur, _types, _rcur
-    _cur, _types, _rcur = _sink, set(), _rsink
+    global _cur, _types, _rcur, _mcur
+    lines, types, reads, mreads = _cur, _types, _rcur, _mcur
+    _cur, _types, _rcur, _mcur = _sink, set(), _rsink, _msink
     _sink.clear()
     _rsink.clear()
+    _msink.clear()
     if key not in _tests_pos:
         _tests_pos[key] = len(_tests)
         _tests.append(key)
@@ -153,6 +155,8 @@ def _end(key: str, phase: str):
                 if entry not in done:
                     done.add(entry)
                     _rindex.setdefault(entry, []).append(code)
+    for name in mreads:
+        _mindex.setdefault(name, []).append(code)
     if types:
         bucket = _typemap.setdefault(idx, [])
         for tp in types:
@@ -265,12 +269,158 @@ def _track_check() -> list[str]:
     return sorted(x for x in _unsafe if x)
 
 
+# ---------------------------------------------------------------- typing metadata lookups
+#
+# (strat/r2-ledger) Every typing metadata table (EXPRESSION_METADATA: expression class
+# -> annotation spec, in sqlglot.typing.* and copied into every Dialect class) is
+# replaced by a dict subclass that records, per test phase, each key looked up
+# (get, [], in) and whether the table was read as a whole (iteration, keys/items/
+# values, comparison, pickling, a plain-dict copy). copy() returns another recording
+# table, which is how every dialect class body takes its own. At the end every table
+# binding must still be a recording table, else the profile is marked unusable.
+
+TRACK_META = os.environ.get("BR_TRACK_META", "1") == "1"
+META_NAME = "EXPRESSION_METADATA"
+_mcur: set = set()      # key names read in this phase; "*" = whole table
+_msink: set = set()
+_mindex: dict[str, list] = {}
+_mproblems: list[str] = []
+
+
+def _mkey(k) -> str:
+    if isinstance(k, type):
+        return f"{getattr(k, '__module__', '?')}:{getattr(k, '__qualname__', '?')}"
+    return "*"  # a key we cannot name: counts as reading the whole table
+
+
+class _MetaDict(dict):
+    __slots__ = ()
+
+    def get(self, key, default=None):
+        _mcur.add(_mkey(key))
+        return dict.get(self, key, default)
+
+    def __getitem__(self, key):
+        _mcur.add(_mkey(key))
+        return dict.__getitem__(self, key)
+
+    def __contains__(self, key):
+        _mcur.add(_mkey(key))
+        return dict.__contains__(self, key)
+
+    def copy(self):
+        return _MetaDict(dict.items(self))
+
+    def __setitem__(self, key, value):
+        _mproblems.append(f"set {_mkey(key)}")
+        _mcur.add("*")
+        dict.__setitem__(self, key, value)
+
+    def __delitem__(self, key):
+        _mproblems.append(f"del {_mkey(key)}")
+        _mcur.add("*")
+        dict.__delitem__(self, key)
+
+
+def _whole(name):
+    base = getattr(dict, name)
+
+    def method(self, *args, **kwargs):
+        _mcur.add("*")
+        return base(self, *args, **kwargs)
+
+    method.__name__ = name
+    return method
+
+
+for _name in ("__iter__", "__reversed__", "keys", "values", "items", "__eq__", "__ne__",
+              "__or__", "__ror__", "__repr__", "__reduce__", "__reduce_ex__", "__len__",
+              "__sizeof__", "__format__", "__str__"):
+    setattr(_MetaDict, _name, _whole(_name))
+for _name in ("pop", "popitem", "setdefault", "update", "clear", "__ior__"):
+    def _mutator(self, *args, _n=_name, **kwargs):
+        _mproblems.append(_n)
+        _mcur.add("*")
+        return getattr(dict, _n)(self, *args, **kwargs)
+    setattr(_MetaDict, _name, _mutator)
+_MetaDict.__hash__ = None  # type: ignore[assignment]
+
+
+def _meta_bindings():
+    """(owner, attr, value) for every sqlglot module global / Dialect class attribute
+    bound to a typing metadata table."""
+    mods = [m for n, m in list(sys.modules.items())
+            if m is not None and (n == "sqlglot" or n.startswith("sqlglot."))]
+    classes = []
+    try:
+        from sqlglot.dialects.dialect import Dialect
+        stack = [Dialect]
+        while stack:
+            k = stack.pop()
+            classes.append(k)
+            stack.extend(type.__subclasses__(k))
+    except Exception:  # noqa: BLE001
+        _mproblems.append("no Dialect")
+    tables = {}
+    for m in mods:
+        v = vars(m).get(META_NAME)
+        if isinstance(v, dict):
+            tables[id(v)] = v
+    for k in classes:
+        v = k.__dict__.get(META_NAME)
+        if isinstance(v, dict):
+            tables[id(v)] = v
+    out = []
+    for m in mods:
+        for attr, v in list(vars(m).items()):
+            if id(v) in tables:
+                out.append((m, attr, v))
+    for k in classes:
+        for attr, v in list(k.__dict__.items()):
+            if id(v) in tables:
+                out.append((k, attr, v))
+    return out
+
+
+def _meta_setup() -> None:
+    import importlib
+    import pkgutil
+
+    try:
+        import sqlglot.typing as typing_pkg
+        for info in pkgutil.iter_modules(typing_pkg.__path__):
+            importlib.import_module(f"sqlglot.typing.{info.name}")
+    except Exception as exc:  # noqa: BLE001
+        _mproblems.append(f"typing import {exc!r}")
+        return
+    wrapped: dict[int, _MetaDict] = {}
+    for owner, attr, v in _meta_bindings():
+        if type(v) is not _MetaDict:
+            w = wrapped.get(id(v))
+            if w is None:
+                w = wrapped[id(v)] = _MetaDict(dict.items(v))
+            if isinstance(owner, type):
+                type.__setattr__(owner, attr, w)
+            else:
+                setattr(owner, attr, w)
+
+
+def _meta_check() -> list[str]:
+    problems = list(dict.fromkeys(_mproblems))
+    for owner, attr, v in _meta_bindings():
+        if type(v) is not _MetaDict:
+            problems.append(f"plain table {getattr(owner, '__name__', owner)}.{attr}")
+    return problems
+
+
 def pytest_configure(config):
     global _tool
     import sqlglot  # noqa: F401  core import-time lines are mapped by the import probe
 
     if TRACK_EXPR:
         _track_setup()
+    if TRACK_META:
+        _meta_setup()
 
     for tool in (M.COVERAGE_ID, 3, 4, 5):
         try:
@@ -344,4 +494,6 @@ def pytest_unconfigure(config):
                    "exprattr": {"reads": reads,
                                 "tracked": sorted({f"{_class_key(k)}|{a}" for k, a, _ in _installed
                                                    if _class_key(k)}) if TRACK_EXPR else [],
-                                "unsafe": _track_check() if TRACK_EXPR else ["*"]}}, handle)
+                                "unsafe": _track_check() if TRACK_EXPR else ["*"]},
+                   "metaread": {"reads": _mindex, "problems": _meta_check()} if TRACK_META
+                   else None}, handle)
