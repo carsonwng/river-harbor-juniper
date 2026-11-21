@@ -62,3 +62,6 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
 - **Submission 1 detail (from the track page):** all 3 runs 867.471 s simulated, 0.81-0.84 s CPU, **0 commits missed**.
   So triage's comment-only skip and fixture map did not miss on practice. **All three probes are retired**,
   because their question is answered directly. (Submission 1 was at 19:06, not 18:00.)
+- **Submission 2 score (reported by the human): 245.2 s** (868.3 to 245.2, -72%). It is below 300, so there are 0 misses.
+  The practice/sample ratio is 1.37 (submission 1: 1.21), so the impact selection is relatively larger on practice commits.
+  Worth a look for the cloud impact cluster: precision on practice, not recall.
