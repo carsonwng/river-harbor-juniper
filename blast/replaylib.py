@@ -80,21 +80,57 @@ def _qual(o) -> str:
     return f"{getattr(o, '__module__', '?')}.{getattr(o, '__qualname__', getattr(o, '__name__', '?'))}"
 
 
+_ATOM_TAG = {t: t.__name__ + ":" for t in _ATOMS}
+_KIND: dict[type, tuple] = {}  # type -> ("O", tag, slots, has_dict)
+
+
+def _kind(t):
+    k = _KIND.get(t)
+    if k is None:
+        if t is list or t is tuple:
+            k = ("L", t.__name__ + "[")
+        elif t is dict:
+            k = ("D",)
+        elif t in (set, frozenset):
+            k = ("S", t.__name__ + "[")
+        elif issubclass(t, enum.Enum):
+            k = ("E", f"E:{_qual(t)}.")
+        elif issubclass(t, types.FunctionType):
+            k = ("F",)
+        elif issubclass(t, types.MethodType):
+            k = ("M",)
+        elif issubclass(t, (type, types.BuiltinFunctionType, types.ModuleType, types.BuiltinMethodType)):
+            k = ("Q",)
+        else:
+            slots = _slotnames(t)
+            opaque = not slots and "__dict__" not in dir(t) and not (t.__module__ or "").startswith("sqlglot")
+            k = ("O", f"O:{_qual(t)}{{", tuple((s, s + "=") for s in slots), opaque)
+        _KIND[t] = k
+    return k
+
+
 def canon_digest(o, stale_check: bool = False) -> str:
     """Process-independent digest: atoms by value (not identity), classes/functions by
     qualname, containers and other objects structurally with identity (aliasing) kept.
-    A cached Expression `_hash` (string-hash-seed dependent) counts by presence, plus,
-    with stale_check, whether it differs from a fresh recomputation."""
+    A function made at run time also feeds its closure cells and defaults. A cached
+    Expression `_hash` (string-hash-seed dependent) counts by presence, plus, with
+    stale_check, whether it differs from a fresh recomputation."""
     parts: list[str] = []
     w = parts.append
     memo: dict[int, int] = {}
     keep = []
     hashed = []
+    atom_tag = _ATOM_TAG
+    kinds = _KIND
+    getattr_ = object.__getattribute__
 
     def feed(x) -> None:
         t = type(x)
-        if t in _ATOMS:
-            w(f"{t.__name__}:{x!r}|")
+        tag = atom_tag.get(t)
+        if tag is not None:
+            w(tag)
+            w(repr(x))
+            w("|")
             return
         r = memo.get(id(x))
         if r is not None:
@@ -102,50 +138,67 @@ def canon_digest(o, stale_check: bool = False) -> str:
             return
         memo[id(x)] = len(keep)
         keep.append(x)
-        if t is list or t is tuple:
-            w(f"{t.__name__}[{len(x)}")
-            for v in x:
-                feed(v)
-            w("]")
-        elif t is dict:
-            w(f"d[{len(x)}")
-            for k, v in x.items():
-                feed(k)
-                feed(v)
-            w("]")
-        elif isinstance(x, enum.Enum):
-            w(f"E:{_qual(t)}.{x.name}|")
-        elif isinstance(x, (type, types.FunctionType, types.BuiltinFunctionType, types.ModuleType,
-                            types.BuiltinMethodType)):
-            w(f"Q:{_qual(x)}|")
-        elif isinstance(x, types.MethodType):
-            w(f"M:{_qual(x.__func__)}(")
-            feed(x.__self__)
-            w(")")
-        elif t in (set, frozenset):
-            w(f"{t.__name__}[" + ",".join(sorted(canon_digest(v) for v in x)) + "]")
-        else:
-            w(f"O:{_qual(t)}{{")
+        k = kinds.get(t) or _kind(t)
+        c = k[0]
+        if c == "O":
+            w(k[1])
             d = getattr(x, "__dict__", None)
             if d is not None:
                 feed(dict(d))
-            slots = _slotnames(t)
-            for s in slots:
+            for s, se in k[2]:
                 try:
-                    v = object.__getattribute__(x, s)
+                    v = getattr_(x, s)
                 except AttributeError:
-                    w(f"{s}=<unset>;")
+                    w(se)
+                    w("<unset>;")
                     continue
                 if s == "_hash":
-                    w(f"_hash={v is not None};")
                     if v is not None:
+                        w("_hash=1;")
                         hashed.append(x)
+                    else:
+                        w("_hash=0;")
                     continue
-                w(f"{s}=")
+                w(se)
                 feed(v)
-            if d is None and not slots and not (t.__module__ or "").startswith("sqlglot"):
+            if k[3] and d is None:
                 w(f"R:{x!r}")
             w("}")
+        elif c == "L":
+            w(k[1])
+            w(str(len(x)))
+            for v in x:
+                feed(v)
+            w("]")
+        elif c == "D":
+            w(f"d[{len(x)}")
+            for kk, v in x.items():
+                feed(kk)
+                feed(v)
+            w("]")
+        elif c == "E":
+            w(k[1])
+            w(x.name)
+            w("|")
+        elif c == "F":
+            w(f"F:{_qual(x)}(")
+            if x.__closure__:
+                for cell in x.__closure__:
+                    try:
+                        feed(cell.cell_contents)
+                    except ValueError:
+                        w("<empty>")
+            feed(x.__defaults__)
+            feed(x.__kwdefaults__)
+            w(")")
+        elif c == "M":
+            w(f"M:{_qual(x.__func__)}(")
+            feed(x.__self__)
+            w(")")
+        elif c == "Q":
+            w(f"Q:{_qual(x)}|")
+        else:  # "S"
+            w(k[1] + ",".join(sorted(canon_digest(v) for v in x)) + "]")
 
     feed(o)
     if stale_check and hashed:
