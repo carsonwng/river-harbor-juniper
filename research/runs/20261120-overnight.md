@@ -231,3 +231,18 @@ Followed from now on, on top of RUNBOOK.md.
   `int/night-0147` one at a time, verifies each on sample + m1 (64) + m1-extra (22) + local-20261120 (32), watches build time, and pushes the
   passing `int/night-<HHMM>-<tag>` branches. It never submits. Reason: the sample/practice gap shows relprof's gains don't transfer, but triage
   fixture narrowing (gap-tests) and run-time checks should.
+
+## Cycle 13 (04:34 EST)
+
+- `gap-integrate` docker verifies (0 misses on every set: sample, m1 64, m1-extra 22, local-20261120 32, syn-import16, gap-tests-tpc), simulated s:
+
+  | branch | sample | m1 | m1-extra | local (32) | CPU sample / m1 |
+  | --- | --- | --- | --- | --- | --- |
+  | int/night-0147 (sub 5) | 131.4 | 495.5 | 256.8 | 326.4 | 3.6 / 11.6 |
+  | int/night-0403-tests `fb8fb95` | 124.7 | 453.1 | 235.5 | 326.4 | 3.7 / 11.8 |
+  | **int/night-0405-expr `ae47472`** | **123.0** | **420.9** | **203.1** | 326.4 | 4.3 / 12.1 |
+  | int/night-0406-heavy `d1d1203` | 130.0 | 436.3 | 235.0 | 304.9 | 3.4 / 12.4 |
+
+- **Submission 6 (04:34):** `int/night-0405-expr` `ae47472bab622ff152f56aa8cb52cbe34d4637e1`, receipt BB-83C2AEA4 (gap-tests + a gap-expr port on
+  night-0147). Reason: runbook 4.1. It is verified on every held-out set, and m1 is -15% and m1-extra -21% against submission 5; those are the
+  practice-like sets. Build time is not yet confirmed by the agent; a rejection would only cost this slot.
