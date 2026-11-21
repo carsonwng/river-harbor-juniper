@@ -88,5 +88,47 @@
  ],
  "9evc": [
   "code sqlglot/dialects/dune.py: string \"0x\" -> \"0\""
+ ],
+ "9gzt": [
+  "comment sqlglot/diff.py: comment before line 357"
+ ],
+ "bf82": [
+  "code sqlglot/expressions/temporal.py: True -> False"
+ ],
+ "c9om": [
+  "code sqlglot/dialects/spark.py: 16 -> 17"
+ ],
+ "d2f1": [
+  "code sqlglot/expressions/builders.py: drop not"
+ ],
+ "d2lm": [
+  "code sqlglot/parsers/drill.py: string \"TO_TIMESTAMP\" -> \"TO_TIMESTAMP \""
+ ],
+ "doay": [
+  "code sqlglot/parsers/risingwave.py: * -> +"
+ ],
+ "e9gs": [
+  "code sqlglot/optimizer/journal.py: 0 -> 1"
+ ],
+ "each": [
+  "code sqlglot/parsers/snowflake.py: True -> False"
+ ],
+ "elzo": [
+  "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 230: insert '42'"
+ ],
+ "flbx": [
+  "code sqlglot/dialects/bigquery.py: drop element line 92: \"HH12\": \"%I\","
+ ],
+ "frjh": [
+  "code sqlglot/dialects/materialize.py: string \"v\" -> \"vs\""
+ ],
+ "gu57": [
+  "code sqlglot/expressions/array.py: string \"this\" -> \"thi\""
+ ],
+ "h3rw": [
+  "code sqlglot/typing/__init__.py: is not -> !="
+ ],
+ "h4hk": [
+  "fixture tests/fixtures/optimizer/optimizer.sql: line 559: split word"
  ]
 }

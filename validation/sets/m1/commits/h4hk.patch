@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..0d28c40 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -556,7 +556,7 @@ OR (
+ 	sort_order DESC,
+ 	1
+ ) = 1;
+-SELECT
++S ELECT
+   "unioned"."uploaded_at" AS "uploaded_at",
+   "unioned"."source_system" AS "source_system",
+   "unioned"."unique_filter_key" AS "unique_filter_key",

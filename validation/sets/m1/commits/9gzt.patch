@@ -1,0 +1,12 @@
+diff --git a/sqlglot/diff.py b/sqlglot/diff.py
+index bfe8b15..ab5ca95 100644
+--- a/sqlglot/diff.py
++++ b/sqlglot/diff.py
+@@ -354,6 +354,7 @@ class ChangeDistiller:
+                                 source_leaf,
+                                 target_leaf,
+                             ),
++                        # This is intentional
+                         )
+ 
+         # Pick best matchings based on the highest score

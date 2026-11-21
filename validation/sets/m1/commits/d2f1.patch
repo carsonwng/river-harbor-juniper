@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/builders.py b/sqlglot/expressions/builders.py
+index b811238..bd44870 100644
+--- a/sqlglot/expressions/builders.py
++++ b/sqlglot/expressions/builders.py
+@@ -355,7 +355,7 @@ INTERVAL_DAY_TIME_RE = re.compile(
+ def to_interval(interval: str | Expr) -> Interval:
+     """Builds an interval expression from a string like '1 day' or '5 months'."""
+     if isinstance(interval, Literal):
+-        if not interval.is_string:
++        if interval.is_string:
+             raise ValueError("Invalid interval string.")
+ 
+         interval = interval.this

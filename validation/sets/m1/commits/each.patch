@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/snowflake.py b/sqlglot/parsers/snowflake.py
+index 493d1b7..83fb5a6 100644
+--- a/sqlglot/parsers/snowflake.py
++++ b/sqlglot/parsers/snowflake.py
+@@ -676,7 +676,7 @@ class SnowflakeParser(parser.Parser):
+             aad=seq_get(args, 3),
+             encryption_method=seq_get(args, 4),
+             aead=seq_get(args, 5),
+-            safe=True,
++            safe=False,
+         ),
+         "TRY_PARSE_JSON": lambda args: exp.ParseJSON(this=seq_get(args, 0), safe=True),
+         "TRY_TO_BINARY": lambda args: exp.ToBinary(

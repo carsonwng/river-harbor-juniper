@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/risingwave.py b/sqlglot/parsers/risingwave.py
+index 45fb834..33f4262 100644
+--- a/sqlglot/parsers/risingwave.py
++++ b/sqlglot/parsers/risingwave.py
+@@ -27,7 +27,7 @@ class RisingWaveParser(PostgresParser):
+     }
+ 
+     SCHEMA_UNNAMED_CONSTRAINTS = {
+-        *PostgresParser.SCHEMA_UNNAMED_CONSTRAINTS,
++        +PostgresParser.SCHEMA_UNNAMED_CONSTRAINTS,
+         "WATERMARK",
+     }
+ 

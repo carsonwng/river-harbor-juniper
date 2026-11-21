@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..0e51aef 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -227,7 +227,7 @@ where
+                         *
+                 from
+                         lineitem
+-                where
++       42          where
+                         l_orderkey = o_orderkey
+                         and l_commitdate < l_receiptdate
+         )

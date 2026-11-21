@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/__init__.py b/sqlglot/typing/__init__.py
+index 38db8a1..5d844a0 100644
+--- a/sqlglot/typing/__init__.py
++++ b/sqlglot/typing/__init__.py
+@@ -350,7 +350,7 @@ EXPRESSION_METADATA: ExprMetadataType = {
+     **{
+         expr_type: {
+             "annotator": lambda self, e: self._annotate_by_args(
+-                e, "this", "expressions", array=e.args.get("count") is not None
++                e, "this", "expressions", array=e.args.get("count") != None
+             )
+         }
+         for expr_type in {exp.Max, exp.Min}
