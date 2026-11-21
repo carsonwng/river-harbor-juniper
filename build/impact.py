@@ -374,6 +374,17 @@ def main() -> int:
     postprocess(root, out, probes, workers)
     log(f"postprocess in {time.time() - start:.1f}s")
 
+    # lambdas that run during import (strat/gap-mix; blast/impact.py _lambda_only_bits)
+    start = time.time()
+    try:
+        subprocess.run([sys.executable, str(LIB / "br_lambda_probe.py"), str(root),
+                        str(out / "lambdas.json")], cwd=str(root), env=env,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120, check=True)
+        log(f"lambda probe in {time.time() - start:.1f}s")
+    except Exception as exc:  # noqa: BLE001  the selector works without it
+        log(f"lambda probe failed, no lambdas map: {exc!r}")
+        (out / "lambdas.json").unlink(missing_ok=True)
+
     # relation profile of comparison sites (second, separate suite pass)
     start = time.time()
     try:

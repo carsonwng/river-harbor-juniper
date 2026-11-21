@@ -117,6 +117,21 @@ class Maps:
             self._relprof = data
         return self._relprof
 
+    def lambdas(self) -> dict | None:
+        """{rel: [first line of each lambda that runs during import]} or None."""
+        if not hasattr(self, "_lambdas"):
+            data = None
+            try:
+                path = self.root / "lambdas.json"
+                if path.exists():
+                    raw = json.loads(path.read_text("utf-8"))
+                    if raw.get("version") == 1 and raw.get("complete") and not raw.get("errors"):
+                        data = raw["started"]
+            except Exception:  # noqa: BLE001
+                data = None
+            self._lambdas = data
+        return self._lambdas
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -424,15 +439,20 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         _log(f"{path}: AST unchanged")
         return 0
     info = FileInfo(maps, path, old_text)
-    old_to_new = {o: n for n, o in new_to_old.items()}
-    bits = 0
-    for hunk in change.hunks:
-        for number, text in hunk.removed:
-            bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
-        for number, _text in hunk.added:
-            bits |= _new_line_bits(info, new_tree, number, new_to_old)
-        if bits == maps.ALL:
-            break
+    lam = _lambda_only_bits(info, old_tree, new_tree)
+    if lam is not None:
+        _log(f"{path}: only import-time lambda bodies changed")
+        bits = lam
+    else:
+        old_to_new = {o: n for n, o in new_to_old.items()}
+        bits = 0
+        for hunk in change.hunks:
+            for number, text in hunk.removed:
+                bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
+            for number, _text in hunk.added:
+                bits |= _new_line_bits(info, new_tree, number, new_to_old)
+            if bits == maps.ALL:
+                break
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -442,6 +462,75 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         if refined is not None:
             maps.pruned = True
             return refined
+    return bits
+
+
+# ---------------------------------------------------------------- import-time lambdas
+#
+# (strat/gap-mix) A class- or module-level statement runs at import. When the old
+# and the new statement are the same AST except inside the bodies of lambdas, the
+# import runs the same code and binds the same values, except that those lambdas
+# carry new code: creating a lambda does not evaluate its body. So until a lambda
+# is called the patched program is the pinned one, and a test can only change by
+# calling one of the edited lambdas, which runs its body: the tests that ran the
+# old body's lines. This needs the lambda not to run during import itself, which
+# build/impact_lib/br_lambda_probe.py records (no record: no narrowing). The
+# add/remove line rules otherwise take the whole statement's names, which for an
+# import-time table read by a metaclass is every user of the class or module.
+
+
+def _pair_import_level(old_list, new_list, out) -> bool:
+    """Pair module/class-level statements; differing non-def statements go to out.
+    False when the bodies do not pair up or a function or class header differs."""
+    if len(old_list) != len(new_list):
+        return False
+    for a, b in zip(old_list, new_list):
+        if type(a) is not type(b):
+            return False
+        if ast.dump(a) == ast.dump(b):
+            continue
+        if isinstance(a, ast.ClassDef):
+            if ast.dump(_header_copy(a)) != ast.dump(_header_copy(b)):
+                return False
+            if not _pair_import_level(a.body, b.body, out):
+                return False
+        elif isinstance(a, FUNC):
+            return False
+        else:
+            out.append((a, b))
+    return True
+
+
+def _lambda_only_bits(info: "FileInfo", old_tree, new_tree) -> int | None:
+    started = info.maps.lambdas()
+    if started is None:
+        return None
+    at_import = set(started.get(info.rel, ()))
+    pairs: list = []
+    if not _pair_import_level(old_tree.body, new_tree.body, pairs) or not pairs:
+        return None
+    import copy
+
+    bits = 0
+    for a, b in pairs:
+        la = [n for n in ast.walk(a) if isinstance(n, ast.Lambda)]
+        lb = [n for n in ast.walk(b) if isinstance(n, ast.Lambda)]
+        if not la or len(la) != len(lb):
+            return None
+        ca, cb = copy.deepcopy(a), copy.deepcopy(b)
+        holes_a = [n for n in ast.walk(ca) if isinstance(n, ast.Lambda)]
+        holes_b = [n for n in ast.walk(cb) if isinstance(n, ast.Lambda)]
+        for x, y in zip(holes_a, holes_b):
+            x.body = ast.Constant(None)
+            y.body = ast.Constant(None)
+        if ast.dump(ca) != ast.dump(cb):
+            return None  # something outside a lambda body changed
+        for x, y in zip(la, lb):
+            if ast.dump(x.body) == ast.dump(y.body):
+                continue
+            if x.lineno in at_import:
+                return None  # some lambda starting on this line runs during import
+            bits |= info.cov(x.body.lineno, x.body.end_lineno)
     return bits
 
 
