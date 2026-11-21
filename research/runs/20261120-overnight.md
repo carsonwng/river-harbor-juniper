@@ -196,3 +196,9 @@ Followed from now on, on top of RUNBOOK.md.
 - **Human request (01:46): submit the best run we have, watch results, and run thin until 03:40.** Candidate: `strat/gap-mix`
   `5fc0c56` (lead's branch: int/night-2120 + lambda cut + import-check fix for 8owm/doay; lead's docker eval sample 129.6 s,
   m1(42) 0 misses). `int/night-0147` = origin/main + gap-mix (`24f5e6d`); docker verify on sample + m1(64) + m1-extra + local started.
+- **Verify (01:54):** `int/night-0147` `24f5e6d` **PASS, 0 misses on every set** (docker): sample 135.523 (sim 131.362, CPU 4.161);
+  local-20261120 173.234; **m1 (64) 509.858** (sim 495.517, CPU 14.341); **m1-extra (22) 260.319**; syn-import16 594.049 (a set the
+  branch ships). Best m1-safe candidate: sample 135.5 vs combo's 194.1. Pushed.
+- **Submission 5 (01:54):** `int/night-0147` `24f5e6deb2a8feacc039cc6c4cd547aa8f592bba`, receipt BB-46097CB1. Reason: the human asked to
+  submit the best run, and it beats every other m1-safe candidate. Caveat: it inherits relprof, whose map was dropped on the scorer in
+  submission 3, so expect about 243 s minus gap-mix's lambda-cut gains plus import-check CPU, not the sample ratio.
