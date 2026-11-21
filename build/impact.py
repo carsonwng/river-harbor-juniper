@@ -427,6 +427,7 @@ def main() -> int:
     parser.add_argument("--work", type=Path, help="keep raw results here (default: temp)")
     parser.add_argument("--reuse", action="store_true", help="reuse raw results in --work")
     options = parser.parse_args()
+    began = time.time()
     root = options.sqlglot.resolve()
     out = options.out
     out.mkdir(parents=True, exist_ok=True)
@@ -486,8 +487,14 @@ def main() -> int:
         floor = float(os.environ.get("BR_INSTR_MIN_SECONDS", "1.5"))
         chosen = sorted((t for t, s in seconds.items() if s >= floor and t not in unsure),
                         key=lambda t: -seconds[t])
+        # optional pass: its own budget, and never past the impact step's overall
+        # deadline (the whole image build has 10 minutes; relprof goes first)
         budget = float(os.environ.get("BR_INSTR_BUDGET", "150"))
-        results = run_instr(root, work, env, options.jobs, chosen, start + budget)
+        overall = float(os.environ.get("BR_IMPACT_DEADLINE", "450"))
+        deadline = min(start + budget, began + overall)
+        if deadline - time.time() < 40:
+            raise RuntimeError(f"no time left ({time.time() - began:.0f}s into the impact build)")
+        results = run_instr(root, work, env, options.jobs, chosen, deadline)
         log(f"instr pass: {len(results)}/{len(chosen)} tests in {time.time() - start:.1f}s")
         if not results:
             raise RuntimeError("no instr results")
