@@ -8,6 +8,8 @@ one of its worktrees:
     python harness/br.py list                      branches, worktrees, best score each
     python harness/br.py eval [--docker] [-m MSG]  score the current worktree, log to board
     python harness/br.py board [--all]             leaderboard (best per branch, or every run)
+    python harness/br.py verify <ref> [--local]    docker-eval a ref on sample + held-out sets
+    python harness/br.py submission [add|score]    practice submission log + hourly slot
     python harness/br.py maps [--only LAYER]       run build/ steps locally into .maps/
     python harness/br.py oracle                    perfect-selection lower bound on sample
     python harness/br.py sqlglot                   clone sqlglot at the pinned commit (shared cache)
@@ -231,9 +233,9 @@ def cmd_eval(options) -> int:
     tests = json.loads((data_dir / "tests.json").read_text("utf-8"))["tests"]
     answers = json.loads(answers_path.read_text("utf-8"))["commits"]
 
-    branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
+    branch = options.label or git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
     if options.docker:
-        tag = "br-" + branch.replace("/", "-").lower()
+        tag = "br-" + "".join(c if c.isalnum() or c in "-_." else "-" for c in branch.lower())
         stdout, cpu_seconds, cpu_source = run_docker(root, data_dir, tag)
     else:
         stdout, cpu_seconds, cpu_source = run_local(root, data_dir)
@@ -345,6 +347,99 @@ def cmd_oracle(options) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- verify
+
+
+def data_sets(root: Path) -> list[Path]:
+    """sample plus every labelled held-out set under validation/sets/ (in root or main)."""
+    sets = {root / "sample"}
+    for base in (root, main_root()):
+        sets |= {p.parent for p in (base / "validation" / "sets").glob("*/answers.json")}
+    return sorted(sets, key=lambda p: (p.name != "sample", p.name))
+
+
+def cmd_verify(options) -> int:
+    """Docker-evaluate any ref on sample + held-out sets in a throwaway worktree.
+    Exit 0 only if every set is valid with 0 misses."""
+    root = main_root()
+    sha = git("rev-parse", "--short", options.ref, cwd=root)
+    path = root / ".worktrees" / f"_verify-{sha}"
+    if not path.exists():
+        git("worktree", "add", "--detach", str(path), sha, cwd=root)
+    ok = True
+    try:
+        if options.local:  # docker builds maps in the image; host runs need them built here
+            subprocess.run([sys.executable, str(root / "harness" / "br.py"), "maps"], cwd=path,
+                           capture_output=True)
+        for data in data_sets(path):
+            command = [sys.executable, str(root / "harness" / "br.py"), "eval",
+                       "--label", options.ref, "-m", options.message or f"verify {options.ref}"]
+            if not options.local:
+                command.append("--docker")
+            if data.name != "sample":
+                command += ["--data", str(data)]
+            log(f"verify {options.ref}@{sha} on {data.name}")
+            result = subprocess.run(command, cwd=path, capture_output=True, text=True)
+            print(f"[{data.name}] " + " | ".join(result.stdout.strip().splitlines()[-2:]))
+            if result.returncode != 0 or "Misses: 0" not in result.stdout:
+                ok = False
+                sys.stderr.write(result.stderr[-2000:])
+    finally:
+        if not options.keep:
+            git("worktree", "remove", "--force", str(path), cwd=root, check=False)
+    print(f"VERIFY {'PASS' if ok else 'FAIL'} {options.ref} {sha}")
+    return 0 if ok else 1
+
+
+# ---------------------------------------------------------------- submissions
+
+
+def submissions_path() -> Path:
+    return harness_state_dir() / "submissions.jsonl"
+
+
+def read_submissions() -> list[dict]:
+    path = submissions_path()
+    if not path.exists():
+        return []
+    return [json.loads(l) for l in path.read_text("utf-8").splitlines() if l.strip()]
+
+
+def cmd_submission(options) -> int:
+    """Machine log of practice submissions, used to respect the 1-per-hour limit."""
+    records = read_submissions()
+    now = dt.datetime.now()
+    if options.action == "add":
+        full = git("rev-parse", options.sha, cwd=main_root())
+        records.append({"time": now.isoformat(timespec="seconds"), "sha": full,
+                        "ref": options.ref or "", "expect": options.expect,
+                        "purpose": options.note or "", "score": None})
+    elif options.action == "score":
+        matches = [r for r in records if r["sha"].startswith(options.sha)]
+        if not matches:
+            log(f"no submission with sha {options.sha}")
+            return 1
+        matches[-1]["score"] = options.score
+    if options.action in ("add", "score"):
+        submissions_path().write_text("".join(json.dumps(r) + "\n" for r in records), "utf-8")
+    for r in records:
+        print(f"{r['time']}  {r['sha'][:9]}  {r.get('ref',''):28} expect={r.get('expect')}  "
+              f"score={r.get('score')}  {r.get('purpose','')}")
+    last = max((dt.datetime.fromisoformat(r["time"]) for r in records), default=None)
+    if last is None:
+        print("SLOT OPEN (no submissions logged)")
+        print("NEXT_WAIT_SECONDS=0")
+        return 0
+    if True:
+        ready = last + dt.timedelta(minutes=61)
+        print(f"SLOT {'OPEN' if now >= ready else 'CLOSED until ' + ready.strftime('%H:%M:%S')}"
+              f" (last {last.strftime('%H:%M:%S')})")
+        print(f"NEXT_WAIT_SECONDS={max(0, int((ready - now).total_seconds()))}")
+        return 0
+    print("NEXT_WAIT_SECONDS=0")
+    return 0
+
+
 # ---------------------------------------------------------------- maps
 
 
@@ -397,6 +492,7 @@ def main(argv: list[str]) -> int:
     p.add_argument("-m", "--message", help="note for the leaderboard")
     p.add_argument("-v", "--verbose", action="store_true", help="per-commit breakdown")
     p.add_argument("--no-log", action="store_true", help="do not write to the leaderboard")
+    p.add_argument("--label", help="branch name to record (default: current branch)")
     p.set_defaults(func=cmd_eval)
 
     p = sub.add_parser("board", help="show the shared leaderboard")
@@ -407,6 +503,22 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("oracle", help="lower bound from the answers (yardstick only)")
     p.add_argument("--data", help="data dir with tests.json and answers.json")
     p.set_defaults(func=cmd_oracle)
+
+    p = sub.add_parser("verify", help="docker-eval a ref on sample + held-out sets; exit 0 iff 0 misses")
+    p.add_argument("ref")
+    p.add_argument("--local", action="store_true", help="host python instead of docker")
+    p.add_argument("--keep", action="store_true", help="keep the throwaway worktree")
+    p.add_argument("-m", "--message")
+    p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("submission", help="log practice submissions; shows whether the hourly slot is open")
+    p.add_argument("action", nargs="?", default="status", choices=["status", "add", "score"])
+    p.add_argument("sha", nargs="?")
+    p.add_argument("score", nargs="?", type=float)
+    p.add_argument("--ref")
+    p.add_argument("--expect", type=float)
+    p.add_argument("--note")
+    p.set_defaults(func=cmd_submission)
 
     p = sub.add_parser("maps", help="run build/ steps locally into <worktree>/.maps")
     p.add_argument("--only", help="just this layer's build step")

@@ -15,10 +15,10 @@ triage's comment-only skip and the fixture map.
 
 ## Queue (next first)
 
-1. **Probe: comment skip off.** `main` with AST-identical source edits deferred instead of
+1. **Probe: comment skip off** (`probe/comment-skip-off` `474e945`, sample 828.3 s locally). `main` with AST-identical source edits deferred instead of
    skipped. A rise by a whole multiple of 36.8 s means the skip was safe. A drop of about 300 s,
    or a residual of about 5 s against multiples of 36.8, means the skip missed.
-2. **Probe: fixture rules off.** Fixture edits run every test. Read it the same way.
-3. **Probe: every test on every commit** (optional). Total = 36.817 × N + CPU, which gives N,
+2. **Probe: fixture rules off** (`probe/fixtures-off` `d861da4`, sample 994.5 s locally). Fixture edits run every test. Read it the same way.
+3. **Probe: every test on every commit** (`probe/all-tests` `8735070`, sample 1105.0 s locally; optional). Total = 36.817 × N + CPU, which gives N,
    the practice commit count.
 4. Best impact candidate from the cloud cluster, once it has 0 misses on held-out data.
