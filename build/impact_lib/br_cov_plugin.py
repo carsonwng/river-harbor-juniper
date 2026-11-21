@@ -17,7 +17,11 @@ Env: BR_IMPACT_ROOT (sqlglot checkout), BR_IMPACT_OUT (directory for results).
 
 from __future__ import annotations
 
+import ast
+import builtins
 import concurrent.futures
+import importlib.abc
+import importlib.machinery
 import json
 import os
 import pickle
@@ -110,6 +114,142 @@ try:
     _cfp.ProcessPoolExecutor = _InlinePool
 except Exception:
     pass
+
+
+# ---------------------------------------------------------------- arm probes
+#
+# Line coverage cannot tell which tests evaluated one operand of an expression that
+# shares its line with the rest of the statement (`a and b`, `x if c else y`, a
+# comprehension body or filter, a lambda body, an assert message). With BR_ARMS on,
+# an import hook compiles every sqlglot module from its pinned source with each such
+# conditionally evaluated operand ("arm") A rewritten to
+#
+#     (__br_arm__ or A)
+#
+# where `__br_arm__` is a builtin bound to False, so the value, the evaluation order
+# and every exception are A's own. The probe name alone is placed on a fake line
+# (ARM_LINE + the arm's index in its file), so the LINE event of that fake line says
+# that the test started evaluating A. Every real instruction keeps its position, and
+# the `or` keeps A's (so instructions placed at the operand's location, such as a
+# lambda's return, stay where they were): the real line coverage can only gain the
+# first line of an arm whenever the arm is entered, never lose a line. Annotations are left alone (with postponed
+# evaluation their source text is the value). The arm table per file (index ->
+# "line:col:end_line:end_col" of A in the pinned source) is written with the results.
+
+ARM_LINE = 10_000_000
+ARMS = os.environ.get("BR_ARMS", "1") != "0"
+_arm_tables: dict[str, list[str]] = {}
+
+
+class _ArmRewrite(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self.keys: list[str] = []
+
+    def arm(self, node):
+        if node is None or not hasattr(node, "end_col_offset"):
+            return node
+        line = ARM_LINE + len(self.keys)
+        self.keys.append(f"{node.lineno}:{node.col_offset}:{node.end_lineno}:{node.end_col_offset}")
+        probe = ast.Name(id="__br_arm__", ctx=ast.Load(), lineno=line, col_offset=0,
+                         end_lineno=line, end_col_offset=1)
+        wrapped = ast.BoolOp(op=ast.Or(), values=[probe, node])
+        return ast.copy_location(wrapped, node)
+
+    def _no_annotations(self, node, fields):
+        saved = [(f, getattr(node, f, None)) for f in fields]
+        for f, _ in saved:
+            setattr(node, f, None)
+        self.generic_visit(node)
+        for f, v in saved:
+            setattr(node, f, v)
+        return node
+
+    def visit_arg(self, node):
+        return node  # only an annotation below
+
+    def visit_FunctionDef(self, node):
+        return self._no_annotations(node, ("returns",))
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_AnnAssign(self, node):
+        return self._no_annotations(node, ("annotation",))
+
+    def visit_TypeAlias(self, node):
+        return node
+
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        node.values = node.values[:1] + [self.arm(v) for v in node.values[1:]]
+        return node
+
+    def visit_IfExp(self, node):
+        self.generic_visit(node)
+        node.body = self.arm(node.body)
+        node.orelse = self.arm(node.orelse)
+        return node
+
+    def _comp(self, node, fields):
+        self.generic_visit(node)
+        for f in fields:
+            setattr(node, f, self.arm(getattr(node, f)))
+        for i, gen in enumerate(node.generators):
+            if i:
+                gen.iter = self.arm(gen.iter)
+            gen.ifs = [self.arm(c) for c in gen.ifs]
+        return node
+
+    def visit_ListComp(self, node):
+        return self._comp(node, ("elt",))
+
+    visit_SetComp = visit_GeneratorExp = visit_ListComp
+
+    def visit_DictComp(self, node):
+        return self._comp(node, ("key", "value"))
+
+    def visit_Lambda(self, node):
+        self.generic_visit(node)
+        node.body = self.arm(node.body)
+        return node
+
+    def visit_Assert(self, node):
+        self.generic_visit(node)
+        node.msg = self.arm(node.msg)
+        return node
+
+
+class _ArmLoader(importlib.machinery.SourceFileLoader):
+    def get_code(self, fullname):
+        path = self.get_filename(fullname)
+        source = self.get_data(path)
+        rel = _relpath(path)
+        try:
+            rewrite = _ArmRewrite()
+            tree = rewrite.visit(ast.parse(source, path))
+            code = compile(tree, path, "exec", dont_inherit=True)
+        except Exception:  # noqa: BLE001  plain compile: no arms for this file
+            return compile(source, path, "exec", dont_inherit=True)
+        if rel is not None:
+            _arm_tables[rel] = rewrite.keys
+        return code
+
+
+class _ArmFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname != "sqlglot" and not fullname.startswith("sqlglot."):
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(fullname, path)
+        if spec is None or not spec.origin or not spec.origin.endswith(".py"):
+            return spec
+        if not os.path.normcase(os.path.realpath(spec.origin)).startswith(PREFIXES[0]):
+            return spec
+        spec.loader = _ArmLoader(fullname, spec.origin)
+        return spec
+
+
+if ARMS:
+    builtins.__br_arm__ = False
+    sys.meta_path.insert(0, _ArmFinder())
 
 
 # ---------------------------------------------------------------- bookkeeping
@@ -220,4 +360,4 @@ def pytest_unconfigure(config):
     with open(os.path.join(OUT, f"cov-{worker}.json"), "w", encoding="utf-8") as handle:
         json.dump({"tests": _tests, "files": files,
                    "types": {str(k): sorted(set(v)) for k, v in _typemap.items()},
-                   "outcomes": _outcomes}, handle)
+                   "outcomes": _outcomes, "arms": _arm_tables}, handle)

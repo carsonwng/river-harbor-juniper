@@ -117,6 +117,19 @@ class Maps:
             self._relprof = data
         return self._relprof
 
+    def code_readers(self) -> int | None:
+        """Tests that may read code objects without running them (None: unknown)."""
+        if not hasattr(self, "_readers"):
+            ids = self.meta.get("code_readers")
+            bits = None
+            if ids is not None:
+                pos = {t: i for i, t in enumerate(self.tests)}
+                bits = 0
+                for t in ids:
+                    bits |= 1 << pos[t] if t in pos else 0
+            self._readers = bits
+        return self._readers
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -426,11 +439,22 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     info = FileInfo(maps, path, old_text)
     old_to_new = {o: n for n, o in new_to_old.items()}
     bits = 0
+    skip_old: set[int] = set()
+    skip_new: set[int] = set()
+    if FINE:
+        try:
+            bits, skip_old, skip_new = _fine_parts(info, old_tree, new_tree, old_lines,
+                                                   new_lines, old_text)
+        except Exception as exc:  # noqa: BLE001  the statement-level path is always safe
+            _log(f"{path}: fine placement error {exc!r}")
+            bits, skip_old, skip_new = 0, set(), set()
     for hunk in change.hunks:
         for number, text in hunk.removed:
-            bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
+            if number not in skip_old:
+                bits |= _old_line_bits(info, old_tree, number, text, hunk, new_lines, old_to_new)
         for number, _text in hunk.added:
-            bits |= _new_line_bits(info, new_tree, number, new_to_old)
+            if number not in skip_new:
+                bits |= _new_line_bits(info, new_tree, number, new_to_old)
         if bits == maps.ALL:
             break
     if bits:
@@ -677,6 +701,269 @@ def _new_line_bits(info, tree, line, new_to_old) -> int:
     if _is_docstring(new_node, chain[survivor]):
         return _doc_bits(info) | _scope_users(info, chain, survivor + 1)
     return _name_bits(info, _bound(new_node), _scope_users(info, chain, survivor + 1))
+
+
+# ---------------------------------------------------------------- sub-statement placement
+#
+# Line coverage already separates the arms of an if/elif chain and loop bodies,
+# because they are different statements on different lines. What it does not use is
+# the position of an edit *inside* one statement: the statement-level rule credits
+# every test that ran any line of the statement (its header for compound ones), even
+# when the edit sits in one operand of a multi-line expression that only some of
+# those tests evaluated (an `x if c else y` arm, a non-first `and`/`or` operand, one
+# argument of a long call, a comprehension body, ...).
+#
+# Rule: pair the old and new statements (same as relprof: equal text is equal AST),
+# and for a differing statement in a function body find the minimal sub-expressions
+# E whose old and new ASTs differ (everything around them identical). Until one of
+# them starts evaluating, the patched function executes exactly like the pinned one,
+# so only a test that evaluated some E can change. Evaluating E runs at least one
+# instruction the compiler positioned inside E (checked on the pinned code objects;
+# an E without one, e.g. folded into a constant tuple, climbs to its parent), and
+# every executed instruction's line is recorded by the coverage pass. So the tests
+# that ran a line of E's span cover every test that evaluated E. A diff that reaches
+# the statement itself, changes which names the function binds or makes it a
+# generator/coroutine, keeps the statement-level rule.
+
+FINE = os.environ.get("BR_FINE", "1") != "0"
+_NO_FINE = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+_SCOPE_CHANGERS = (ast.Yield, ast.YieldFrom, ast.Await, ast.NamedExpr, ast.Global,
+                   ast.Nonlocal)
+
+
+def _located(node) -> bool:
+    return getattr(node, "end_col_offset", None) is not None and hasattr(node, "lineno")
+
+
+def _diff(a, b, header: bool, anchor, out: list) -> None:
+    """Append to `out` the minimal located old nodes where a and b differ."""
+    if type(a) is not type(b):
+        out.append(anchor)
+        return
+    for name, va in ast.iter_fields(a):
+        if header and name in BLOCK_FIELDS:
+            continue
+        if name in ("type_comment",):
+            continue
+        vb = getattr(b, name, None)
+        if isinstance(va, ast.AST):
+            if not isinstance(vb, ast.AST):
+                out.append(anchor)
+                return
+            if ast.dump(va) != ast.dump(vb):
+                _diff(va, vb, False, va if _located(va) else anchor, out)
+        elif isinstance(va, list):
+            if not isinstance(vb, list) or len(va) != len(vb):
+                out.append(anchor)
+                return
+            for x, y in zip(va, vb):
+                if isinstance(x, ast.AST) and isinstance(y, ast.AST):
+                    if ast.dump(x) != ast.dump(y):
+                        _diff(x, y, False, x if _located(x) else anchor, out)
+                elif x != y or type(x) is not type(y):
+                    out.append(anchor)
+                    return
+        elif va != vb or type(va) is not type(vb):
+            out.append(anchor)
+            return
+
+
+def _bindings(func) -> tuple:
+    """What decides the scopes of a function's names and the kind of its code
+    objects: every bound/deleted name, and the yield/await/global/nonlocal nodes."""
+    stores, kinds = set(), []
+    for node in ast.walk(func):
+        if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
+            stores.add(node.id)
+        elif isinstance(node, (ast.arg,)):
+            stores.add(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            stores.add(node.name)
+        elif isinstance(node, ast.alias):
+            stores.add(node.asname or node.name)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            stores.add(node.name)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            stores.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            stores.add(node.rest)
+        if isinstance(node, _SCOPE_CHANGERS):
+            kinds.append((type(node).__name__, tuple(getattr(node, "names", ()))))
+    return frozenset(stores), tuple(sorted(kinds))
+
+
+def _path_to(tree, target) -> list | None:
+    """Statement-like nodes from the module down to `target` (inclusive)."""
+    chain = []
+    nodes = tree.body
+    line = target.lineno
+    while True:
+        for node in nodes:
+            if node is target:
+                chain.append(node)
+                return chain
+            lo, hi = _span(node)
+            if lo <= line <= hi:
+                chain.append(node)
+                nodes = list(_children(node))
+                break
+        else:
+            return None
+
+
+class _Positions:
+    """Instruction positions of the pinned module's code objects, by start line."""
+
+    def __init__(self, source: str, rel: str) -> None:
+        self.by_line: dict[int, list[tuple[int, int, int, int]]] = {}
+        stack = [compile(source, rel, "exec", dont_inherit=True)]
+        while stack:
+            co = stack.pop()
+            stack.extend(c for c in co.co_consts if hasattr(c, "co_code"))
+            for pos in co.co_positions():
+                if None in pos:
+                    continue
+                self.by_line.setdefault(pos[0], []).append(pos)
+
+    def owns(self, node) -> bool:
+        lo, hi = node.lineno, node.end_lineno
+        start, end = (lo, node.col_offset), (hi, node.end_col_offset)
+        for line in range(lo, hi + 1):
+            for l, el, c, ec in self.by_line.get(line, ()):
+                if (l, c) >= start and (el, ec) <= end:
+                    return True
+        return False
+
+
+def _arm_key(node, parent) -> bool:
+    """Whether `node` is an operand its parent may skip, probed by br_cov_plugin."""
+    if isinstance(parent, ast.BoolOp):
+        return any(v is node for v in parent.values[1:])
+    if isinstance(parent, ast.IfExp):
+        return node is parent.body or node is parent.orelse
+    if isinstance(parent, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return node is parent.elt
+    if isinstance(parent, ast.DictComp):
+        return node is parent.key or node is parent.value
+    if isinstance(parent, ast.comprehension):
+        return any(c is node for c in parent.ifs)
+    if isinstance(parent, ast.Lambda):
+        return node is parent.body
+    if isinstance(parent, ast.Assert):
+        return node is parent.msg
+    return False
+
+
+def _arm_filter(info: FileInfo, e, stmt, parents, bits: int) -> int:
+    """Keep the tests that started every probed arm enclosing `e` in `stmt`: a test
+    that never entered an arm never evaluated anything inside it. (The plugin also
+    probes inner comprehension iterables; they are left out here, which only keeps
+    more tests.)"""
+    arms = info.data.get("arms")
+    if not arms or not bits:
+        return bits
+    node = e
+    while node is not stmt:
+        parent = parents.get(node)
+        if parent is None:
+            break
+        if _located(node) and _arm_key(node, parent):
+            index = arms.get(f"{node.lineno}:{node.col_offset}:{node.end_lineno}:"
+                             f"{node.end_col_offset}")
+            if index is not None:
+                bits &= info.maps.bits(index)
+        node = parent
+    return bits
+
+
+def _fine_parts(info: FileInfo, old_tree, new_tree, old_lines, new_lines, old_text):
+    """(bits, old lines handled, new lines handled) for the differing statements
+    that sub-statement placement can narrow: statements in function bodies, and
+    class/module-level statements whose every difference lies in lambda bodies. The
+    remaining edited lines go through the statement-level rules."""
+    parts: list = []
+    if not _differing(old_tree.body, new_tree.body, old_lines, new_lines, parts):
+        return 0, set(), set()
+    positions = None
+    parents = None
+    bits = 0
+    skip_old: set[int] = set()
+    skip_new: set[int] = set()
+    for a, b, header in parts:
+        if not isinstance(a, ast.stmt) or isinstance(a, _NO_FINE):
+            continue
+        chain_a = _path_to(old_tree, a)
+        chain_b = _path_to(new_tree, b)
+        if not chain_a or not chain_b or len(chain_a) != len(chain_b):
+            continue
+        fi = _func_index(chain_a[:-1])
+        if fi is not None:
+            if not isinstance(chain_b[fi], FUNC):
+                continue
+            if _is_docstring(a, chain_a[-2]) or _is_docstring(b, chain_b[-2]):
+                continue
+            if _bindings(chain_a[fi]) != _bindings(chain_b[fi]):
+                continue
+        elif header or _bindings(a) != _bindings(b):
+            continue
+        diffs: list = []
+        _diff(a, b, header, a, diffs)
+        if not diffs:
+            continue
+        if positions is None:
+            positions = _Positions(old_text, info.rel)
+            parents = _parents(old_tree)
+        part_bits = _part_bits(info, a, diffs, positions, parents, fi is not None)
+        if part_bits is None:
+            continue
+        bits |= part_bits
+        for node, skip in ((a, skip_old), (b, skip_new)):
+            lo, hi = node.lineno, node.end_lineno
+            first = _first_body_line(node) if header else None
+            if first is not None:
+                hi = first - 1
+            skip.update(range(lo, hi + 1))
+    return bits, skip_old, skip_new
+
+
+def _part_bits(info: FileInfo, stmt, diffs, positions, parents, in_function: bool):
+    """Tests that may evaluate one of the differing nodes, or None to keep the
+    statement-level rule."""
+    bits = 0
+    for e in diffs:
+        while e is not stmt and not positions.owns(e):
+            e = parents.get(e, stmt)
+            while e is not stmt and not _located(e):
+                e = parents.get(e, stmt)
+        if e is stmt or isinstance(e, ast.stmt):
+            return None  # the statement itself differs
+        if in_function:
+            lo, hi = e.lineno, e.end_lineno
+            bits |= _arm_filter(info, e, stmt, parents, info.cov(lo, hi))
+            bits |= info.import_bits(lo, hi)
+            continue
+        # class or module level: only inside a lambda body (it runs when called,
+        # like the statement-level lambda rule: the tests that ran the body)
+        node, lam = e, None
+        while node is not stmt:
+            parent = parents.get(node)
+            if parent is None:
+                return None
+            if isinstance(parent, ast.Lambda):
+                lam = parent if node is parent.body else None
+                break
+            node = parent
+        if lam is None:
+            return None
+        called = info.data.get("import_lambdas")
+        readers = info.maps.code_readers()
+        if called is None or readers is None:
+            return None  # maps without the import-time lambda calls
+        lo, hi = lam.body.lineno, lam.body.end_lineno
+        bits |= _arm_filter(info, e, lam, parents, info.cov(lo, hi)) | readers
+        for module in called.get(str(lam.lineno), ()):
+            bits |= info.maps.ALL if module == "core" else info.maps.module_users(module)
+    return bits
 
 
 # ---------------------------------------------------------------- relation profile

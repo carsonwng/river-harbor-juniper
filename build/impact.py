@@ -41,6 +41,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 LIB = HERE / "impact_lib"
 VERSION = 1
+ARM_LINE = 10_000_000  # br_cov_plugin's fake line base for arm probes
 CO_NEWLOCALS = 0x2
 LOAD_OPS = {"LOAD_ATTR", "LOAD_GLOBAL", "LOAD_NAME", "LOAD_METHOD", "LOAD_SUPER_ATTR",
             "LOAD_FROM_DICT_OR_GLOBALS", "LOAD_FROM_DICT_OR_DEREF", "LOAD_DEREF",
@@ -418,6 +419,9 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     ALL = (1 << len(tests)) - 1
 
     line_bits: dict[str, dict[int, int]] = {}
+    arm_tables: dict[str, list[str]] = {}
+    arm_bits: dict[str, dict[str, int]] = {}
+    arm_bad: set[str] = set()
     for w in workers:
         wtests = w["tests"]
         expand: dict[int, int] = {}
@@ -436,13 +440,30 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 expand[code] = got
             return got
 
+        tables = w.get("arms", {})
+        for rel, table in tables.items():
+            known = arm_tables.setdefault(rel, table)
+            if known != table:
+                arm_bad.add(rel)  # workers disagree on the arm order: no arms here
         for rel, lines in w["files"].items():
             target = line_bits.setdefault(rel, {})
+            table = tables.get(rel)
             for line, codes in lines.items():
-                acc = target.get(int(line), 0)
+                line = int(line)
+                if line >= ARM_LINE:  # arm probe (br_cov_plugin): keyed by the arm's span
+                    if table is None or line - ARM_LINE >= len(table):
+                        arm_bad.add(rel)
+                        continue
+                    key = table[line - ARM_LINE]
+                    acc = arm_bits.setdefault(rel, {}).get(key, 0)
+                    for code in codes:
+                        acc |= bits_for(code)
+                    arm_bits[rel][key] = acc
+                    continue
+                acc = target.get(line, 0)
                 for code in codes:
                     acc |= bits_for(code)
-                target[int(line)] = acc
+                target[line] = acc
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -464,8 +485,13 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     core = probes.get("core", {})
     core_modules = set(core.get("loaded", []))
     imp_lines: dict[str, dict[int, list[str]]] = {}
+    imp_lambdas: dict[str, dict[int, list[str]]] = {}
     deps: dict[str, set[str]] = {}
     for module, probe in probes.items():
+        for rel, starts in probe.get("lambdas", {}).items():
+            target = imp_lambdas.setdefault(rel, {})
+            for line in starts:
+                target.setdefault(line, []).append(module)
         for rel, lines in probe.get("lines", {}).items():
             target = imp_lines.setdefault(rel, {})
             for line in lines:
@@ -661,6 +687,14 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         data = {"module": rel_to_module.get(rel),
                 "lines": {str(l): sets.add(b) for l, b in sorted(line_bits.get(rel, {}).items())},
                 "import": {str(l): sorted(set(m)) for l, m in sorted(imp_lines.get(rel, {}).items())}}
+        if all("lambdas" in p for p in probes.values()):
+            # lambdas (by first line) called while some module was imported
+            data["import_lambdas"] = {str(l): sorted(set(m)) for l, m in
+                                      sorted(imp_lambdas.get(rel, {}).items())}
+        if rel in arm_tables and rel not in arm_bad:
+            # every probed arm, evaluated or not: arm span -> tests that started it
+            hits = arm_bits.get(rel, {})
+            data["arms"] = {k: sets.add(hits.get(k, 0)) for k in sorted(set(arm_tables[rel]))}
         (lines_dir / (rel.replace("/", "__") + ".json")).write_text(
             json.dumps(data, separators=(",", ":")), "utf-8")
     # a name no code loads by name is read dynamically (getattr(self, f"{x}_sql")):
@@ -676,10 +710,21 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
          "core": sorted(core_modules)}, separators=(",", ":")), "utf-8")
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
+    # tests in modules that read code objects (`__code__`, `co_code`, ...): they can
+    # see a function or lambda change without running it
+    readers = set()
+    for path in sorted((root / "tests").rglob("*.py")):
+        text = path.read_text("utf-8", "replace")
+        if "__code__" in text or "co_code" in text or "co_consts" in text:
+            module = path.relative_to(root).as_posix()
+            own = [t for t in tests if t.split("::", 1)[0] == module]
+            readers.update(own or tests)  # a helper module: whoever imports it
     (out / "meta.json").write_text(json.dumps(
         {"version": VERSION, "sqlglot": str(root), "tests": tests, "unsure": unsure,
+         "code_readers": sorted(readers),
          "python": sys.version}, separators=(",", ":")), "utf-8")
-    log(f"{len(sets.items)} distinct sets, {len(names)} names, {len(class_users)} classes")
+    log(f"{len(sets.items)} distinct sets, {len(names)} names, {len(class_users)} classes, "
+        f"arms in {len(set(arm_tables) - arm_bad)} files ({len(arm_bad)} dropped)")
 
 
 if __name__ == "__main__":

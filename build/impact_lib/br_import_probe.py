@@ -26,21 +26,36 @@ def probe(module: str) -> None:
     lines: dict[str, set] = {}
     rel: dict[str, object] = {}
 
-    def on_line(code, line):
-        name = code.co_filename
+    def relpath(name):
         r = rel.get(name, 0)
         if r == 0:
             norm = os.path.normcase(os.path.realpath(name)) if not name.startswith("<") else ""
             r = os.path.relpath(norm, root).replace(os.sep, "/") if norm.startswith(prefix) else None
             rel[name] = r
+        return r
+
+    def on_line(code, line):
+        r = relpath(code.co_filename)
         if r is not None:
             lines.setdefault(r, set()).add(line)
+        return M.DISABLE
+
+    lambdas: dict[str, set] = {}
+
+    def on_start(code, offset):
+        # a lambda called while importing (its body is not a separate line from
+        # where it is made, so the lines alone cannot tell)
+        if code.co_name == "<lambda>":
+            r = relpath(code.co_filename)
+            if r is not None:
+                lambdas.setdefault(r, set()).add(code.co_firstlineno)
         return M.DISABLE
 
     before = set(sys.modules)
     M.use_tool_id(3, "probe")
     M.register_callback(3, M.events.LINE, on_line)
-    M.set_events(3, M.events.LINE)
+    M.register_callback(3, M.events.PY_START, on_start)
+    M.set_events(3, M.events.LINE | M.events.PY_START)
     error = None
     try:
         importlib.import_module("sqlglot" if module == "core" else module)
@@ -50,7 +65,8 @@ def probe(module: str) -> None:
     loaded = sorted(m for m in set(sys.modules) - before if m.startswith("sqlglot"))
     with open(os.path.join(outdir, module + ".json"), "w", encoding="utf-8") as handle:
         json.dump({"module": module, "error": error, "loaded": loaded,
-                   "lines": {k: sorted(v) for k, v in lines.items()}}, handle)
+                   "lines": {k: sorted(v) for k, v in lines.items()},
+                   "lambdas": {k: sorted(v) for k, v in lambdas.items()}}, handle)
 
 
 sys.path.insert(0, root_arg)
