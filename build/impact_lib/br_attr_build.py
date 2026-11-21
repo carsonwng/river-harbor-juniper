@@ -67,6 +67,7 @@ def prepare(root: Path, work: Path, out: Path, env: dict) -> None:
     start = time.time()
     state = br_state.build_state(root, adir / "state.json", pyc=pyc.resolve())
     (adir / "opaque.json").write_text(json.dumps(state["opaque"]), "utf-8")
+    (adir / "failed.json").write_text(json.dumps(state.get("failed", [])), "utf-8")
     log(f"state in {time.time() - start:.1f}s")
     penv = dict(env, PYTHONHASHSEED="0", PYTHONPYCACHEPREFIX=str(pyc.resolve()))
     tracked = work / "tracked.json"

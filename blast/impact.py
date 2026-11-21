@@ -1322,9 +1322,10 @@ def _diff_bits(maps: Maps, rel: str, new_text: str, use_profile: bool = True) ->
     if (adir / "pyc").is_dir():
         env["PYTHONPYCACHEPREFIX"] = str((adir / "pyc").resolve())
     try:
+        mode = [] if use_profile or not (adir / "failed.json").exists() else             ["--import-only", str(adir / "failed.json")]
         proc = subprocess.run(
             [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot", str(maps.sqlglot.resolve()),
-             "--state", str(adir / "state.json"), "--rel", rel],
+             "--state", str(adir / "state.json"), "--rel", rel] + mode,
             input=new_text, capture_output=True, text=True, timeout=120, env=env,
             cwd=str(adir))
         lines = proc.stdout.strip().splitlines()

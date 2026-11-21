@@ -437,6 +437,9 @@ def main() -> int:
     parser.add_argument("--state", type=Path, help="pristine snapshot (diff mode)")
     parser.add_argument("--rel", help="edited file, relative to --sqlglot (diff mode)")
     parser.add_argument("--unordered", type=Path, help="JSON list of entries to fingerprint unordered")
+    parser.add_argument("--import-only", type=Path,
+                        help="diff mode: only check imports against this JSON list of the "
+                             "modules that fail to import in the pristine checkout")
     opts = parser.parse_args()
     if os.environ.get("PYTHONHASHSEED") != "0":
         print("PYTHONHASHSEED must be 0", file=sys.stderr)
@@ -463,6 +466,16 @@ def main() -> int:
         state = snapshot(unordered=unordered)
         state["failed"] = failed
         opts.out.write_text(json.dumps(state, separators=(",", ":")), "utf-8")
+        return 0
+    if opts.import_only:
+        # only "does the edited sqlglot still import every module the pristine one
+        # does": no fingerprints, so a fraction of the full diff's cost
+        failed = import_all(root)
+        expected = json.loads(opts.import_only.read_text("utf-8"))
+        if failed != expected:
+            print(json.dumps({"error": f"import failures differ: {failed}", "import_failed": True}))
+        else:
+            print(json.dumps({"imports": "ok"}))
         return 0
     old = json.loads(opts.state.read_text("utf-8"))
     failed = import_all(root)
