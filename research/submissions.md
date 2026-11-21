@@ -11,6 +11,7 @@ Limit: one submission per hour. Track page: not committed (ask the human).
 | 5 | 2026-11-21 01:54 | `24f5e6d` | `int/night-0147`: main + strat/gap-mix `5fc0c56` (int/night-2120 + lambda cut + import check) | 135.5 s; m1 (64) 0; m1-extra (22) 0; local (16) 0 | **244.9 s** | receipt BB-46097CB1. Runs 242.04 sim (= submission 3), 2.89-2.92 s CPU, 0 missed. **Best m1-safe** |
 | 6 | 2026-11-21 04:34 | `ae47472` | `int/night-0405-expr`: night-0147 + gap-tests + gap-expr port (gap-integrate agent) | sample 127.3; m1 sim 420.9; m1-extra 203.1; local (32) 326.4; all 0 misses | **213.9 s** | receipt BB-83C2AEA4. Runs 210.365 sim, 3.54-3.57 s CPU, 0 missed. **Best; m1-safe; currently the final entry** |
 | 7 | 2026-11-21 05:38 | `1b6118f` | `int/night-0519-norelprof`: sub 6 + gap-heavy + `ENV BR_RELPROF_TIMEOUT=0` (build 228.5 s) | sample 178.6 (no relprof); m1 456.8; m1-extra 206.7; local 308.4; all 0 misses | **215.8 s** | receipt BB-97E04B82. Runs 211.977 sim, 3.80-3.81 s CPU, 0 missed. +1.9 vs sub 6: heavy gives no practice gain, relprof was worth about 1.6 s. Shorter build (228.5 s) |
+| 8 | 2026-11-21 06:58 | `f89594d` | `strat/runcpu2`: sub 6 + CPU-only cuts (AST cache, fork-server import check, compileall, -I -S); stdout byte-identical | sample 125.4; CPU m1 12.1 to 4.8; all 0 misses | pending | receipt BB-AC138D27 |
 
 ## Reading submission 1
 

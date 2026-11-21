@@ -282,3 +282,12 @@ Followed from now on, on top of RUNBOOK.md.
   about 1.9 s worse, which gives more margin if the final's builder is slower. Both are m1-safe.
 - **Agent:** started `runcpu2` (Opus, runbook task 4) on `strat/runcpu2` from `ae47472`. Goal: cut run CPU (about 3.55 s on practice) with byte-identical
   stdout on the sample and every held-out set, porting `strat/runcpu`'s unmerged work where it still applies. Never submits.
+
+## Cycle 15 (06:41-06:58 EST)
+
+- **`runcpu2` result:** `strat/runcpu2` `f89594d` (from `ae47472`). It adds a shared AST parse cache with dump-free equality and virtual body blanking
+  (no deepcopy), the import check through a fork server holding a pristine `import sqlglot`, compile from cached trees, compileall at build, and
+  `python -I -S`. The selector stdout is **byte-identical** to ae47472 on sample, m1, m1-extra, local-20261120, gap-tests-tpc and syn-import16 (cmp of
+  both images). Docker verify: 0 misses, simulated identical, CPU sample 4.3 to 2.4, m1 12.1 to 4.8, m1-extra 3.5 to 2.2, local 3.2 to 1.5.
+- **Submission 8 (06:58):** `f89594d0f1b6c3d91478670c8a37b208ffc3eb09`, receipt BB-AC138D27. This is an exception to 4.1's 2% sample bar (sample is 1.5%
+  better), justified because the output is byte-identical: zero selection risk and a pure CPU gain. Expected: about 212 s (210.365 + about 1.8 CPU).
