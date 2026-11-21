@@ -4,7 +4,6 @@ Branch `strat/r2-replay`, cut from `origin/strat/runcpu2` (`ab9e4d5`, code ident
 Impact layer only: `blast/impact.py` (`_replay_refine`), plus the new `blast/replaylib.py`,
 `blast/replay_child.py`, `build/replay.py` and `build/impact_lib/br_replay_rec.py`.
 
-(Work in progress: the measurements are below, and the final numbers are at the end.)
 
 ## Claim
 
@@ -101,3 +100,57 @@ stage by stage:
   structure, with aliasing kept.
 - `python -I` ignores `PYTHONHASHSEED`, which cost one round of 0/14 self-checks. The child
   and the recorder use `-s -P` instead.
+
+## Results (8feeeeb)
+
+`python harness/br.py verify strat/r2-replay`: **VERIFY PASS, 0 misses on every set.**
+Docker, cgroup CPU, compared with the base runcpu2 f89594d:
+
+| set | runcpu2 total | r2-replay total | change |
+| --- | --- | --- | --- |
+| sample (30) | 125.407 | 125.328 | -0.08 (no drop; CPU 2.32 s) |
+| m1 (64) | 425.693 | 408.001 | **-17.7** |
+| m1-extra (22) | 205.320 | 205.029 | -0.3 |
+| local-20261120 (32) | 327.910 | 280.407 | **-47.5** |
+| gap-tests-tpc (20) | 361.065 | 360.990 | -0.1 |
+| syn-import16 (16) | about 592 | 591.923 | 0 |
+
+Selection cost, local docker selector on the runcpu2 image's maps plus this branch's replay
+map (unlabelled sets):
+
+| set | base simulated | r2-replay | #1106 dropped | replays run |
+| --- | --- | --- | --- | --- |
+| syn640 (640, generator mix) | 5578.3 | 5330.0 (-248.3, -4.5%) | 15 | 42 |
+| optimizer-only mutants (240, `generate.py --only-area optimizer --kinds code=1 --seed 9177`) | 4021.0 | 3263.2 (-757.7, -18.8%) | 45 | 106 |
+
+**Run-verification.** For each of the 60 commits where #1106 was dropped (15 on syn640 and
+45 on the optimizer set), I applied the patch to a copy of pinned sqlglot in the base image
+and ran `tests/test_executor.py::TestExecutor::test_execute_tpcds` with
+`SKIP_INTEGRATION=0`. **60/60 pass with 57/57 subtests.** The labelled sets (m1, local,
+m1-extra) add their own drops with 0 misses. The gate is conservative: 3 edits it kept
+(0ay8, 9u8z, 6nn5) also pass tpcds.
+
+**CPU.** A replay runs only when #1106 is selected and the edit is eligible: about 6.6% of
+syn640 commits. A positive answer costs about 2.1 s (one stage, 57 calls: 1-3 s; five
+stages: 4.5 s). A negative costs about 0.3-0.5 s. On syn640 that is about 46 s of CPU
+against 248 s simulated saved. On local-20261120 the CPU rose by 3.4 s for 51 s saved.
+
+**Build** (cold, `--scorer-limits`, 4 CPU / 8 GB, contended host): **410.9 s total**. The
+replay step took 35.0 s (recording 26.1 s, self-check 8.8 s). It runs after impact, and
+impact's relprof pass (193 s) is what pushes the build past 400 s. The step is
+single-threaded and has its own 300 s timeouts. Any failure leaves no `meta.json`, which
+turns the gate off. The map is 5.6 MB in the image, nothing in the repo.
+
+## For other strategies
+
+- The gate lives in the impact layer, and runs after every other rule, on the final bits.
+  It only ever removes #1106. It merges cleanly onto anything that keeps `impact.select`'s
+  shape: one hook line plus new files.
+- `blast/replaylib.py` (slot-preserving pickle, canonical identity-aware digest, global
+  state fingerprint) is reusable for other heavy tests whose work splits into
+  deterministic stages, such as `test_optimized_tpch` and `test_tpcds`, if they ever
+  dominate.
+- Where #1106's remaining cost on syn640 comes from: functions also run in exec, plan,
+  child or transpile (34 commits), class or module level edits (37), and fixture edits
+  (11). Replaying exec would cost as much as running the test. The plan stage needs a
+  set-cycle-aware digest (Step dependency sets), for 3 planner edits.
