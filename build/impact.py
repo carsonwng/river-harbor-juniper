@@ -293,6 +293,8 @@ def main() -> int:
         if not got:
             log(f"coverage ({mode}) produced nothing; using the other passes only")
             continue
+        for w in got:
+            w["mode"] = mode
         workers.extend(got)
     if not workers:
         log("no coverage results; writing no maps (selector falls back to all tests)")
@@ -331,6 +333,15 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     ALL = (1 << len(tests)) - 1
 
     line_bits: dict[str, dict[int, int]] = {}
+    # In-process passes only (all passes when there is none). Used for one coarse
+    # rule: "a test that reads a class registry may use every class in it". In a
+    # forked pass every test that builds the generator dispatch reads EXPR_CLASSES
+    # (generator._build_dispatch, cached per process otherwise), which would make
+    # every generating test a user of every expression class although the dispatch
+    # only stores generator methods. Direct evidence (lines, instances, methods,
+    # attribute and name reads) comes from every pass.
+    ref_line_bits: dict[str, dict[int, int]] = {}
+    has_ref = any(w.get("mode") != "fork" for w in workers)
     for w in workers:
         wtests = w["tests"]
         expand: dict[int, int] = {}
@@ -349,13 +360,17 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 expand[code] = got
             return got
 
+        ref = not has_ref or w.get("mode") != "fork"
         for rel, lines in w["files"].items():
             target = line_bits.setdefault(rel, {})
+            ref_target = ref_line_bits.setdefault(rel, {})
             for line, codes in lines.items():
-                acc = target.get(int(line), 0)
+                acc = 0
                 for code in codes:
                     acc |= bits_for(code)
-                target[int(line)] = acc
+                target[int(line)] = target.get(int(line), 0) | acc
+                if ref:
+                    ref_target[int(line)] = ref_target.get(int(line), 0) | acc
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -391,6 +406,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                    {p.relative_to(root).as_posix() for p in (root / "tests").rglob("*.py")})
     candidate_names: set[str] = set()
     name_readers: dict[str, int] = {}
+    ref_name_readers: dict[str, int] = {}
     name_import: set[str] = set()
     loaded_anywhere: set[str] = set()
     attr_readers: dict[str, int] = {}
@@ -408,14 +424,19 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
         if rel.startswith("sqlglot/"):
             candidate_names |= bound_names(tree)
         lb = line_bits.get(rel, {})
+        rlb = ref_line_bits.get(rel, {})
         il = imp_lines.get(rel, {})
         for co in iter_code(code):
             lines = {l for _, _, l in co.co_lines() if l}
             is_func = bool(co.co_flags & CO_NEWLOCALS)
             loads, stores, attr = code_loads(co)
-            bits = 0
+            bits = ref_bits = 0
             for l in lines:
                 bits |= lb.get(l, 0)
+                ref_bits |= rlb.get(l, 0)
+            if ref_bits:
+                for name in loads:
+                    ref_name_readers[name] = ref_name_readers.get(name, 0) | ref_bits
             if rel.startswith("sqlglot/"):
                 if is_func:
                     key = (rel, co.co_qualname)
@@ -535,7 +556,7 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
             outer = qual.split(".")[0]
             bits |= attr_readers.get(outer, 0)
         for registry in registries.get(key, ()):
-            bits |= name_readers.get(registry, 0)
+            bits |= ref_name_readers.get(registry, 0)
         class_users[key] = bits
 
     # ---- modules

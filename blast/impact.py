@@ -168,7 +168,12 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
-    return maps.to_tests(bits) if bits else set()
+    if bits:
+        return maps.to_tests(bits)
+    # nothing covered: still run the tests the map cannot vouch for (unknown to the
+    # build, or not passing under coverage, so their coverage may be cut short)
+    # when some change is real (its AST differs)
+    return set(maps.always) if any(getattr(c, "_br_ast_changed", False) for c in changes) else set()
 
 
 # ---------------------------------------------------------------- patch -> files
@@ -399,6 +404,10 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
     if ast.dump(old_tree) == ast.dump(new_tree):
         _log(f"{path}: AST unchanged")
         return 0
+    try:
+        change._br_ast_changed = True
+    except Exception:  # noqa: BLE001  (frozen or slotted FileChange: be safe)
+        raise Unsafe("cannot mark change")
     info = FileInfo(maps, path, old_text)
     info.new_tree = new_tree
     old_to_new = {o: n for n, o in new_to_old.items()}
@@ -537,7 +546,10 @@ def _lambda_bits(info: FileInfo, stmt, line: int, old_text: str, new_text: str |
     if best is None:
         return None
     lo, hi = best.body.lineno, best.body.end_lineno
-    return info.cov(lo, hi)
+    # a lambda some class body or metaclass calls while the module is imported
+    # shows up as import-time lines of its body; the lambda's own first line also
+    # holds the table's import-time code, so it cannot tell and is left out
+    return info.cov(lo, hi) | info.import_bits(best.lineno + 1, hi)
 
 
 def _old_line_bits(info, tree, line, text, hunk, new_lines, old_to_new) -> int:
