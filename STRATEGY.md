@@ -71,8 +71,9 @@ No maps means defer everything, the safe default.
   `tests/helpers.py` edit selects its 1377 importers. A new test method selects
   nothing. An added import selects the whole file. A syntax error selects the whole
   file. A deleted fixture selects its reader. A new tpc-h csv selects TestExecutor.
-- **Comment injection**: comments were inserted at ~6 random same-AST places in every
-  sqlglot module and the full suite ran (see the result below).
+- **Comment injection**: 654 comment lines were inserted at random same-AST places
+  across 109 sqlglot modules, shifting line numbers almost everywhere, and the full
+  suite ran: 1620 passed, 0 failed. Line-number shifts do not matter to this suite.
 
 ## Risks / dead ends
 
