@@ -361,7 +361,7 @@ def classify(change: FileChange, ctx: Context) -> Decision:
     if any(in_tests):
         return Decision.defer("moved across tests/")
     if _source_noop(maps, change):
-        return Decision.skip("same AST: comments/layout only")
+        return Decision.defer("probe: comment skip off")
     return Decision.defer("source change")
 
 
