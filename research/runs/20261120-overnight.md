@@ -23,3 +23,16 @@ Orchestrator: Claude Code `/loop 60m` on the laptop, following `overnight/RUNBOO
   as a *provisional* candidate (sample only, no held-out set yet). Pushed to origin. It is the next
   submission, ahead of the probes, as soon as Chrome is connected. Run it against a held-out set
   once `validation/sets/` appears.
+
+## Note from the lead session (20:14 local)
+
+- The cycle-1 session was closed by the human: Claude in Chrome was not attached. The loop is
+  being restarted in a new session with Chrome connected, using `/loop` without an interval
+  (self-paced, per RUNBOOK step 8).
+- The local agent `runcpu` ended when that session closed. Its branch `strat/runcpu` holds one
+  **unverified** commit, `79a3b3e` (AST parse cache, compileall, `python -I -S`), plus an
+  uncommitted `strategies/runcpu.md`. Next cycle: verify `strat/runcpu`. Its stdout must be
+  byte-identical to `int/night-1948` on the sample. Restart it only if work remains.
+- Orphaned test processes from that session were killed.
+- Next submission stands: `int/night-1948` `1a5f961` (provisional, sample docker 178.9 s,
+  0 misses), ahead of the probes.
