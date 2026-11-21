@@ -71,6 +71,7 @@ class Maps:
         self.always = {n for n in ctx.all_tests if n not in known}
         self.always |= {ctx.by_id[t] for t in meta.get("unsure", []) if t in ctx.by_id}
         self.ALL = (1 << len(self.tests)) - 1
+        self.seconds = ctx.seconds
 
     @staticmethod
     def _find_sqlglot(recorded: str | None) -> Path:
@@ -495,15 +496,6 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             _log(f"{path}: expression attribute diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
             return alt
-    if bits and path.startswith(TYPING) and _outside_functions(change, old_tree, new_tree):
-        alt = _typing_meta_bits(maps, path, new_text)
-        if alt is not None:
-            # both are sound supersets of the tests the edit can change: keep the overlap
-            _log(f"{path}: typing metadata diff selects {bin(alt).count('1')} "
-                 f"(base {bin(bits).count('1')})")
-            if alt == maps.ALL:
-                return alt
-            bits &= alt  # the relation profile below may narrow it further
     if bits:
         try:
             refined = _relprof_refine(info, old_tree, new_tree, bits, old_lines, new_lines)
@@ -512,7 +504,17 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             refined = None
         if refined is not None:
             maps.pruned = True
-            return refined
+            bits = refined
+    if (bits and path.startswith(TYPING) and _worth_a_diff(maps, bits)
+            and _outside_functions(change, old_tree, new_tree)):
+        alt = _typing_meta_bits(maps, path, new_text)
+        if alt is not None:
+            # both are sound supersets of the tests the edit can change: keep the overlap
+            _log(f"{path}: typing metadata diff selects {bin(alt).count('1')} "
+                 f"(base {bin(bits).count('1')})")
+            if alt == maps.ALL:
+                return alt
+            bits &= alt
     return bits
 
 
@@ -1036,6 +1038,18 @@ def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
 # an import selects every test.
 
 TYPING = "sqlglot/typing/"
+DIFF_WORTH_MS = 2000  # the diff child costs about 1 s of CPU; skip it when it cannot pay
+
+
+def _worth_a_diff(maps: Maps, bits: int) -> bool:
+    """The base selection's cost lower bound (largest test, or the load spread over 8
+    workers, plus one worker) exceeds the cheapest non-empty selection (one worker)
+    by more than DIFF_WORTH_MS. A CPU trade-off only: skipping keeps the base selection."""
+    durations = [round(maps.seconds.get(t, 0) * 1000) for t in maps.to_tests(bits)]
+    if not durations:
+        return False
+    bound = max(max(durations), -(-sum(durations) // 8)) + 2000
+    return bound - 2000 > DIFF_WORTH_MS
 
 
 def _outside_functions(change: FileChange, old_tree, new_tree) -> bool:
