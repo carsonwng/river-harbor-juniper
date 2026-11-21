@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/normalize.py b/sqlglot/optimizer/normalize.py
+index 8a81d34..cc57b9d 100644
+--- a/sqlglot/optimizer/normalize.py
++++ b/sqlglot/optimizer/normalize.py
+@@ -180,7 +180,7 @@ def distributive_law(
+ 
+         simplifier = simplifier or Simplifier(annotate_new_expressions=False)
+ 
+-        if isinstance(a, to_exp) and isinstance(b, to_exp):
++        if isinstance(a, to_exp) or isinstance(b, to_exp):
+             if len(tuple(a.find_all(exp.Connector))) > len(tuple(b.find_all(exp.Connector))):
+                 return _distribute(a, b, from_func, to_func, simplifier)
+             return _distribute(b, a, from_func, to_func, simplifier)

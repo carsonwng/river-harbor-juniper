@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..b4ae22f 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -303,7 +303,7 @@ CASE WHEN x < y THEN 3/10 WHEN x > y THEN 2 ELSE CAST(3.5 AS BIGNUMERIC) END;
+ FLOAT64;
+ 
+ # dialect: bigquery
+-CASE WHEN x < y THEN 2 WHEN x > y THEN 3/10 ELSE CAST(3.5 AS BIGNUMERIC) END;
++CASE WHEN x < y THEN 2 WHEN x > y THEN 3/10 ELS E CAST(3.5 AS BIGNUMERIC) END;
+ FLOAT64;
+ 
+ # dialect: bigquery

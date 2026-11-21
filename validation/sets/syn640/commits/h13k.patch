@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/array.py b/sqlglot/expressions/array.py
+index a2e785c..2ea2078 100644
+--- a/sqlglot/expressions/array.py
++++ b/sqlglot/expressions/array.py
+@@ -286,7 +286,6 @@ class PositionalColumn(Expression):
+ 
+ class Unnest(Expression, Func, UDTF):
+     arg_types = {
+-        "expressions": True,
+         "alias": False,
+         "offset": False,
+         "offset_base": False,

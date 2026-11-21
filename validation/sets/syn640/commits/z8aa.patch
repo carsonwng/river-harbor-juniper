@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..5df80ab 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -54,7 +54,7 @@ NULL;
+ null and false;
+ bool;
+ 
+-null + 1;
++NULL + 1;
+ int;
+ 
+ CASE WHEN x THEN NULL ELSE 1 END;

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/pretty.sql b/tests/fixtures/pretty.sql
+index f6ae547..11fb93d 100644
+--- a/tests/fixtures/pretty.sql
++++ b/tests/fixtures/pretty.sql
+@@ -138,7 +138,7 @@ FROM (
+     1 + 1 AS c
+   FROM foo
+   WHERE
+-    w IN (
++    w in (
+       SELECT
+         z
+       FROM q

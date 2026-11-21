@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/clickhouse.py b/sqlglot/generators/clickhouse.py
+index e4335f0..d30b358 100644
+--- a/sqlglot/generators/clickhouse.py
++++ b/sqlglot/generators/clickhouse.py
+@@ -584,7 +584,7 @@ class ClickHouseGenerator(generator.Generator):
+ 
+         if parameters:
+             flags = parameters.name if parameters.is_string else ""
+-            if not parameters.is_string or set(flags) - set("cims"):
++            if not parameters.is_string and set(flags) - set("cims"):
+                 self.unsupported("Only literal 'c', 'i', 'm' and 's' regexp flags are supported")
+             # "c" (case-sensitive) is the default, and the last of "c" and "i" wins
+             if flags.rfind("c") > flags.rfind("i"):

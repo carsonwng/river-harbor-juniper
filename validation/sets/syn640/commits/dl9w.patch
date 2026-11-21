@@ -1,0 +1,25 @@
+diff --git a/sqlglot/expressions/constraints.py b/sqlglot/expressions/constraints.py
+index 984c334..44503c1 100644
+--- a/sqlglot/expressions/constraints.py
++++ b/sqlglot/expressions/constraints.py
+@@ -234,7 +234,6 @@ class TimeseriesKey(Expression):
+ class IndexParameters(Expression):
+     arg_types = {
+         "using": False,
+-        "include": False,
+         "columns": False,
+         "with_storage": False,
+         "partition_by": False,
+diff --git a/sqlglot/parsers/bigquery.py b/sqlglot/parsers/bigquery.py
+index 6f01aa9..041e65e 100644
+--- a/sqlglot/parsers/bigquery.py
++++ b/sqlglot/parsers/bigquery.py
+@@ -793,7 +793,7 @@ class BigQueryParser(parser.Parser):
+         func_index = self._index + 1
+         this = super()._parse_column_ops(this)
+ 
+-        if isinstance(this, exp.Dot) and isinstance(this.expression, exp.Func):
++        if isinstance(this, exp.Dot) or isinstance(this.expression, exp.Func):
+             prefix = this.this.name.upper()
+ 
+             func: type[exp.Func] | None = None

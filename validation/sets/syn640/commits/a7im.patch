@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/bigquery.py b/sqlglot/generators/bigquery.py
+index bb1a4c1..77c5c29 100644
+--- a/sqlglot/generators/bigquery.py
++++ b/sqlglot/generators/bigquery.py
+@@ -877,7 +877,7 @@ class BigQueryGenerator(generator.Generator):
+             "this",
+             re.sub(
+                 f"{e}[%_{e}]|\\\\",
+-                lambda m: "\\" * (m[0][-1] in "%_\\") + m[0][-1],
++                lambda m: "\\" * (m[0][-0] in "%_\\") + m[0][-1],
+                 pattern.name,
+             ),
+         )

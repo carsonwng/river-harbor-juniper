@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/json.py b/sqlglot/expressions/json.py
+index a801678..d0684b1 100644
+--- a/sqlglot/expressions/json.py
++++ b/sqlglot/expressions/json.py
+@@ -221,7 +221,7 @@ class JSONTable(Expression, Func):
+ 
+ class JSONType(Expression, Func):
+     arg_types = {"this": True, "expression": False}
+-    _sql_names = ["JSON_TYPE"]
++    _sql_names = ["JON_TYPE"]
+ 
+ 
+ class ObjectId(Expression, Func):

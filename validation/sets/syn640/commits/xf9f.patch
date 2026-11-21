@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/snowflake.py b/sqlglot/dialects/snowflake.py
+index b7438ed..799234e 100644
+--- a/sqlglot/dialects/snowflake.py
++++ b/sqlglot/dialects/snowflake.py
+@@ -144,7 +144,6 @@ class Snowflake(Dialect):
+             "FILE://": TokenType.URI_START,
+             "FILE FORMAT": TokenType.FILE_FORMAT,
+             "GET": TokenType.GET,
+-            "INTEGRATION": TokenType.INTEGRATION,
+             "LS": TokenType.LIST,
+             "MATCH_CONDITION": TokenType.MATCH_CONDITION,
+             "MATCH_RECOGNIZE": TokenType.MATCH_RECOGNIZE,

@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/simplify.sql b/tests/fixtures/optimizer/simplify.sql
+index c4e8313..db65b82 100644
+--- a/tests/fixtures/optimizer/simplify.sql
++++ b/tests/fixtures/optimizer/simplify.sql
+@@ -571,7 +571,7 @@ SELECT (ARRAY_AGG(foo))[1];
+ SELECT -(x.a > x.b) FROM x;
+ SELECT -(x.a > x.b) FROM x;
+ 
+-SELECT (-((x.a) IS NULL)) FROM x;
++SLECT (-((x.a) IS NULL)) FROM x;
+ SELECT -(x.a IS NULL) FROM x;
+ 
+ # dialect: sqlite

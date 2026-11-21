@@ -1,0 +1,11 @@
+diff --git a/sqlglot/parsers/spark.py b/sqlglot/parsers/spark.py
+index 797c71f..1f3b96e 100644
+--- a/sqlglot/parsers/spark.py
++++ b/sqlglot/parsers/spark.py
+@@ -151,5 +151,5 @@ class SparkParser(Spark2Parser):
+     def _parse_pivot_aggregation(self) -> exp.Expr | None:
+         # Spark 3+ and Databricks support non aggregate functions in PIVOT too, e.g
+         # PIVOT (..., 'foo' AS bar FOR col_to_pivot IN (...))
+-        aggregate_expr = self._parse_function() or self._parse_disjunction()
++        aggregate_expr = self._parse_function() and self._parse_disjunction()
+         return self._parse_alias(aggregate_expr)

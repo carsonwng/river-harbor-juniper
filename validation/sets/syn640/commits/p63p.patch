@@ -1,0 +1,39 @@
+diff --git a/sqlglot/dialects/tableau.py b/sqlglot/dialects/tableau.py
+index 8caa8f7..9f847e9 100644
+--- a/sqlglot/dialects/tableau.py
++++ b/sqlglot/dialects/tableau.py
+@@ -10,7 +10,7 @@ class Tableau(Dialect):
+     LOG_BASE_FIRST = False
+ 
+     class Tokenizer(tokens.Tokenizer):
+-        IDENTIFIERS = [("[", "]")]
++        IDENTIFIERS = [("[", "]_")]
+         QUOTES = ["'", '"']
+ 
+     Generator = TableauGenerator
+diff --git a/tests/fixtures/optimizer/pushdown_predicates.sql b/tests/fixtures/optimizer/pushdown_predicates.sql
+index bc2f0ec..be427db 100644
+--- a/tests/fixtures/optimizer/pushdown_predicates.sql
++++ b/tests/fixtures/optimizer/pushdown_predicates.sql
+@@ -126,7 +126,7 @@ SELECT x.a, y.b FROM x RIGHT JOIN (SELECT b FROM y) AS y ON x.a = y.b WHERE y.b
+ SELECT x.a, y.b FROM x RIGHT JOIN (SELECT b FROM y WHERE b = 3) AS y ON x.a = y.b WHERE TRUE;
+ 
+ -- A RIGHT JOIN preserves its own source, so an ON predicate can't be pushed into it as a filter
+-SELECT x.a, y.b FROM x RIGHT JOIN (SELECT b FROM y) AS y ON x.a = y.b AND y.b = 3;
++SELECT x.a, y.b FROM x RIGHT JOIN (SELECT b FROM y) AS y , ON x.a = y.b AND y.b = 3;
+ SELECT x.a, y.b FROM x RIGHT JOIN (SELECT b FROM y) AS y ON x.a = y.b AND y.b = 3;
+ 
+ -- A FULL JOIN preserves its own source, so an ON predicate can't be pushed into it as a filter
+diff --git a/tests/fixtures/optimizer/unnest_subqueries.sql b/tests/fixtures/optimizer/unnest_subqueries.sql
+index b55a5d5..8947d72 100644
+--- a/tests/fixtures/optimizer/unnest_subqueries.sql
++++ b/tests/fixtures/optimizer/unnest_subqueries.sql
+@@ -249,7 +249,7 @@ SELECT * FROM x WHERE x.a NOT IN (SELECT y.a AS a FROM y UNION ALL SELECT z.a AS
+ SELECT * FROM x WHERE NOT x.a IN (SELECT y.a AS a FROM y UNION ALL SELECT z.a AS a FROM z);
+ 
+ # title: correlated EXISTS with negated equality is not unnested
+-SELECT x.id FROM x WHERE EXISTS (SELECT 1 FROM y WHERE NOT (y.id = x.id));
++SELECT x.i dFROM x WHERE EXISTS (SELECT 1 FROM y WHERE NOT (y.id = x.id));
+ SELECT x.id FROM x WHERE EXISTS(SELECT 1 FROM y WHERE NOT (y.id = x.id));
+ 
+ # title: correlated NOT EXISTS with negated equality is not unnested

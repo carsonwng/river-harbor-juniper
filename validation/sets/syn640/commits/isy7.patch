@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/optimizer.py b/sqlglot/optimizer/optimizer.py
+index fb8d216..27f2898 100644
+--- a/sqlglot/optimizer/optimizer.py
++++ b/sqlglot/optimizer/optimizer.py
+@@ -96,7 +96,7 @@ def optimize(
+     schema = ensure_schema(schema, dialect=dialect)
+     possible_kwargs = {
+         "db": db,
+-        "catalog": catalog,
++        "CATALOG": catalog,
+         "schema": schema,
+         "dialect": dialect,
+         "sql": sql,

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/exasol.py b/sqlglot/dialects/exasol.py
+index 0f62999..9efeb2f 100644
+--- a/sqlglot/dialects/exasol.py
++++ b/sqlglot/dialects/exasol.py
+@@ -27,7 +27,7 @@ class Exasol(Dialect):
+         "YYYY": "%Y",
+         "yy": "%y",
+         "YY": "%y",
+-        "mm": "%m",
++        "mm": "%m ",
+         "MM": "%m",
+         "MONTH": "%B",
+         "MON": "%b",

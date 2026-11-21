@@ -1,0 +1,10 @@
+diff --git a/tests/fixtures/partial.sql b/tests/fixtures/partial.sql
+index a86a662..d220b28 100644
+--- a/tests/fixtures/partial.sql
++++ b/tests/fixtures/partial.sql
+@@ -1,4 +1,4 @@
+-SELECT a FROM
++SELECT 42 a FROM
+ SELECT a FROM x WHERE
+ SELECT a +
+ a *

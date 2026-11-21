@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/mysql.py b/sqlglot/dialects/mysql.py
+index 825f54d..42e69a7 100644
+--- a/sqlglot/dialects/mysql.py
++++ b/sqlglot/dialects/mysql.py
+@@ -62,7 +62,7 @@ class MySQL(Dialect):
+     VALID_INTERVAL_UNITS = {
+         *Dialect.VALID_INTERVAL_UNITS,
+         "SECOND_MICROSECOND",
+-        "MINUTE_MICROSECOND",
++        "MINUTE_MICROSECND",
+         "MINUTE_SECOND",
+         "HOUR_MICROSECOND",
+         "HOUR_SECOND",

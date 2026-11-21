@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/drill.py b/sqlglot/dialects/drill.py
+index cf3b295..79812cf 100644
+--- a/sqlglot/dialects/drill.py
++++ b/sqlglot/dialects/drill.py
+@@ -39,7 +39,7 @@ class Drill(Dialect):
+         "mm": "%M",
+         "m": "%-M",
+         "ss": "%S",
+-        "s": "%-S",
++        "s_": "%-S",
+         "SSSSSS": "%f",
+         "a": "%p",
+         "DD": "%j",

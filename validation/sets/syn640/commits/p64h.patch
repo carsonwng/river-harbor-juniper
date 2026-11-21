@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/teradata.py b/sqlglot/dialects/teradata.py
+index bb9749c..87ccf8c 100644
+--- a/sqlglot/dialects/teradata.py
++++ b/sqlglot/dialects/teradata.py
+@@ -72,7 +72,6 @@ class Teradata(Dialect):
+             "SEL": TokenType.SELECT,
+             "ST_GEOMETRY": TokenType.GEOMETRY,
+             "TOP": TokenType.TOP,
+-            "UPD": TokenType.UPDATE,
+         }
+         KEYWORDS.pop("/*+")
+ 

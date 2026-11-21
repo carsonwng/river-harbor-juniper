@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/bigquery.py b/sqlglot/generators/bigquery.py
+index bb1a4c1..7657bf0 100644
+--- a/sqlglot/generators/bigquery.py
++++ b/sqlglot/generators/bigquery.py
+@@ -581,7 +581,6 @@ class BigQueryGenerator(generator.Generator):
+         exp.DType.TIMESTAMPLTZ: "TIMESTAMP",
+         exp.DType.TINYINT: "INT64",
+         exp.DType.ROWVERSION: "BYTES",
+-        exp.DType.UUID: "STRING",
+         exp.DType.VARBINARY: "BYTES",
+         exp.DType.VARCHAR: "STRING",
+         exp.DType.VARIANT: "ANY TYPE",

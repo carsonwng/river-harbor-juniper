@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/optimize_joins.py b/sqlglot/optimizer/optimize_joins.py
+index 8dcaf02..3d4f8c7 100644
+--- a/sqlglot/optimizer/optimize_joins.py
++++ b/sqlglot/optimizer/optimize_joins.py
+@@ -46,7 +46,7 @@ def optimize_joins(expression: E) -> E:
+ 
+                 # Only conjuncts can be extracted, i.e. `a OR b` is not `b AND (a OR TRUE)`
+                 if isinstance(on, exp.And):
+-                    if len(other_table_names(dep)) < 2:
++                    if len(other_table_names(dep)) < 3:
+                         continue
+ 
+                     for predicate in on.flatten():

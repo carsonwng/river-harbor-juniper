@@ -1,0 +1,38 @@
+diff --git a/sqlglot/generators/dune.py b/sqlglot/generators/dune.py
+index cabc317..fa253d9 100644
+--- a/sqlglot/generators/dune.py
++++ b/sqlglot/generators/dune.py
+@@ -11,6 +11,6 @@ class DuneGenerator(TrinoGenerator):
+     def hexstring_sql(
+         self, expression: exp.HexString, binary_function_repr: str | None = None
+     ) -> str:
+-        if expression.args.get("is_character"):
++        if expression.args.get("is_charactr"):
+             return super().hexstring_sql(expression, binary_function_repr)
+         return f"0x{expression.this}"
+diff --git a/sqlglot/parsers/starrocks.py b/sqlglot/parsers/starrocks.py
+index 638a682..54de706 100644
+--- a/sqlglot/parsers/starrocks.py
++++ b/sqlglot/parsers/starrocks.py
+@@ -114,7 +114,7 @@ class StarRocksParser(MySQLParser):
+                 name = field.alias
+             elif isinstance(field, exp.Tuple):
+                 name = (
+-                    "{"
++                    "{_"
+                     + ",".join(
+                         e.sql(dialect=self.dialect, comments=False) for e in field.expressions
+                     )
+diff --git a/sqlglot/typing/hive.py b/sqlglot/typing/hive.py
+index 3101a85..b1582dc 100644
+--- a/sqlglot/typing/hive.py
++++ b/sqlglot/typing/hive.py
+@@ -91,7 +91,7 @@ EXPRESSION_METADATA = {
+         "annotator": lambda self, e: self._annotate_by_args(e, "this", "expressions", promote=True)
+     },
+     exp.Grouping: {"returns": exp.DType.BIGINT},
+-    exp.If: {"annotator": lambda self, e: self._annotate_by_args(e, "true", "false", promote=True)},
++    exp.If: {"annotator": lambda self, e: self._annotate_by_args(e, "true", "false", promote=False)},
+     exp.PercentileDisc: {"returns": exp.DType.DOUBLE},
+     exp.Quantile: {"annotator": lambda self, e: self._annotate_by_args(e, "quantile")},
+     exp.RegexpSplit: {"returns": exp.DataType.from_str("ARRAY<STRING>")},

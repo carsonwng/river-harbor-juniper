@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/risingwave.py b/sqlglot/parsers/risingwave.py
+index 45fb834..de1e3e0 100644
+--- a/sqlglot/parsers/risingwave.py
++++ b/sqlglot/parsers/risingwave.py
+@@ -11,7 +11,7 @@ class RisingWaveParser(PostgresParser):
+ 
+     PROPERTY_PARSERS = {
+         **PostgresParser.PROPERTY_PARSERS,
+-        "ENCODE": lambda self: self._parse_encode_property(),
++        "ENCDE": lambda self: self._parse_encode_property(),
+         "INCLUDE": lambda self: self._parse_include_property(),
+         "KEY": lambda self: self._parse_encode_property(key=True),
+     }

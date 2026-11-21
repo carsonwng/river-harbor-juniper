@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/pretty.sql b/tests/fixtures/pretty.sql
+index f6ae547..ad5ceec 100644
+--- a/tests/fixtures/pretty.sql
++++ b/tests/fixtures/pretty.sql
+@@ -498,7 +498,7 @@ ALTER TABLE ct
+ 
+ SELECT
+     *
+-FROM
++ROM
+     a
+ WHERE
+     /*111*/

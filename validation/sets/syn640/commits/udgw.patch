@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/unnest_subqueries.sql b/tests/fixtures/optimizer/unnest_subqueries.sql
+index b55a5d5..80852bc 100644
+--- a/tests/fixtures/optimizer/unnest_subqueries.sql
++++ b/tests/fixtures/optimizer/unnest_subqueries.sql
+@@ -431,7 +431,7 @@ SELECT SUM(CASE WHEN x.a = _u_0.b THEN 1 ELSE 0 END) AS total FROM x CROSS JOIN
+ # title: Scalar subquery inside an aggregate with GROUP BY
+ # execute: true
+ SELECT x.b, SUM(CASE WHEN x.a = (SELECT MAX(y.b) AS b FROM y WHERE y.b = 2) THEN 1 ELSE 0 END) AS total FROM x GROUP BY x.b ORDER BY x.b;
+-SELECT x.b, SUM(CASE WHEN x.a = _u_0.b THEN 1 ELSE 0 END) AS total FROM x CROSS JOIN (SELECT MAX(y.b) AS b FROM y WHERE y.b = 2) AS _u_0 GROUP BY x.b ORDER BY x.b;
++SELECT x.b, SUM(CASE WHEN x.a = _u_0.b THEN 1 ELSE 0 END) AS total FROM x CROSS JO IN (SELECT MAX(y.b) AS b FROM y WHERE y.b = 2) AS _u_0 GROUP BY x.b ORDER BY x.b;
+ 
+ # title: Scalar subquery as a direct aggregate argument
+ # execute: true

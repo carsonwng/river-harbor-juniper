@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/datatypes.py b/sqlglot/expressions/datatypes.py
+index 2697438..63e6fed 100644
+--- a/sqlglot/expressions/datatypes.py
++++ b/sqlglot/expressions/datatypes.py
+@@ -440,7 +440,7 @@ class DataType(Expression):
+                 or self.this == DType.USERDEFINED
+                 or other_type.this == DType.USERDEFINED
+             ):
+-                matches = self == other_type
++                matches = self != other_type
+             else:
+                 matches = self.this == other_type.this
+ 

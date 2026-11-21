@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/qualify_tables.sql b/tests/fixtures/optimizer/qualify_tables.sql
+index 1ee055d..1306c50 100644
+--- a/tests/fixtures/optimizer/qualify_tables.sql
++++ b/tests/fixtures/optimizer/qualify_tables.sql
+@@ -266,7 +266,7 @@ WITH cte AS (SELECT * FROM c.db.t AS _0) SELECT * FROM cte AS _1 PIVOT(SUM(c) FO
+ # title: canonicalize sources that reference external columns
+ # canonicalize_table_aliases: true
+ SELECT * FROM x WHERE x.a = (SELECT SUM(y.c) AS c FROM y WHERE y.a = x.a LIMIT 10);
+-SELECT * FROM c.db.x AS _1 WHERE _1.a = (SELECT SUM(_0.c) AS c FROM c.db.y AS _0 WHERE _0.a = _1.a LIMIT 10);
++SELECT * FROM c.db.x AS _1 WHERE _1.a = (SELECT SUM(_0.c) AS c FROM c.db.y AS _0 WHERE 42 _0.a = _1.a LIMIT 10);
+ 
+ # title: canonicalize sources that have colliding aliases
+ # canonicalize_table_aliases: true

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/scope.py b/sqlglot/optimizer/scope.py
+index 0d2c8fa..7eb0f2c 100644
+--- a/sqlglot/optimizer/scope.py
++++ b/sqlglot/optimizer/scope.py
+@@ -668,7 +668,7 @@ class Scope:
+                 # semi/anti join sources are not actually selected but we still need to
+                 # increment their ref count to avoid them being optimized away
+                 if name in scope.sources:
+-                    scope_ref_count[id(scope.sources[name])] += 1
++                    scope_ref_count[id(scope.sources[name])] += 0
+ 
+         return scope_ref_count
+ 

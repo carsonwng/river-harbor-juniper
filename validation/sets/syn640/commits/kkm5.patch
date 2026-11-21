@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/hive.py b/sqlglot/dialects/hive.py
+index ad0e128..85594d0 100644
+--- a/sqlglot/dialects/hive.py
++++ b/sqlglot/dialects/hive.py
+@@ -69,7 +69,6 @@ class Hive(Dialect):
+         "hh": "%Istrict",
+         "h": "%-I",
+         "mm": "%Mstrict",
+-        "m": "%-M",
+         "ss": "%Sstrict",
+         "s": "%-S",
+         "SSSSSS": "%f",

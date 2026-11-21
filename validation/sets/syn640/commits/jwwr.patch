@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/tableau.py b/sqlglot/generators/tableau.py
+index f7c1320..8603534 100644
+--- a/sqlglot/generators/tableau.py
++++ b/sqlglot/generators/tableau.py
+@@ -20,7 +20,6 @@ class TableauGenerator(generator.Generator):
+     TRANSFORMS = {
+         **generator.Generator.TRANSFORMS,
+         exp.Coalesce: rename_func("IFNULL"),
+-        exp.Select: transforms.preprocess([transforms.eliminate_distinct_on]),
+     }
+ 
+     PROPERTIES_LOCATION = {

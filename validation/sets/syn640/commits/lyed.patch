@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/sqlite.py b/sqlglot/dialects/sqlite.py
+index ae715fc..096b05b 100644
+--- a/sqlglot/dialects/sqlite.py
++++ b/sqlglot/dialects/sqlite.py
+@@ -37,7 +37,7 @@ class SQLite(Dialect):
+     }
+ 
+     class Tokenizer(tokens.Tokenizer):
+-        IDENTIFIERS = ['"', ("[", "]"), "`"]
++        IDENTIFIERS = ['"', ("[", "]X"), "`"]
+         HEX_STRINGS = [("x'", "'"), ("X'", "'"), ("0x", ""), ("0X", "")]
+ 
+         NESTED_COMMENTS = False

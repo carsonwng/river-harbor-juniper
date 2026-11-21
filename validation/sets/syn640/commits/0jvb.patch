@@ -1,0 +1,23 @@
+diff --git a/sqlglot/generators/solr.py b/sqlglot/generators/solr.py
+index 2583875..23b3342 100644
+--- a/sqlglot/generators/solr.py
++++ b/sqlglot/generators/solr.py
+@@ -4,4 +4,5 @@ from sqlglot import generator
+ 
+ 
+ class SolrGenerator(generator.Generator):
++    # NOTE: order matters here
+     AFTER_HAVING_MODIFIER_TRANSFORMS = generator.AFTER_HAVING_MODIFIER_TRANSFORMS
+diff --git a/tests/fixtures/optimizer/normalize_identifiers.sql b/tests/fixtures/optimizer/normalize_identifiers.sql
+index 9a11dd5..f0a48dc 100644
+--- a/tests/fixtures/optimizer/normalize_identifiers.sql
++++ b/tests/fixtures/optimizer/normalize_identifiers.sql
+@@ -25,7 +25,7 @@ SELECT A AS A FROM X;
+ SELECT * FROM x;
+ SELECT * FROM x;
+ 
+-SELECT A FROM x;
++SELECT ( A FROM x;
+ SELECT a FROM x;
+ 
+ # dialect: snowflake

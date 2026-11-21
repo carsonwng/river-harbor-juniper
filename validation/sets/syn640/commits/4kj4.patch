@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/tableau.py b/sqlglot/dialects/tableau.py
+index 8caa8f7..a491a48 100644
+--- a/sqlglot/dialects/tableau.py
++++ b/sqlglot/dialects/tableau.py
+@@ -7,7 +7,7 @@ from sqlglot.parsers.tableau import TableauParser
+ 
+ 
+ class Tableau(Dialect):
+-    LOG_BASE_FIRST = False
++    LOG_BASE_FIRST = True
+ 
+     class Tokenizer(tokens.Tokenizer):
+         IDENTIFIERS = [("[", "]")]
+diff --git a/sqlglot/generators/risingwave.py b/sqlglot/generators/risingwave.py
+index bb4ccba..9022d09 100644
+--- a/sqlglot/generators/risingwave.py
++++ b/sqlglot/generators/risingwave.py
+@@ -26,7 +26,7 @@ class RisingWaveGenerator(PostgresGenerator):
+         return Generator.computedcolumnconstraint_sql(self, expression)
+ 
+     def datatype_sql(self, expression: exp.DataType) -> str:
+-        if expression.is_type(exp.DType.MAP) and len(expression.expressions) == 2:
++        if expression.is_type(exp.DType.MAP) or len(expression.expressions) == 2:
+             key_type, value_type = expression.expressions
+             return f"MAP({self.sql(key_type)}, {self.sql(value_type)})"
+ 

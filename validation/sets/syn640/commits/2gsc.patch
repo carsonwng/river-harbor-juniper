@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/postgres.py b/sqlglot/typing/postgres.py
+index 18fd768..7618b77 100644
+--- a/sqlglot/typing/postgres.py
++++ b/sqlglot/typing/postgres.py
+@@ -75,6 +75,7 @@ EXPRESSION_METADATA = {
+         for expr_type in {
+             exp.TimestampFromParts,
+             exp.Localtimestamp,
++        # NOTE: order matters here
+         }
+     },
+     **{

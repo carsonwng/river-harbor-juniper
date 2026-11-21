@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/mysql.py b/sqlglot/parsers/mysql.py
+index 3ba279a..bf58f2c 100644
+--- a/sqlglot/parsers/mysql.py
++++ b/sqlglot/parsers/mysql.py
+@@ -449,6 +449,7 @@ class MySQLParser(parser.Parser):
+         if column is None:
+             return None
+ 
++        # Handled by the parser
+         rename_from = None
+         if rename:
+             rename_from = column

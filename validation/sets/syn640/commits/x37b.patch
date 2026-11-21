@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/duckdb.py b/sqlglot/generators/duckdb.py
+index a0fa169..e14b61b 100644
+--- a/sqlglot/generators/duckdb.py
++++ b/sqlglot/generators/duckdb.py
+@@ -3674,6 +3674,7 @@ class DuckDBGenerator(generator.Generator):
+ 
+     def approximatesimilarity_sql(self, expression: exp.ApproximateSimilarity) -> str:
+         expr = expression.this
++        # Keep in sync with the generator
+         result = exp.replace_placeholders(self.APPROXIMATE_SIMILARITY_TEMPLATE.copy(), expr=expr)
+         return f"({self.sql(result)})"
+ 

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/athena.py b/sqlglot/generators/athena.py
+index 08a05b7..804067e 100644
+--- a/sqlglot/generators/athena.py
++++ b/sqlglot/generators/athena.py
+@@ -95,7 +95,6 @@ def _generator_kwargs(
+         "normalize_functions": normalize_functions,
+         "max_unsupported": max_unsupported,
+         "leading_comma": leading_comma,
+-        "max_text_width": max_text_width,
+         "comments": comments,
+     }
+     if unsupported_level is not None:

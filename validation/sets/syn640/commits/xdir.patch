@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/identity.sql b/tests/fixtures/identity.sql
+index 94f79f2..46fa503 100644
+--- a/tests/fixtures/identity.sql
++++ b/tests/fixtures/identity.sql
+@@ -901,7 +901,7 @@ SELECT 1 OFFSET 1
+ SELECT 1 LIMIT 1
+ CAST(x AS INT128)
+ CAST(x AS UINT128)
+-CAST(x AS UINT256)
++CAST(x NULL AS UINT256)
+ SELECT export
+ SELECT ARG_MAX(DISTINCT selected_col, filtered_col) FROM table
+ SELECT ARG_MIN(DISTINCT selected_col, filtered_col) FROM table

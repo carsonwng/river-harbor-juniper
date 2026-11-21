@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/postgres.py b/sqlglot/dialects/postgres.py
+index 9265917..38d2639 100644
+--- a/sqlglot/dialects/postgres.py
++++ b/sqlglot/dialects/postgres.py
+@@ -144,7 +144,6 @@ class Postgres(Dialect):
+             "REGOPER": TokenType.OBJECT_IDENTIFIER,
+             "REGOPERATOR": TokenType.OBJECT_IDENTIFIER,
+             "REGPROC": TokenType.OBJECT_IDENTIFIER,
+-            "REGPROCEDURE": TokenType.OBJECT_IDENTIFIER,
+             "REGROLE": TokenType.OBJECT_IDENTIFIER,
+             "REGTYPE": TokenType.OBJECT_IDENTIFIER,
+             "FLOAT": TokenType.DOUBLE,

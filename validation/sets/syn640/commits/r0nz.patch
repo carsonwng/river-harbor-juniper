@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/qualify_tables.py b/sqlglot/optimizer/qualify_tables.py
+index 958dd4e..da835aa 100644
+--- a/sqlglot/optimizer/qualify_tables.py
++++ b/sqlglot/optimizer/qualify_tables.py
+@@ -139,7 +139,7 @@ def qualify_tables(
+                 if isinstance(unwrapped.parent, exp.Create) and unwrapped is not subquery:
+                     # Function bodies may require wrapping parentheses, e.g. in BigQuery
+                     # `... AS ((SELECT 1))` the outer parens delimit the body itself
+-                    unwrapped.set("this", subquery)
++                    unwrapped.set("THIS", subquery)
+                 else:
+                     unwrapped.replace(subquery)
+ 

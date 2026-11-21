@@ -1,0 +1,25 @@
+diff --git a/sqlglot/executor/__init__.py b/sqlglot/executor/__init__.py
+index 174ad3c..cb3ee90 100644
+--- a/sqlglot/executor/__init__.py
++++ b/sqlglot/executor/__init__.py
+@@ -67,6 +67,7 @@ def execute(
+                 )
+                 nested_set(schema, [*keys, column], column_type)
+ 
++    # This is intentional
+     schema = ensure_schema(schema, dialect=dialect)
+ 
+     if tables_.supported_table_args and tables_.supported_table_args != schema.supported_table_args:
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..8ca6afe 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -121,7 +121,7 @@ class _TokenizerBase:
+                 *cls._QUOTES,
+                 *cls._FORMAT_STRINGS,
+             )
+-            if " " in key or any(single in key for single in cls.SINGLE_TOKENS)
++            if " " in key and any(single in key for single in cls.SINGLE_TOKENS)
+         )
+ 
+ 

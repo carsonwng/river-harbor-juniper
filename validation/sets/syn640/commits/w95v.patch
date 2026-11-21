@@ -1,0 +1,13 @@
+diff --git a/sqlglot/lineage.py b/sqlglot/lineage.py
+index b887c71..5b810d8 100644
+--- a/sqlglot/lineage.py
++++ b/sqlglot/lineage.py
+@@ -501,7 +501,7 @@ def to_node(
+             if on_node:
+                 on_node(leaf)
+ 
+-    if _cache is not None:
++    if _cache is None:
+         _cache[cache_key] = node
+ 
+     if on_node:

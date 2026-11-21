@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/constraints.py b/sqlglot/expressions/constraints.py
+index 984c334..f6f6607 100644
+--- a/sqlglot/expressions/constraints.py
++++ b/sqlglot/expressions/constraints.py
+@@ -115,7 +115,7 @@ class GeneratedAsIdentityColumnConstraint(Expression, ColumnConstraintKind):
+         "increment": False,
+         "minvalue": False,
+         "maxvalue": False,
+-        "cycle": False,
++        "cycle_": False,
+         "order": False,
+     }
+ 

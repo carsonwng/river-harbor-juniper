@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/__init__.py b/sqlglot/dialects/__init__.py
+index 16bcf6c..339ae00 100644
+--- a/sqlglot/dialects/__init__.py
++++ b/sqlglot/dialects/__init__.py
+@@ -82,7 +82,7 @@ DIALECTS = [
+     "Materialize",
+     "MySQL",
+     "Oracle",
+-    "Postgres",
++    "ostgres",
+     "Presto",
+     "PRQL",
+     "Redshift",

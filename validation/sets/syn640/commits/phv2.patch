@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/materialize.py b/sqlglot/generators/materialize.py
+index 0de54bf..a60f7e6 100644
+--- a/sqlglot/generators/materialize.py
++++ b/sqlglot/generators/materialize.py
+@@ -21,7 +21,7 @@ class MaterializeGenerator(PostgresGenerator):
+         **{
+             k: v
+             for k, v in PostgresGenerator.TRANSFORMS.items()
+-            if k not in (exp.ToMap, exp.IntDiv)
++            if k in (exp.ToMap, exp.IntDiv)
+         },
+         exp.AutoIncrementColumnConstraint: lambda self, e: "",
+         exp.Create: preprocess(

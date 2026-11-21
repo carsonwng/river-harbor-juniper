@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/unnest_subqueries.sql b/tests/fixtures/optimizer/unnest_subqueries.sql
+index b55a5d5..649a43c 100644
+--- a/tests/fixtures/optimizer/unnest_subqueries.sql
++++ b/tests/fixtures/optimizer/unnest_subqueries.sql
+@@ -330,7 +330,7 @@ SELECT x.a FROM x WHERE EXISTS(SELECT 1 FROM y WHERE y.a = x.a GROUP BY ROLLUP (
+ 
+ # title: exists with an empty grouping set is not unnested
+ SELECT x.a FROM x WHERE EXISTS (SELECT 1 FROM y WHERE y.a = x.a GROUP BY ());
+-SELECT x.a FROM x WHERE EXISTS(SELECT 1 FROM y WHERE y.a = x.a GROUP BY ());
++SELECT x.a FROM x WHERE ( EXISTS(SELECT 1 FROM y WHERE y.a = x.a GROUP BY ());
+ 
+ # title: exists with group by all and only aggregate projections is always true
+ SELECT x.a FROM x WHERE EXISTS (SELECT COUNT(*) FROM y WHERE y.a = x.a GROUP BY ALL);

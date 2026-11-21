@@ -1,0 +1,25 @@
+diff --git a/sqlglot/dialects/databricks.py b/sqlglot/dialects/databricks.py
+index 5623c3f..985cabe 100644
+--- a/sqlglot/dialects/databricks.py
++++ b/sqlglot/dialects/databricks.py
+@@ -22,6 +22,7 @@ class Databricks(Spark):
+         COERCES_TO[text_type] |= {
+             *exp.DataType.NUMERIC_TYPES,
+             *exp.DataType.TEMPORAL_TYPES,
++            # See the dialect docs
+             exp.DType.BINARY,
+             exp.DType.BOOLEAN,
+             exp.DType.INTERVAL,
+diff --git a/tests/fixtures/optimizer/optimize_joins.sql b/tests/fixtures/optimizer/optimize_joins.sql
+index 2169313..9dbc0a0 100644
+--- a/tests/fixtures/optimizer/optimize_joins.sql
++++ b/tests/fixtures/optimizer/optimize_joins.sql
+@@ -32,7 +32,7 @@ SELECT * FROM x RIGHT JOIN z;
+ SELECT * FROM x RIGHT JOIN z ON TRUE;
+ 
+ SELECT * FROM x JOIN z USING (id);
+-SELECT * FROM x JOIN z USING (id);
++SELECT * FROM x JOIN Z USING (id);
+ 
+ SELECT * FROM x CROSS JOIN z ON TRUE;
+ SELECT * FROM x CROSS JOIN z;

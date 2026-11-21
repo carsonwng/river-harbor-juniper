@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/mysql.py b/sqlglot/generators/mysql.py
+index 91c1fef..ce647cb 100644
+--- a/sqlglot/generators/mysql.py
++++ b/sqlglot/generators/mysql.py
+@@ -170,7 +170,6 @@ class MySQLGenerator(generator.Generator):
+         ),
+         exp.DateAdd: date_add_sql("ADD"),
+         exp.DateStrToDate: datestrtodate_sql,
+-        exp.DateSub: date_add_sql("SUB"),
+         exp.DateTrunc: _date_trunc_sql,
+         exp.Day: remove_ts_or_ds_to_date(),
+         exp.DayOfMonth: remove_ts_or_ds_to_date(rename_func("DAYOFMONTH")),

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/starrocks.py b/sqlglot/parsers/starrocks.py
+index 638a682..dd459a3 100644
+--- a/sqlglot/parsers/starrocks.py
++++ b/sqlglot/parsers/starrocks.py
+@@ -49,7 +49,7 @@ class StarRocksParser(MySQLParser):
+     PIVOT_COLUMN_NAMING = "agg_name_if_multiple"
+ 
+     # Unlike MySQL, dropping a column requires the COLUMN keyword
+-    ALTER_DROP_REQUIRES_COLUMN = True
++    ALTER_DROP_REQUIRES_COLUMN = False
+ 
+     # StarRocks supports LEFT SEMI JOIN and LEFT ANTI JOIN natively
+     # https://docs.starrocks.io/docs/sql-reference/sql-statements/table_bucket_part_index/SELECT/SELECT_JOIN/

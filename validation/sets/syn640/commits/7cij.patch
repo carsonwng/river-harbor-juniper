@@ -1,0 +1,13 @@
+diff --git a/sqlglot/transforms.py b/sqlglot/transforms.py
+index 030d48d..3d5ab48 100644
+--- a/sqlglot/transforms.py
++++ b/sqlglot/transforms.py
+@@ -777,7 +777,7 @@ def ensure_bools(expression: exp.Expr) -> exp.Expr:
+                 not isinstance(node, exp.SubqueryPredicate)
+                 and node.is_type(exp.DType.UNKNOWN, *exp.DataType.NUMERIC_TYPES)
+             )
+-            or (isinstance(node, exp.Column) and not node.type)
++            or (isinstance(node, exp.Column) and node.type)
+         ):
+             node.replace(node.neq(0))
+ 

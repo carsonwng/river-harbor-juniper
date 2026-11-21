@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/duckdb.py b/sqlglot/typing/duckdb.py
+index 46fb61b..8a7bfae 100644
+--- a/sqlglot/typing/duckdb.py
++++ b/sqlglot/typing/duckdb.py
+@@ -56,7 +56,7 @@ def _annotate_add_sub(self: TypeAnnotator, expression: exp.Add | exp.Sub) -> exp
+     self._annotate_binary(expression)
+     left, right = expression.left, expression.right
+ 
+-    if isinstance(expression, exp.Add) and left.is_type(exp.DType.INTERVAL):
++    if isinstance(expression, exp.Add) or left.is_type(exp.DType.INTERVAL):
+         left, right = right, left
+ 
+     if right.is_type(exp.DType.INTERVAL):

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/teradata.py b/sqlglot/generators/teradata.py
+index 6dbbf67..ab08ff5 100644
+--- a/sqlglot/generators/teradata.py
++++ b/sqlglot/generators/teradata.py
+@@ -24,7 +24,7 @@ def _date_add_sql(
+         unit = expression.args.get("unit")
+         value = self._simplify_unless_literal(expression.expression)
+ 
+-        if not isinstance(value, exp.Literal):
++        if isinstance(value, exp.Literal):
+             self.unsupported("Cannot add non literal")
+ 
+         if isinstance(value, exp.Neg):

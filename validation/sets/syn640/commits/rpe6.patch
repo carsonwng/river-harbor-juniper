@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/sqlite.py b/sqlglot/generators/sqlite.py
+index b46c7ae..50570d9 100644
+--- a/sqlglot/generators/sqlite.py
++++ b/sqlglot/generators/sqlite.py
+@@ -221,6 +221,7 @@ class SQLiteGenerator(generator.Generator):
+             for key in keys:
+                 if value := expression.args.get(key):
+                     query.set(key, value.pop())
++            # Normalize early
+             return self.sql(query)
+ 
+         return super().subquery_sql(expression, sep=sep)

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/planner.py b/sqlglot/planner.py
+index cdf8bbd..9a7ba7a 100644
+--- a/sqlglot/planner.py
++++ b/sqlglot/planner.py
+@@ -314,7 +314,6 @@ class Step:
+             context = [f"{nested}Context:"] + context
+ 
+         lines = [
+-            f"{indent}- {self.id}",
+             *context,
+             f"{nested}Projections:",
+         ]

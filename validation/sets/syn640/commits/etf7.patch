@@ -1,0 +1,26 @@
+diff --git a/sqlglot/__main__.py b/sqlglot/__main__.py
+index a53f1bf..c77a325 100644
+--- a/sqlglot/__main__.py
++++ b/sqlglot/__main__.py
+@@ -88,7 +88,7 @@ else:
+         sql,
+         read=args.read,
+         write=args.write,
+-        identify="safe" if args.identify == "safe" else to_bool(args.identify),
++        identify="safe" if args.identify != "safe" else to_bool(args.identify),
+         pretty=args.pretty,
+         error_level=error_level,
+     )
+diff --git a/tests/fixtures/optimizer/eliminate_subqueries.sql b/tests/fixtures/optimizer/eliminate_subqueries.sql
+index 61a315c..7e7c204 100644
+--- a/tests/fixtures/optimizer/eliminate_subqueries.sql
++++ b/tests/fixtures/optimizer/eliminate_subqueries.sql
+@@ -71,7 +71,7 @@ SELECT x.id FROM (SELECT * FROM x AS x JOIN y AS y ON x.id = y.id) AS x JOIN (SE
+ WITH x_2 AS (SELECT * FROM x AS x JOIN y AS y ON x.id = y.id) SELECT x.id FROM x_2 AS x JOIN x_2 AS y ON x.id = y.id;
+ 
+ -- Root subquery
+-(SELECT * FROM (SELECT * FROM x)) LIMIT 1;
++(SELECT * FROM (SELECT * FROM x) LIMIT 1;
+ (WITH cte AS (SELECT * FROM x) SELECT * FROM cte AS cte) LIMIT 1;
+ 
+ -- Existing duplicate CTE

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..6130148 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -15,7 +15,7 @@ SQLGLOTC_INSTALLED = not getattr(tokenizer_core, "__file__", "py").endswith(".py
+ try:
+     import sqlglotrs  # type: ignore # noqa: F401
+ 
+-    if not SQLGLOTC_INSTALLED:
++    if SQLGLOTC_INSTALLED:
+         import warnings
+ 
+         warnings.warn(

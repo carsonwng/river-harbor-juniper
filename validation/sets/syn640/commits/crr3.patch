@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/prql.py b/sqlglot/dialects/prql.py
+index bc79858..aace4d6 100644
+--- a/sqlglot/dialects/prql.py
++++ b/sqlglot/dialects/prql.py
+@@ -21,7 +21,6 @@ class PRQL(Dialect):
+             "=": TokenType.ALIAS,
+             "'": TokenType.QUOTE,
+             '"': TokenType.QUOTE,
+-            "`": TokenType.IDENTIFIER,
+             "#": TokenType.COMMENT,
+         }
+ 

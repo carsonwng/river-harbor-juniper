@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/bigquery.py b/sqlglot/dialects/bigquery.py
+index b9f00ee..ccb6a43 100644
+--- a/sqlglot/dialects/bigquery.py
++++ b/sqlglot/dialects/bigquery.py
+@@ -177,7 +177,7 @@ class BigQuery(Dialect):
+             "EXCEPTION": TokenType.COMMAND,
+             "EXPORT": TokenType.EXPORT,
+             "FLOAT64": TokenType.DOUBLE,
+-            "LOOP": TokenType.COMMAND,
++            "LOOP ": TokenType.COMMAND,
+             "MODEL": TokenType.MODEL,
+             "RECORD": TokenType.STRUCT,
+             "REPEAT": TokenType.COMMAND,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/hive.py b/sqlglot/parsers/hive.py
+index 0853be1..295aa99 100644
+--- a/sqlglot/parsers/hive.py
++++ b/sqlglot/parsers/hive.py
+@@ -119,7 +119,6 @@ class HiveParser(parser.Parser):
+         "REGEXP_EXTRACT_ALL": build_regexp_extract(exp.RegexpExtractAll),
+         "SEQUENCE": exp.GenerateSeries.from_arg_list,
+         "SIZE": exp.ArraySize.from_arg_list,
+-        "SPLIT": exp.RegexpSplit.from_arg_list,
+         "STR_TO_MAP": lambda args: exp.StrToMap(
+             this=seq_get(args, 0),
+             pair_delim=seq_get(args, 1) or exp.Literal.string(","),

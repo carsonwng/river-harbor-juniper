@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/athena.py b/sqlglot/generators/athena.py
+index 08a05b7..b7e5ecf 100644
+--- a/sqlglot/generators/athena.py
++++ b/sqlglot/generators/athena.py
+@@ -139,7 +139,7 @@ class AthenaGenerator(AthenaTrinoGenerator):
+         pretty: bool | int | None = None,
+         identify: str | bool = False,
+         normalize: bool = False,
+-        pad: int = 2,
++        pad: int = 3,
+         indent: int = 2,
+         normalize_functions: str | bool | None = None,
+         unsupported_level: t.Any = None,

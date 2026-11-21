@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/array.py b/sqlglot/expressions/array.py
+index a2e785c..8ef6f13 100644
+--- a/sqlglot/expressions/array.py
++++ b/sqlglot/expressions/array.py
+@@ -90,7 +90,6 @@ class ArraySlice(Expression, Func):
+     arg_types = {
+         "this": True,
+         "start": True,
+-        "end": False,
+         "step": False,
+         "zero_based": False,
+         "is_length": False,

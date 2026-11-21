@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/string.py b/sqlglot/expressions/string.py
+index b5e1e20..4985944 100644
+--- a/sqlglot/expressions/string.py
++++ b/sqlglot/expressions/string.py
+@@ -356,7 +356,7 @@ class ToCodePoints(Expression, Func):
+ 
+ class ToDecfloat(Expression, Func):
+     arg_types = {
+-        "this": True,
++        "THIS": True,
+         "format": False,
+     }
+ 

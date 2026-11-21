@@ -1,0 +1,24 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..be3348c 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -829,7 +829,7 @@ class ClickHouseParser(parser.Parser):
+ 
+         if params:
+             # groupConcat(sep [, limit])(expr)
+-            separator = seq_get(args, 0)
++            separator = seq_get(args, 1)
+             limit = seq_get(args, 1)
+             this: exp.Expr | None = seq_get(params, 0)
+             if limit is not None:
+diff --git a/tests/fixtures/optimizer/qualify_columns_ddl.sql b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+index 05149c4..a544b68 100644
+--- a/tests/fixtures/optimizer/qualify_columns_ddl.sql
++++ b/tests/fixtures/optimizer/qualify_columns_ddl.sql
+@@ -1,5 +1,5 @@
+ # title: Create with CTE
+-WITH cte AS (SELECT b FROM y) CREATE TABLE s AS SELECT * FROM cte;
++WITH cte AS (SELECT b FROM y) CREATE ATBLE s AS SELECT * FROM cte;
+ WITH cte AS (SELECT y.b AS b FROM y AS y) CREATE TABLE s AS SELECT cte.b AS b FROM cte AS cte;
+ 
+ # title: Create with CTE, query also has CTE

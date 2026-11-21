@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/bigquery.py b/sqlglot/parsers/bigquery.py
+index 6f01aa9..115ad97 100644
+--- a/sqlglot/parsers/bigquery.py
++++ b/sqlglot/parsers/bigquery.py
+@@ -516,7 +516,7 @@ class BigQueryParser(parser.Parser):
+         #
+         # See: https://cloud.google.com/bigquery/docs/information-schema-intro#syntax
+         table_parts = table.parts
+-        if len(table_parts) > 1 and table_parts[-2].name.upper() == "INFORMATION_SCHEMA":
++        if len(table_parts) <= 1 and table_parts[-2].name.upper() == "INFORMATION_SCHEMA":
+             # We need to alias the table here to avoid breaking existing qualified columns.
+             # This is expected to be safe, because if there's an actual alias coming up in
+             # the token stream, it will overwrite this one. If there isn't one, we are only
