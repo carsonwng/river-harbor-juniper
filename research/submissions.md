@@ -13,12 +13,26 @@ skip), and a miss adds 300 s. Without the commit count or mix, 868.3 s fits abou
 7 fixture commits with 0 misses, and also a sample-like mix with 1 miss. The suspect rules are
 triage's comment-only skip and the fixture map.
 
-## Queue (next first)
+## Recommended next submission (2026-11-21 cloud run)
 
-1. **Probe: comment skip off.** `main` with AST-identical source edits deferred instead of
-   skipped. A rise by a whole multiple of 36.8 s means the skip was safe. A drop of about 300 s,
-   or a residual of about 5 s against multiples of 36.8, means the skip missed.
-2. **Probe: fixture rules off.** Fixture edits run every test. Read it the same way.
-3. **Probe: every test on every commit** (optional). Total = 36.817 × N + CPU, which gives N,
-   the practice commit count.
-4. Best impact candidate from the cloud cluster, once it has 0 misses on held-out data.
+**`strat/impact-combo-sound` at `7a82a66`** ([PR 6](https://github.com/carsonwng/river-harbor-juniper/pull/6)),
+after two gates:
+
+1. `python harness/br.py eval --docker` passes with 0 misses (never run in Docker so far: the
+   build time and the run-time subprocess are unverified under the scorer's limits).
+2. The relprof rule decision (`open-questions.md` Q7). If relprof is not allowed or the answer
+   is unknown, submit the same commit with `ENV BR_IMPACT_RELPROF=0` in the Dockerfile.
+
+Local numbers: sample 103.6 s (156.3 s without relprof), held-out m1 570.3 s, 0 misses on both.
+Expected on the practice board, if its mix is like submission 1's: well below 868.3 s, because
+source commits drop from 36.8 s each to a few seconds for most.
+
+## Queue after that (next first)
+
+1. **Same commit with the import-check fallback changed to every test**, once that fix is on
+   the branch. It removes the one known unsound fallback.
+2. **Probe: comment skip off** on top of the combo. Still the cheapest way to answer Q1.
+3. **Probe: fixture rules off** on top of the combo, read the same way.
+
+The earlier queue (probes on `main` alone) is replaced by the above. The every-test probe stays
+optional.
