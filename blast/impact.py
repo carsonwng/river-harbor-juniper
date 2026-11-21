@@ -32,6 +32,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import astcache
 from .context import Context
 from .patch import FileChange
 
@@ -335,13 +336,7 @@ class FileInfo:
         self.module = self.data.get("module")
         self.line_sets = self.data["lines"]
         self.import_lines = self.data["import"]
-        code = compile(source, rel, "exec", dont_inherit=True)
-        self.code_lines: set[int] = set()
-        stack = [code]
-        while stack:
-            co = stack.pop()
-            self.code_lines.update(l for _, _, l in co.co_lines() if l)
-            stack.extend(c for c in co.co_consts if hasattr(c, "co_code"))
+        self.code_lines: set[int] = _code_lines(rel, source)
 
     def cov(self, lo: int, hi: int) -> int:
         bits = 0
@@ -368,6 +363,38 @@ class FileInfo:
         return bits
 
 
+_SOURCES: dict[str, str] = {}  # the run's disk is read-only
+
+
+def _source(source_path: Path) -> str:
+    key = str(source_path)
+    text = _SOURCES.get(key)
+    if text is None:
+        if not source_path.exists():
+            raise Unsafe("unknown file")
+        text = _SOURCES[key] = source_path.read_text("utf-8")
+    return text
+
+
+_CODE_LINES: dict[tuple[str, str], set[int]] = {}
+
+
+def _code_lines(rel: str, source: str) -> set[int]:
+    """Lines that carry bytecode in the pinned file; memoised per run (read-only)."""
+    key = (rel, source)
+    lines = _CODE_LINES.get(key)
+    if lines is None:
+        code = compile(astcache.parse(source), rel, "exec", dont_inherit=True)
+        lines = set()
+        stack = [code]
+        while stack:
+            co = stack.pop()
+            lines.update(l for _, _, l in co.co_lines() if l)
+            stack.extend(c for c in co.co_consts if hasattr(c, "co_code"))
+        _CODE_LINES[key] = lines
+    return lines
+
+
 def _change_bits(change: FileChange, maps: Maps) -> int:
     path = change.path
     if change.binary or not change.old_path or not change.new_path:
@@ -378,10 +405,7 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         raise Unsafe("not sqlglot source")
     if not path.endswith(".py"):
         raise Unsafe("non-python file in sqlglot")
-    source_path = maps.sqlglot / path
-    if not source_path.exists():
-        raise Unsafe("unknown file")
-    old_text = source_path.read_text("utf-8")
+    old_text = _source(maps.sqlglot / path)
     old_lines = old_text.splitlines()
     new_lines, new_to_old = _apply(old_lines, change)
     new_text = "\n".join(new_lines) + "\n"
@@ -390,12 +414,13 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
             if number <= 2 and CODING.match(text):
                 raise Unsafe("encoding cookie")
     try:
-        old_tree = ast.parse(old_text)
-        new_tree = ast.parse(new_text)
-        compile(new_text, path, "exec", dont_inherit=True)
+        old_tree = astcache.parse(old_text)
+        new_tree = astcache.parse(new_text)
+        # same check as compile(new_text): the parser already ran, so start from its tree
+        compile(new_tree, path, "exec", dont_inherit=True)
     except SyntaxError as exc:
         raise Unsafe(f"does not compile: {exc.msg}")
-    if ast.dump(old_tree) == ast.dump(new_tree):
+    if astcache.same_text(old_text, new_text):
         _log(f"{path}: AST unchanged")
         return 0
     info = FileInfo(maps, path, old_text)

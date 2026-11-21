@@ -31,6 +31,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import astcache
 from .context import Context
 from .patch import FileChange
 
@@ -119,11 +120,17 @@ def apply_hunks(old_text: str, change: FileChange, touched: set[int] | None = No
     return "\n".join(out) + "\n"
 
 
+_SRC: dict[tuple[str, str], str | None] = {}  # the run's disk is read-only
+
+
 def _read_src(maps, path: str) -> str | None:
-    try:
-        return (maps["src"] / path).read_text("utf-8")
-    except (OSError, UnicodeDecodeError):
-        return None
+    key = (str(maps["src"]), path)
+    if key not in _SRC:
+        try:
+            _SRC[key] = (maps["src"] / path).read_text("utf-8")
+        except (OSError, UnicodeDecodeError):
+            _SRC[key] = None
+    return _SRC[key]
 
 
 def _dump(node: ast.AST) -> str:
@@ -132,7 +139,7 @@ def _dump(node: ast.AST) -> str:
 
 def _parse(text: str) -> ast.Module | None:
     try:
-        return ast.parse(text)
+        return astcache.parse(text)
     except (SyntaxError, ValueError):
         return None
 
@@ -256,7 +263,7 @@ def _test_module_change(maps, change: FileChange, ctx: Context) -> Decision:
     if old_tree is None or new_tree is None:
         return Decision.select(_whole(maps, path, ctx), "test module: does not parse")
     if path.endswith(("__init__.py", "conftest.py")):
-        if _dump(old_tree) == _dump(new_tree) and min(touched, default=99) > 2:
+        if astcache.same(old_tree, new_tree) and min(touched, default=99) > 2:
             return Decision.skip("package/conftest: same AST")
         return Decision.select(_whole(maps, path, ctx), "package/conftest changed")
 
@@ -340,7 +347,7 @@ def _source_noop(maps, change: FileChange) -> bool:
     if min(touched, default=99) <= 2:
         return False  # could change the encoding declaration
     old_tree, new_tree = _parse(old_text), _parse(new_text)
-    return old_tree is not None and new_tree is not None and _dump(old_tree) == _dump(new_tree)
+    return old_tree is not None and new_tree is not None and astcache.same_text(old_text, new_text)
 
 
 def classify(change: FileChange, ctx: Context) -> Decision:

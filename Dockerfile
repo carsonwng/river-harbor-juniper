@@ -16,7 +16,11 @@ RUN pip install --no-cache-dir -r /app/requirements.lock
 
 COPY . /app
 # Each layer's build/<layer>.py writes maps to /app/maps/<layer>; nobody must read them.
+# Run-time bytecode is compiled here: the run's disk is read-only, so otherwise every
+# run recompiles blast/*.py. The selector needs only the stdlib, so -I -S skips
+# site-packages and the environment (strat/runcpu).
 RUN python /app/build/run_all.py --sqlglot /opt/sqlglot --out /app/maps \
+ && python -m compileall -q /app/blast \
  && chmod -R a+rX /app /opt/sqlglot
 
-CMD ["python", "/app/selector.py"]
+CMD ["python", "-I", "-S", "/app/selector.py"]
