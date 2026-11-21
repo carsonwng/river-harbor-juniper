@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/druid.py b/sqlglot/generators/druid.py
+index 3965c1d..3c3c334 100644
+--- a/sqlglot/generators/druid.py
++++ b/sqlglot/generators/druid.py
+@@ -19,7 +19,6 @@ class DruidGenerator(generator.Generator):
+         exp.DType.NCHAR: "STRING",
+         exp.DType.NVARCHAR: "STRING",
+         exp.DType.TEXT: "STRING",
+-        exp.DType.UUID: "STRING",
+     }
+ 
+     TRANSFORMS = {

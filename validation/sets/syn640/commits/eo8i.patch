@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/hive.py b/sqlglot/generators/hive.py
+index 20a071d..6d76fc7 100644
+--- a/sqlglot/generators/hive.py
++++ b/sqlglot/generators/hive.py
+@@ -564,7 +564,7 @@ class HiveGenerator(generator.Generator):
+             sep=(
+                 ": "
+                 if isinstance(expression.parent, exp.DataType)
+-                and expression.parent.is_type("struct")
++                or expression.parent.is_type("struct")
+                 else sep
+             ),
+         )

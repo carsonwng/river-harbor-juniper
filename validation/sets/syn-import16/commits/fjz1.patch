@@ -1,0 +1,13 @@
+diff --git a/sqlglot/dialects/bigquery.py b/sqlglot/dialects/bigquery.py
+index b9f00ee..784f429 100644
+--- a/sqlglot/dialects/bigquery.py
++++ b/sqlglot/dialects/bigquery.py
+@@ -135,7 +135,7 @@ class BigQuery(Dialect):
+ 
+     class JSONPathTokenizer(jsonpath.JSONPathTokenizer):
+         VAR_TOKENS = {
+-            *jsonpath.JSONPathTokenizer.VAR_TOKENS,
++            +jsonpath.JSONPathTokenizer.VAR_TOKENS,
+             TokenType.DASH,
+             TokenType.NUMBER,
+         }

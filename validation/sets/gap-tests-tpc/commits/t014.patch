@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..2834aae 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -523,7 +523,7 @@ from
+         ) as profit
+ group by
+         nation,
+-        o_year
++       (  o_year
+ order by
+         nation,
+         o_year desc;

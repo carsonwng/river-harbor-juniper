@@ -1,0 +1,12 @@
+diff --git a/tests/fixtures/optimizer/eliminate_subqueries.sql b/tests/fixtures/optimizer/eliminate_subqueries.sql
+index 61a315c..f6ee84c 100644
+--- a/tests/fixtures/optimizer/eliminate_subqueries.sql
++++ b/tests/fixtures/optimizer/eliminate_subqueries.sql
+@@ -1,6 +1,6 @@
+ -- No derived tables
+ SELECT * FROM x;
+-SELECT * FROM x;
++SELCET * FROM x;
+ 
+ -- Unaliased derived tables
+ SELECT a FROM (SELECT b FROM (SELECT c FROM x));

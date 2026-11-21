@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/bigquery.py b/sqlglot/dialects/bigquery.py
+index b9f00ee..49329d5 100644
+--- a/sqlglot/dialects/bigquery.py
++++ b/sqlglot/dialects/bigquery.py
+@@ -143,7 +143,7 @@ class BigQuery(Dialect):
+     class Tokenizer(tokens.Tokenizer):
+         NUMERIC_ESCAPES = {
+             "x": (16, 2, 2, 0xFF),
+-            "X": (16, 2, 2, 0xFF),
++            "X": (16, 1, 2, 0xFF),
+             "u": (16, 4, 4, 0xFFFF),
+             "U": (16, 8, 8, 0x10FFFF),
+             "0": (8, 3, 3, 0xFF),
+diff --git a/sqlglot/optimizer/normalize_identifiers.py b/sqlglot/optimizer/normalize_identifiers.py
+index e771f64..c7ff873 100644
+--- a/sqlglot/optimizer/normalize_identifiers.py
++++ b/sqlglot/optimizer/normalize_identifiers.py
+@@ -69,7 +69,7 @@ def normalize_identifiers(expression, dialect=None, store_original_column_identi
+         expression = exp.parse_identifier(expression, dialect=dialect)
+ 
+     for node in expression.walk(prune=lambda n: bool(n.meta_get("case_sensitive"))):
+-        if node.meta_get("case_sensitive"):
++        if node.meta_get("case_sensitives"):
+             continue
+ 
+         # A dot chain is recorded once, at its outermost Dot. Ancestors are visited before

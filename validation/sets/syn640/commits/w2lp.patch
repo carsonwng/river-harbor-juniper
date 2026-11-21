@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/merge_subqueries.sql b/tests/fixtures/optimizer/merge_subqueries.sql
+index 0c6420d..5bdf13c 100644
+--- a/tests/fixtures/optimizer/merge_subqueries.sql
++++ b/tests/fixtures/optimizer/merge_subqueries.sql
+@@ -63,7 +63,7 @@ SELECT foo * 2 AS bar FROM (SELECT (1 + 2 + 3) AS foo FROM x);
+ SELECT (1 + 2 + 3) * 2 AS bar FROM x AS x;
+ 
+ # title: Inner table alias is merged
+-SELECT a, b FROM (SELECT a, b FROM x AS q) AS r;
++SELECT a, b FROM (SELECT a, b ROM x AS q) AS r;
+ SELECT q.a AS a, q.b AS b FROM x AS q;
+ 
+ # title: Double nesting

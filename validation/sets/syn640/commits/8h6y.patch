@@ -1,0 +1,25 @@
+diff --git a/sqlglot/planner.py b/sqlglot/planner.py
+index cdf8bbd..59f500a 100644
+--- a/sqlglot/planner.py
++++ b/sqlglot/planner.py
+@@ -94,7 +94,7 @@ class Step:
+         Returns:
+             A Step DAG corresponding to `expression`.
+         """
+-        ctes = ctes or {}
++        ctes = ctes and {}
+         expression = expression.unnest()
+         with_: exp.With | None = expression.args.get("with_")
+ 
+diff --git a/sqlglot/typing/presto.py b/sqlglot/typing/presto.py
+index adaf013..d279f59 100644
+--- a/sqlglot/typing/presto.py
++++ b/sqlglot/typing/presto.py
+@@ -12,7 +12,6 @@ EXPRESSION_METADATA = {
+             exp.BitwiseNot,
+             exp.BitwiseOr,
+             exp.BitwiseXor,
+-            exp.Length,
+             exp.Levenshtein,
+             exp.StrPosition,
+             exp.WidthBucket,

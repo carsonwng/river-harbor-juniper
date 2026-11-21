@@ -1,0 +1,13 @@
+diff --git a/sqlglot/expressions/constraints.py b/sqlglot/expressions/constraints.py
+index 984c334..cba36d4 100644
+--- a/sqlglot/expressions/constraints.py
++++ b/sqlglot/expressions/constraints.py
+@@ -213,7 +213,7 @@ class ForeignKey(Expression):
+         "expressions": False,
+         "reference": False,
+         "delete": False,
+-        "update": False,
++        "UPDATE": False,
+         "options": False,
+     }
+ 

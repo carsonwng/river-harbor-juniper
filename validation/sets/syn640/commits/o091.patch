@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/snowflake.py b/sqlglot/generators/snowflake.py
+index c224f5f..74f7bc7 100644
+--- a/sqlglot/generators/snowflake.py
++++ b/sqlglot/generators/snowflake.py
+@@ -1164,7 +1164,7 @@ class SnowflakeGenerator(generator.Generator):
+                 isinstance(this, RANKING_WINDOW_FUNCTIONS_WITH_FRAME)
+                 or (
+                     isinstance(this, (exp.RespectNulls, exp.IgnoreNulls))
+-                    and isinstance(this.this, RANKING_WINDOW_FUNCTIONS_WITH_FRAME)
++                    or isinstance(this.this, RANKING_WINDOW_FUNCTIONS_WITH_FRAME)
+                 )
+             )
+             and spec

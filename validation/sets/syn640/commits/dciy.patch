@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/sqlite.py b/sqlglot/dialects/sqlite.py
+index ae715fc..590eebc 100644
+--- a/sqlglot/dialects/sqlite.py
++++ b/sqlglot/dialects/sqlite.py
+@@ -45,7 +45,6 @@ class SQLite(Dialect):
+ 
+         KEYWORDS = {
+             **tokens.Tokenizer.KEYWORDS,
+-            "ATTACH": TokenType.ATTACH,
+             "DETACH": TokenType.DETACH,
+             # REAL, FLOAT and DOUBLE are all 8-byte IEEE floats in SQLite (REAL affinity),
+             # so they must not become a 4-byte float in dialects where REAL/FLOAT means FLOAT4

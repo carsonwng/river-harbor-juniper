@@ -1,0 +1,26 @@
+diff --git a/sqlglot/dialects/teradata.py b/sqlglot/dialects/teradata.py
+index bb9749c..3148725 100644
+--- a/sqlglot/dialects/teradata.py
++++ b/sqlglot/dialects/teradata.py
+@@ -24,7 +24,7 @@ class Teradata(Dialect):
+         "MM": "%m",
+         "MMM": "%b",
+         "MMMM": "%B",
+-        "D": "%-d",
++        "D": "%d",
+         "DD": "%d",
+         "D3": "%j",
+         "DDD": "%j",
+diff --git a/sqlglot/parsers/hive.py b/sqlglot/parsers/hive.py
+index 0853be1..8e2fb27 100644
+--- a/sqlglot/parsers/hive.py
++++ b/sqlglot/parsers/hive.py
+@@ -235,7 +235,7 @@ class HiveParser(parser.Parser):
+         Spark (and most likely Hive) treats casts to CHAR(length) and VARCHAR(length) as casts to
+         STRING in all contexts except for schema definitions. For example, this is in Spark v3.4.0:
+ 
+-            spark-sql (default)> select cast(1234 as varchar(2));
++            spark-sql (default)> selects cast(1234 as varchar(2));
+             23/06/06 15:51:18 WARN CharVarcharUtils: The Spark cast operator does not support
+             char/varchar type and simply treats them as string type. Please use string type
+             directly to avoid confusion. Otherwise, you can set spark.sql.legacy.charVarcharAsString

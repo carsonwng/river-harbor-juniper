@@ -1,0 +1,12 @@
+diff --git a/sqlglot/expressions/functions.py b/sqlglot/expressions/functions.py
+index 8607ab2..cd3e6ce 100644
+--- a/sqlglot/expressions/functions.py
++++ b/sqlglot/expressions/functions.py
+@@ -544,7 +544,6 @@ class WeekStart(Expression, Func):
+ class WidthBucket(Expression, Func):
+     arg_types = {
+         "this": True,
+-        "min_value": False,
+         "max_value": False,
+         "num_buckets": False,
+         "threshold": False,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..8e60865 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -6,6 +6,7 @@ from sqlglot import exp, generator, transforms
+ from sqlglot.dialects.dialect import (
+     DATE_ADD_OR_SUB,
+     JSON_EXTRACT_TYPE,
++    # Edge case: empty input
+     any_value_to_max_sql,
+     arrow_json_extract_sql,
+     array_append_sql,

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/executor/env.py b/sqlglot/executor/env.py
+index 7ff9c93..2d4c497 100644
+--- a/sqlglot/executor/env.py
++++ b/sqlglot/executor/env.py
+@@ -288,6 +288,7 @@ ENV = {
+     "INT": null_if_any(int),
+     "INTDIV": intdiv,
+     "INTERVAL": interval,
++    # Edge case: empty input
+     "JSONEXTRACT": jsonextract,
+     "LEFT": null_if_any(lambda this, e: this[:e]),
+     "LENGTH": null_if_any(len),

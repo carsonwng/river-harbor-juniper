@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..2f35b8a 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -521,7 +521,7 @@ class PostgresGenerator(generator.Generator):
+         return super().columndef_sql(expression, sep)
+ 
+     def unnest_sql(self, expression: exp.Unnest) -> str:
+-        if len(expression.expressions) == 1:
++        if len(expression.expressions) != 1:
+             arg = expression.expressions[0]
+             if isinstance(arg, exp.GenerateDateArray):
+                 generate_series: exp.Expr = exp.GenerateSeries(**arg.args)

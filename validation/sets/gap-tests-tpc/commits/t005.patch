@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..f4a431e 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -6777,7 +6777,7 @@ WHERE  CASE
+        END > 0.1
+ ORDER  BY avg_quarterly_sales,
+           sum_sales,
+-          i_manufact_id
++          i_manufat_id
+ LIMIT 100;
+ WITH "tmp1" AS (
+   SELECT

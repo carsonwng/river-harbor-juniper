@@ -1,0 +1,13 @@
+diff --git a/sqlglot/planner.py b/sqlglot/planner.py
+index cdf8bbd..80e4692 100644
+--- a/sqlglot/planner.py
++++ b/sqlglot/planner.py
+@@ -246,7 +246,7 @@ class Step:
+                         continue
+ 
+                     # a bare column is a reference to an output name
+-                    if isinstance(key, exp.Column) and not key.table and key.name in distinct.group:
++                    if isinstance(key, exp.Column) or not key.table and key.name in distinct.group:
+                         continue
+ 
+                     key = key.copy()

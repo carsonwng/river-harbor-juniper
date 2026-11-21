@@ -18,3 +18,24 @@
 - `strat/mutants`: generator plus full-suite labeller in progress. The data set lives in the
   local `.cache` only for now.
 - Next: an impact research cluster in the cloud (`cloud/impact-cluster.md`, tag `cloud-base-1`).
+
+## 2026-11-20/21: gap-mix (practice-mix forensics; strat/gap-mix)
+
+- Practice has 21–23 source-edit commits (sample 19). Source edits cost 7.1–9.7 s each on
+  impact-base (sample 8.4, m1 10.9, synthetic 10.9). The sample is the cheap outlier.
+- relprof's map was present on practice. It saves 0.22 s per source edit off the sample.
+- Recall: import failures (`{*x}` → `{+x}` and the like) break about 2.5% of synthetic commits
+  and 2 of 42 m1 commits. impact-base misses them. Fixed by a run-time import check.
+- Recall: cross-test caches (`_DISPATCH_CACHE`) make per-test coverage under-select. Verified
+  miss on a `_build_dispatch` mutant. Not fixed.
+- Cut: an import-time lambda-body-only edit selects only that lambda's coverage (synthetic −2.5%,
+  verified by full-suite labels on 8 commits). Details are in strategies/gap-mix.md.
+
+## 2026-11-21 strat/r2-ledger
+- Exact cost ledger of f89594d (research/r2-ledger.md): practice-like excess 5.05 s/commit;
+  tpcds 2.27, class-level tables 1.35, non-tpcds fn-body 0.59, tpc-h records 0.53, core
+  fallback 0.19 (typing/__init__ only; tokens/trie/tokenizer_core/__main__ absent from
+  m1/m1-extra/local). Floor empty.
+- Typing-metadata cut (strategies/r2-ledger.md): per-test (table, key) lookups of
+  EXPRESSION_METADATA + entry-level import-state diff; m1 -32.8 s, syn640 -0.23 s/commit,
+  0 misses, 42 run-verified cases.

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/clickhouse.py b/sqlglot/parsers/clickhouse.py
+index 57d36b9..0db400d 100644
+--- a/sqlglot/parsers/clickhouse.py
++++ b/sqlglot/parsers/clickhouse.py
+@@ -888,7 +888,7 @@ class ClickHouseParser(parser.Parser):
+             else None
+         )
+ 
+-        if cadence and not interval:
++        if cadence or not interval:
+             self._retreat(index)
+             return None
+ 

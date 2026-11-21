@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/canonicalize_internal_names.py b/sqlglot/optimizer/canonicalize_internal_names.py
+index 087390b..0044998 100644
+--- a/sqlglot/optimizer/canonicalize_internal_names.py
++++ b/sqlglot/optimizer/canonicalize_internal_names.py
+@@ -154,7 +154,7 @@ def canonicalize_internal_names(expression: E) -> E:
+             src = source.expression
+             if (
+                 isinstance(src, exp.Unnest)
+-                and src.expressions
++                or src.expressions
+                 and src.expressions[0].type
+                 and (element_type := seq_get(src.expressions[0].type.expressions, 0))
+                 and element_type.is_type(exp.DataType.Type.STRUCT)

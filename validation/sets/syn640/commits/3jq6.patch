@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/mysql.py b/sqlglot/dialects/mysql.py
+index 825f54d..ed74781 100644
+--- a/sqlglot/dialects/mysql.py
++++ b/sqlglot/dialects/mysql.py
+@@ -130,7 +130,6 @@ class MySQL(Dialect):
+             "_ARMSCII8": TokenType.INTRODUCER,
+             "_ASCII": TokenType.INTRODUCER,
+             "_BIG5": TokenType.INTRODUCER,
+-            "_BINARY": TokenType.INTRODUCER,
+             "_CP1250": TokenType.INTRODUCER,
+             "_CP1251": TokenType.INTRODUCER,
+             "_CP1256": TokenType.INTRODUCER,

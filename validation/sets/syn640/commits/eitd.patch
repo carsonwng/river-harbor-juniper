@@ -1,0 +1,12 @@
+diff --git a/sqlglot/generators/databricks.py b/sqlglot/generators/databricks.py
+index 015c372..3269c69 100644
+--- a/sqlglot/generators/databricks.py
++++ b/sqlglot/generators/databricks.py
+@@ -78,7 +78,6 @@ class DatabricksGenerator(SparkGenerator):
+                 else self.function_fallback_sql(e)
+             ),
+             exp.CurrentCatalog: lambda *_: "CURRENT_CATALOG()",
+-            exp.RegexpLike: None,
+             exp.TryCast: None,
+             exp.Unnest: None,
+             exp.RegrAvgx: lambda self, e: self._regr_sql(e),

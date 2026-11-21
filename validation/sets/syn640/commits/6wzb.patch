@@ -1,0 +1,26 @@
+diff --git a/sqlglot/parsers/dax.py b/sqlglot/parsers/dax.py
+index e4cbd46..4228435 100644
+--- a/sqlglot/parsers/dax.py
++++ b/sqlglot/parsers/dax.py
+@@ -16,7 +16,7 @@ class DAXParser(parser.Parser):
+     }
+ 
+     def _parse_statement(self) -> exp.Expr | None:
+-        if not self._match_text_seq("EVALUATE"):
++        if self._match_text_seq("EVALUATE"):
+             return None
+ 
+         query = self._parse_table_expression()
+diff --git a/tests/fixtures/optimizer/eliminate_joins.sql b/tests/fixtures/optimizer/eliminate_joins.sql
+index 6dfcbf9..e7da7c9 100644
+--- a/tests/fixtures/optimizer/eliminate_joins.sql
++++ b/tests/fixtures/optimizer/eliminate_joins.sql
+@@ -220,7 +220,7 @@ LEFT JOIN (
+     y.b
+   FROM y
+ ) AS y
+-  ON x.b = y.b;
++  ON xb = y.b;
+ 
+ # title: Multiple group by columns
+ SELECT

@@ -1,0 +1,25 @@
+diff --git a/sqlglot/generators/bigquery.py b/sqlglot/generators/bigquery.py
+index bb1a4c1..f1088db 100644
+--- a/sqlglot/generators/bigquery.py
++++ b/sqlglot/generators/bigquery.py
+@@ -773,7 +773,7 @@ class BigQueryGenerator(generator.Generator):
+             or round(value, 5) != value
+             or (weight and (not weight.is_number or weight.to_py() != 1))
+         ):
+-            self.unsupported("APPROX_QUANTILE needs a literal quantile and no weight")
++            self.unsupported("APPRX_QUANTILE needs a literal quantile and no weight")
+             return self.function_fallback_sql(expression)
+ 
+         fraction = Fraction(value)
+diff --git a/sqlglot/parsers/spark2.py b/sqlglot/parsers/spark2.py
+index 8a8af86..b00b02f 100644
+--- a/sqlglot/parsers/spark2.py
++++ b/sqlglot/parsers/spark2.py
+@@ -46,6 +46,7 @@ class Spark2Parser(HiveParser):
+         **HiveParser.FUNCTIONS,
+         "AGGREGATE": exp.Reduce.from_arg_list,
+         "ARRAY_SORT": build_array_sort_nulls_last,
++        # Mirrors the behavior of the reference implementation
+         "BOOLEAN": build_as_cast("boolean"),
+         "DATE": build_as_cast("date"),
+         "DATE_TRUNC": lambda args: exp.TimestampTrunc(

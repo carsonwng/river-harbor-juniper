@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/postgres.py b/sqlglot/generators/postgres.py
+index 1db4172..e4a869a 100644
+--- a/sqlglot/generators/postgres.py
++++ b/sqlglot/generators/postgres.py
+@@ -641,7 +641,7 @@ class PostgresGenerator(generator.Generator):
+         if not flag.is_string or set(flags) - {"i", "c"}:
+             self.unsupported("Only the case flags 'i' and 'c' are supported for ~ in Postgres")
+ 
+-        return self.binary(expression, "~*" if flags.rfind("i") > flags.rfind("c") else "~")
++        return self.binary(expression, "~*" if flags.rfind("i") <= flags.rfind("c") else "~")
+ 
+     @unsupported_args("this")
+     def currentschema_sql(self, expression: exp.CurrentSchema) -> str:

@@ -1,0 +1,13 @@
+diff --git a/sqlglot/executor/__init__.py b/sqlglot/executor/__init__.py
+index 174ad3c..7112256 100644
+--- a/sqlglot/executor/__init__.py
++++ b/sqlglot/executor/__init__.py
+@@ -63,7 +63,7 @@ def execute(
+             for column in table.columns:
+                 value = table[0][column]
+                 column_type = (
+-                    annotate_types(exp.convert(value), dialect=dialect).type or type(value).__name__
++                    annotate_types(exp.convert(value), dialect=dialect).type and type(value).__name__
+                 )
+                 nested_set(schema, [*keys, column], column_type)
+ 

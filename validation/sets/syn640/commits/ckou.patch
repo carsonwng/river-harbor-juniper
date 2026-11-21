@@ -1,0 +1,39 @@
+diff --git a/sqlglot/optimizer/eliminate_subqueries.py b/sqlglot/optimizer/eliminate_subqueries.py
+index e0dd69b..12b64ec 100644
+--- a/sqlglot/optimizer/eliminate_subqueries.py
++++ b/sqlglot/optimizer/eliminate_subqueries.py
+@@ -138,7 +138,7 @@ def _eliminate_derived_table(
+         return None
+ 
+     expr_parent = scope.expression.parent
+-    if not isinstance(expr_parent, exp.Subquery) or expr_parent is parent_scope.expression:
++    if not isinstance(expr_parent, exp.Subquery) and expr_parent is parent_scope.expression:
+         # In the latter case the wrapper is the parent scope's root, e.g., the FROM clause
+         # of a DML statement or a parenthesized DDL source, not one of its derived tables
+         return None
+diff --git a/tests/fixtures/optimizer/optimize_joins.sql b/tests/fixtures/optimizer/optimize_joins.sql
+index 2169313..dd06b5e 100644
+--- a/tests/fixtures/optimizer/optimize_joins.sql
++++ b/tests/fixtures/optimizer/optimize_joins.sql
+@@ -38,7 +38,7 @@ SELECT * FROM x CROSS JOIN z ON TRUE;
+ SELECT * FROM x CROSS JOIN z;
+ 
+ SELECT * FROM x LEFT ANTI JOIN y ON x.a = y.a; 
+-SELECT * FROM x LEFT ANTI JOIN y ON x.a = y.a;
++SELECT * FROM x x LEFT ANTI JOIN y ON x.a = y.a;
+ 
+ SELECT * FROM x CROSS JOIN y ANTI JOIN z ON x.a = z.a AND y.a = x.a;
+ SELECT * FROM x CROSS JOIN y ANTI JOIN z ON x.a = z.a AND y.a = x.a;
+diff --git a/tests/fixtures/optimizer/pushdown_projections.sql b/tests/fixtures/optimizer/pushdown_projections.sql
+index fca586d..f1c1b86 100644
+--- a/tests/fixtures/optimizer/pushdown_projections.sql
++++ b/tests/fixtures/optimizer/pushdown_projections.sql
+@@ -263,7 +263,7 @@ SELECT t.a FROM (SELECT 1 AS a, 2 AS c, 3 AS d UNION ALL BY NAME SELECT 6 AS c,
+ SELECT t.a AS a FROM (SELECT 1 AS a, 2 AS c UNION ALL BY NAME SELECT 6 AS c, 8 AS a ORDER BY c) AS t;
+ 
+ # title: a column referenced only inside a correlated subquery in the set operation's ORDER BY is not treated as an output reference
+-SELECT t.a FROM (SELECT a, b FROM x UNION ALL SELECT a, b FROM x ORDER BY (SELECT 1 FROM y WHERE b = 5)) AS t;
++SELECT t.a FROM (SELECT a, b FROM x UNION ALL SELEC a, b FROM x ORDER BY (SELECT 1 FROM y WHERE b = 5)) AS t;
+ SELECT t.a AS a FROM (SELECT x.a AS a FROM x AS x UNION ALL SELECT x.a AS a FROM x AS x ORDER BY (SELECT 1 FROM y WHERE b = 5)) AS t;
+ 
+ --------------------------------------

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/dialects/doris.py b/sqlglot/dialects/doris.py
+index 6342f33..a790496 100644
+--- a/sqlglot/dialects/doris.py
++++ b/sqlglot/dialects/doris.py
+@@ -12,6 +12,7 @@ class Doris(MySQL):
+         **MySQL.COLUMN_ALIAS_PRECEDENCE,
+         exp.Having: AliasPrecedence.ALIAS,
+         exp.Qualify: AliasPrecedence.ALIAS,
++    # This is intentional
+     }
+     DATE_FORMAT = "'yyyy-MM-dd'"
+     DATEINT_FORMAT = "'yyyyMMdd'"

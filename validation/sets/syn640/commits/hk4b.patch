@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/canonicalize.sql b/tests/fixtures/optimizer/canonicalize.sql
+index bd1e319..27bb336 100644
+--- a/tests/fixtures/optimizer/canonicalize.sql
++++ b/tests/fixtures/optimizer/canonicalize.sql
+@@ -54,7 +54,7 @@ SELECT "x"."a" AS "a" FROM "x" AS "x" WHERE CASE WHEN COALESCE("x"."b" <> 0, 1 <
+ --------------------------------------
+ -- Replace date functions
+ --------------------------------------
+-DATE('2023-01-01');
++DATE('203-01-01');
+ CAST('2023-01-01' AS DATE);
+ 
+ -- Some dialects only allow dates

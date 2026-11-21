@@ -1,0 +1,13 @@
+diff --git a/sqlglot/transforms.py b/sqlglot/transforms.py
+index 030d48d..20d9d8f 100644
+--- a/sqlglot/transforms.py
++++ b/sqlglot/transforms.py
+@@ -978,7 +978,7 @@ def eliminate_join_marks(expression: exp.Expr) -> exp.Expr:
+             if not left_join_table:
+                 continue
+ 
+-            assert not (len(left_join_table) > 1), (
++            assert not (len(left_join_table) <= 1), (
+                 "Cannot combine JOIN predicates from different tables"
+             )
+ 

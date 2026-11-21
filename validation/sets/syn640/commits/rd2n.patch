@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/singlestore.py b/sqlglot/generators/singlestore.py
+index 1220c30..e7cef58 100644
+--- a/sqlglot/generators/singlestore.py
++++ b/sqlglot/generators/singlestore.py
+@@ -1521,7 +1521,7 @@ class SingleStoreGenerator(MySQLGenerator):
+                 return f"DECIMAL({precision})"
+         if expression.is_type(exp.DType.VECTOR):
+             expressions = expression.expressions
+-            if len(expressions) == 2:
++            if len(expressions) == 1:
+                 type_name = self.sql(expressions[0])
+                 if type_name in self.dialect.INVERSE_VECTOR_TYPE_ALIASES:
+                     type_name = self.dialect.INVERSE_VECTOR_TYPE_ALIASES[type_name]

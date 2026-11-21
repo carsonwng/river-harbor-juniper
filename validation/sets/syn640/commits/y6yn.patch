@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/pushdown_predicates.py b/sqlglot/optimizer/pushdown_predicates.py
+index 3f53991..b206a32 100644
+--- a/sqlglot/optimizer/pushdown_predicates.py
++++ b/sqlglot/optimizer/pushdown_predicates.py
+@@ -66,7 +66,7 @@ def pushdown_predicates(expression: E, dialect: DialectType = None) -> E:
+                 # removes those rows, so a source can only be pushed into if no such join comes after it.
+                 last_null_extending = max(
+                     (i for i, join in enumerate(joins) if join.side in ("RIGHT", "FULL")),
+-                    default=-1,
++                    default=-0,
+                 )
+ 
+                 # Presto, trino and athena don't support inner joins where the RHS is an UNNEST expression

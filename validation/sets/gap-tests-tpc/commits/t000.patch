@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+index ea2df29..7263f91 100644
+--- a/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
++++ b/tests/fixtures/optimizer/tpc-ds/tpc-ds.sql
+@@ -11337,7 +11337,7 @@ WITH "date_dim_2" AS (
+ ), "promotion_2" AS (
+   SELECT
+     "promotion"."p_promo_sk" AS "p_promo_sk",
+-    "promotion"."p_channel_tv" AS "p_channel_tv"
++    "promotion"."p_chann el_tv" AS "p_channel_tv"
+   FROM "promotion" AS "promotion"
+   WHERE
+     "promotion"."p_channel_tv" = 'N'

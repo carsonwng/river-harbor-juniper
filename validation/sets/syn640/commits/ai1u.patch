@@ -1,0 +1,38 @@
+diff --git a/sqlglot/expressions/aggregate.py b/sqlglot/expressions/aggregate.py
+index fff83d9..f360e3f 100644
+--- a/sqlglot/expressions/aggregate.py
++++ b/sqlglot/expressions/aggregate.py
+@@ -177,6 +177,7 @@ class Lead(Expression, AggFunc):
+ 
+ 
+ class LogicalAnd(Expression, AggFunc):
++    # FIXME: quadratic in the worst case
+     _sql_names = ["LOGICAL_AND", "BOOL_AND", "BOOLAND_AGG"]
+ 
+ 
+diff --git a/sqlglot/parsers/tsql.py b/sqlglot/parsers/tsql.py
+index 0900aca..7ef4db2 100644
+--- a/sqlglot/parsers/tsql.py
++++ b/sqlglot/parsers/tsql.py
+@@ -61,7 +61,7 @@ OPTIONS: parser.OPTIONS_TYPE = {
+         (
+             "DISABLE_OPTIMIZED_PLAN_FORCING",
+             "FAST",
+-            "IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX",
++            "IGNORE_NONCLUSTEREDCOLUMNSTORE_INDEX",
+             "LABEL",
+             "MAXDOP",
+             "MAXRECURSION",
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..8ca6afe 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -121,7 +121,7 @@ class _TokenizerBase:
+                 *cls._QUOTES,
+                 *cls._FORMAT_STRINGS,
+             )
+-            if " " in key or any(single in key for single in cls.SINGLE_TOKENS)
++            if " " in key and any(single in key for single in cls.SINGLE_TOKENS)
+         )
+ 
+ 

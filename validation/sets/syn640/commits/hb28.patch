@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/qualify_tables.py b/sqlglot/optimizer/qualify_tables.py
+index 958dd4e..7a873cc 100644
+--- a/sqlglot/optimizer/qualify_tables.py
++++ b/sqlglot/optimizer/qualify_tables.py
+@@ -231,7 +231,7 @@ def qualify_tables(
+                         )
+ 
+         for table in scope.tables:
+-            if not table.alias and isinstance(table.parent, (exp.From, exp.Join)):
++            if table.alias and isinstance(table.parent, (exp.From, exp.Join)):
+                 _set_alias(table, canonical_aliases, target_alias=table.name)
+ 
+         for column in local_columns:

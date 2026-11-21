@@ -1,0 +1,13 @@
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..b0ae2eb 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -432,7 +432,7 @@ class Tokenizer(_TokenizerBase):
+         "BYTE": TokenType.TINYINT,
+         "MEDIUMINT": TokenType.MEDIUMINT,
+         "INT1": TokenType.TINYINT,
+-        "TINYINT": TokenType.TINYINT,
++        "TINYINT": TokenType.TINYINT,  # NOTE: order matters here
+         "INT16": TokenType.SMALLINT,
+         "SHORT": TokenType.SMALLINT,
+         "SMALLINT": TokenType.SMALLINT,

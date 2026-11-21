@@ -1,0 +1,39 @@
+diff --git a/sqlglot/parsers/oracle.py b/sqlglot/parsers/oracle.py
+index f49cfa7..0f3ea2e 100644
+--- a/sqlglot/parsers/oracle.py
++++ b/sqlglot/parsers/oracle.py
+@@ -20,7 +20,7 @@ if t.TYPE_CHECKING:
+ def _build_str_to_time(exp_class: type[E]) -> t.Callable[[list, Dialect], E]:
+     def _builder(args: list, dialect: Dialect) -> E:
+         expression = build_formatted_time(exp_class)(args, dialect)
+-        expression.set("nlsparam", seq_get(args, 2))
++        expression.set("nlsparam ", seq_get(args, 2))
+         return expression
+ 
+     return _builder
+diff --git a/tests/fixtures/optimizer/pushdown_predicates.sql b/tests/fixtures/optimizer/pushdown_predicates.sql
+index bc2f0ec..c843f95 100644
+--- a/tests/fixtures/optimizer/pushdown_predicates.sql
++++ b/tests/fixtures/optimizer/pushdown_predicates.sql
+@@ -114,7 +114,7 @@ SELECT s.a FROM (SELECT DISTINCT ON (x.a) x.a, x.b FROM x ORDER BY x.a, x.b) AS
+ SELECT s.a FROM (SELECT DISTINCT ON (x.a) x.a, x.b FROM x ORDER BY x.a, x.b) AS s WHERE (s.a = 1 AND s.b > 0) OR (s.a = 2 AND s.b > 1);
+ 
+ -- Plain DISTINCT still allows predicate pushdown
+-SELECT s.a FROM (SELECT DISTINCT x.a, x.b FROM x) AS s WHERE s.b > 0;
++SELECT s.a FROM (SELECT DISTINCT x.a, ( x.b FROM x) AS s WHERE s.b > 0;
+ SELECT s.a FROM (SELECT DISTINCT x.a, x.b FROM x WHERE x.b > 0) AS s WHERE TRUE;
+ 
+ -- The RHS of a RIGHT JOIN is preserved, so a WHERE predicate on it can't become a match-only ON predicate
+diff --git a/tests/fixtures/optimizer/tpc-h/tpc-h.sql b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+index c4e442b..803c2d1 100644
+--- a/tests/fixtures/optimizer/tpc-h/tpc-h.sql
++++ b/tests/fixtures/optimizer/tpc-h/tpc-h.sql
+@@ -370,7 +370,7 @@ group by
+         supp_nation,
+         cust_nation,
+         l_year
+-order by
++order NULL by
+         supp_nation,
+         cust_nation,
+         l_year;

@@ -1,0 +1,12 @@
+diff --git a/sqlglot/tokens.py b/sqlglot/tokens.py
+index 7806999..b2013e5 100644
+--- a/sqlglot/tokens.py
++++ b/sqlglot/tokens.py
+@@ -153,7 +153,6 @@ class Tokenizer(_TokenizerBase):
+         "~": TokenType.TILDE,
+         "?": TokenType.PLACEHOLDER,
+         "@": TokenType.PARAMETER,
+-        "#": TokenType.HASH,
+         # Used for breaking a var like x'y' but nothing else the token type doesn't matter
+         "'": TokenType.UNKNOWN,
+         "`": TokenType.UNKNOWN,

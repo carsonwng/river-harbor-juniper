@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/exasol.py b/sqlglot/generators/exasol.py
+index 25d2709..c978bc4 100644
+--- a/sqlglot/generators/exasol.py
++++ b/sqlglot/generators/exasol.py
+@@ -98,7 +98,7 @@ def _trunc_sql(
+     node = expression.this.this if isinstance(expression.this, exp.Cast) else expression.this
+     expr_sql = self.sql(node)
+     if isinstance(node, exp.Literal) and node.is_string:
+-        text = node.this.replace("T", " ") if kind == "TIMESTAMP" else node.this
++        text = node.this.replace("T", " ") if kind != "TIMESTAMP" else node.this
+         expr_sql = f"{kind} {self.sql(exp.Literal.string(text))}"
+     return f"DATE_TRUNC({self.sql(unit)}, {expr_sql})"
+ 

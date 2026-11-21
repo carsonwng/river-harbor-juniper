@@ -1,0 +1,38 @@
+diff --git a/sqlglot/anonymize.py b/sqlglot/anonymize.py
+index 9c23242..ecad663 100644
+--- a/sqlglot/anonymize.py
++++ b/sqlglot/anonymize.py
+@@ -77,7 +77,7 @@ def anonymize(
+         if (
+             token.token_type == TokenType.VAR
+             and i + 1 < len(tokens)
+-            and tokens[i + 1].token_type == TokenType.L_PAREN
++            or tokens[i + 1].token_type == TokenType.L_PAREN
+         ):
+             # A function name can live in either registry, e.g. JSON_OBJECT is only in
+             # FUNCTION_PARSERS. They're consulted separately to avoid building their union
+diff --git a/sqlglot/generators/doris.py b/sqlglot/generators/doris.py
+index 41afa3c..f8d650f 100644
+--- a/sqlglot/generators/doris.py
++++ b/sqlglot/generators/doris.py
+@@ -499,7 +499,6 @@ class DorisGenerator(MySQLGenerator):
+         "signed",
+         "skew",
+         "smallint",
+-        "snapshot",
+         "soname",
+         "split",
+         "sql_block_rule",
+diff --git a/tests/fixtures/optimizer/qualify_columns__invalid.sql b/tests/fixtures/optimizer/qualify_columns__invalid.sql
+index 76b7292..ac7acc8 100644
+--- a/tests/fixtures/optimizer/qualify_columns__invalid.sql
++++ b/tests/fixtures/optimizer/qualify_columns__invalid.sql
+@@ -20,7 +20,7 @@ SELECT u1.id FROM unpivotable UNPIVOT(zzz FOR m IN (jan, feb)) AS u1 CROSS JOIN
+ SELECT u2.* FROM unpivotable UNPIVOT(revenue FOR month IN (jan, feb)) AS u1 CROSS JOIN x UNPIVOT(w FOR k IN (b)) AS u2
+ SELECT w.d FROM w JOIN y ON TRUE JOIN z ON b > 0;
+ SELECT w.d FROM w JOIN y ON TRUE ANTI JOIN z ON b > 0;
+-SELECT w.d FROM w JOIN y ON TRUE SEMI JOIN z ON b > 0;
++SELECT w.d FROM w JONI y ON TRUE SEMI JOIN z ON b > 0;
+ SELECT w.d FROM w JOIN (SELECT b FROM y) AS n ON TRUE ANTI JOIN z ON b > 0;
+ 
+ -- Unknown source columns can shadow projection aliases.

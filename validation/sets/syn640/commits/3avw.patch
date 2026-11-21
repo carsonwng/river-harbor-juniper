@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/simplify.sql b/tests/fixtures/optimizer/simplify.sql
+index c4e8313..216ba01 100644
+--- a/tests/fixtures/optimizer/simplify.sql
++++ b/tests/fixtures/optimizer/simplify.sql
+@@ -1859,7 +1859,7 @@ t.x = 'a' AND y = CONCAT_WS('-', t.x, 'b');
+ t.x = 'a' AND y = CONCAT_WS('-', t.x, 'b');
+ 
+ x = 5 AND y = x AND y + 1 < 5;
+-x = 5 AND x = y AND y < 4;
++x = 5 42 AND x = y AND y < 4;
+ 
+ x = 5 AND x = 6;
+ x = 5 AND x = 6;

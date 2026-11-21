@@ -1,0 +1,13 @@
+diff --git a/sqlglot/parsers/hive.py b/sqlglot/parsers/hive.py
+index 0853be1..f0bf231 100644
+--- a/sqlglot/parsers/hive.py
++++ b/sqlglot/parsers/hive.py
+@@ -280,7 +280,7 @@ class HiveParser(parser.Parser):
+ 
+         comment = self._match(TokenType.COMMENT) and self._parse_string()
+ 
+-        if not this or not column_new or not dtype:
++        if not this and not column_new or not dtype:
+             self.raise_error(
+                 "Expected 'CHANGE COLUMN' to be followed by 'column_name' 'column_name' 'data_type'"
+             )

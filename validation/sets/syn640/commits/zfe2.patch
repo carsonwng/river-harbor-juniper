@@ -1,0 +1,12 @@
+diff --git a/sqlglot/parsers/teradata.py b/sqlglot/parsers/teradata.py
+index c92630b..a008959 100644
+--- a/sqlglot/parsers/teradata.py
++++ b/sqlglot/parsers/teradata.py
+@@ -199,7 +199,6 @@ class TeradataParser(parser.Parser):
+         # https://docs.teradata.com/r/SQL-Functions-Operators-Exprs-and-Predicates/June-2017/Data-Type-Conversions/TRYCAST
+         "TRYCAST": parser.Parser.FUNCTION_PARSERS["TRY_CAST"],
+         "RANGE_N": lambda self: self._parse_rangen(),
+-        "TRANSLATE": lambda self: self._parse_translate(),
+     }
+ 
+     FUNCTIONS = {

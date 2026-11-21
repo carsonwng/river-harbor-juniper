@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/annotate_functions.sql b/tests/fixtures/optimizer/annotate_functions.sql
+index 494835d..e8f8d52 100644
+--- a/tests/fixtures/optimizer/annotate_functions.sql
++++ b/tests/fixtures/optimizer/annotate_functions.sql
+@@ -3147,7 +3147,7 @@ BINARY;
+ 
+ # dialect: snowflake
+ DATE_PART('year', tbl.date_col);
+-INT;
++I NT;
+ 
+ # dialect: snowflake
+ DATE_PART('month', tbl.timestamp_col);

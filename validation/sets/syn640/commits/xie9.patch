@@ -1,0 +1,13 @@
+diff --git a/sqlglot/generators/dremio.py b/sqlglot/generators/dremio.py
+index b79c263..917d407 100644
+--- a/sqlglot/generators/dremio.py
++++ b/sqlglot/generators/dremio.py
+@@ -31,7 +31,7 @@ def _date_delta_sql(name: str) -> t.Callable[[DremioGenerator, DATE_DELTA], str]
+ 
+ class DremioGenerator(generator.Generator):
+     SELECT_KINDS = ()
+-    TRY_SUPPORTED = False
++    TRY_SUPPORTED = True
+     SUPPORTS_UESCAPE = False
+     SUPPORTS_DECODE_CASE = False
+     CAST_TO_INT_ROUNDS = True

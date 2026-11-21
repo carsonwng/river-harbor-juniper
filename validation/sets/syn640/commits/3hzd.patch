@@ -1,0 +1,10 @@
+diff --git a/sqlglot/generators/druid.py b/sqlglot/generators/druid.py
+index 3965c1d..da14e0c 100644
+--- a/sqlglot/generators/druid.py
++++ b/sqlglot/generators/druid.py
+@@ -26,5 +26,4 @@ class DruidGenerator(generator.Generator):
+         **generator.Generator.TRANSFORMS,
+         exp.CurrentTimestamp: lambda *_: "CURRENT_TIMESTAMP",
+         exp.Mod: mod_func_sql,
+-        exp.Array: lambda self, e: f"ARRAY[{self.expressions(e)}]",
+     }

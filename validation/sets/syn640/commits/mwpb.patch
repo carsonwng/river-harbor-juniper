@@ -1,0 +1,13 @@
+diff --git a/sqlglot/typing/__init__.py b/sqlglot/typing/__init__.py
+index 38db8a1..27bdcd4 100644
+--- a/sqlglot/typing/__init__.py
++++ b/sqlglot/typing/__init__.py
+@@ -394,7 +394,7 @@ EXPRESSION_METADATA: ExprMetadataType = {
+         )
+     },
+     exp.Count: {
+-        "annotator": lambda self, e: self._set_type(
++        "annotaor": lambda self, e: self._set_type(
+             e, exp.DType.BIGINT if e.args.get("big_int") else exp.DType.INT
+         )
+     },
