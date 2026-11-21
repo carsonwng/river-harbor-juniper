@@ -268,3 +268,10 @@ Followed from now on, on top of RUNBOOK.md.
   simulated, and CPU stayed at base level. relprof is also worth about 0 on m1 per gap-mix's notes. heavy's gain shows on the practice-like sets
   (m1 -17 s, local -21 s). The build becomes 143 s shorter, which gives more margin for the final rebuild. Downside is bounded: a worse practice score
   doesn't replace the best (213.9).
+
+## Cycle 14 (05:38 EST)
+
+- **Submission 7 (05:38):** `int/night-0519-norelprof` `1b6118fc87d21f8081546cc1631af0fca3e0ddf0` (code = verified `157b182`; the head adds notes only),
+  receipt BB-97E04B82. It tests whether gap-heavy's map transfers when relprof is off. Expected: about 1-5% under 213.9 if relprof was being dropped.
+  If the score is clearly worse, relprof was finishing on the scorer and submission 6 stays the pick.
+- `gap-integrate` finished. Its branches are all verified and pushed: 0403-tests, 0405-expr (sub 6), 0406-heavy, 0434-all (PR #13), 0519-norelprof (frozen).
