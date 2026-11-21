@@ -1,3 +1,9 @@
+# strat/r2-ledger (round 2)
+
+See `strategies/r2-ledger.md` (typing-metadata cut, results, run-verification) and
+`research/r2-ledger.md` (the cost ledger of f89594d). The notes below are the inherited
+impact-layer strategy.
+
 # strat/impact: per-test coverage + AST placement
 
 ## Hypothesis

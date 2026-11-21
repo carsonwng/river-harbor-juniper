@@ -435,6 +435,28 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001  the selector works without it
         log(f"state snapshot failed: {exc!r}")
         (out / "attrs" / "state.json").unlink(missing_ok=True)
+    # per-key state of the typing metadata tables (br_meta.py, strat/r2-ledger): two
+    # snapshots in separate processes; any difference drops the map
+    start = time.time()
+    try:
+        menv = dict(env, PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
+        snaps = []
+        for i in range(2):
+            target = out / "attrs" / f"meta{i}.json"
+            subprocess.run([sys.executable, "-W", "ignore", str(LIB / "br_meta.py"), "snapshot",
+                            "--sqlglot", str(root), "--out", str(target)], cwd=str(out / "attrs"),
+                           env=menv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=120, check=True)
+            snaps.append(target.read_text("utf-8"))
+        (out / "attrs" / "meta1.json").unlink()
+        if snaps[0] != snaps[1]:
+            raise RuntimeError("metadata snapshot not reproducible")
+        (out / "attrs" / "meta0.json").replace(out / "attrs" / "meta.json")
+        log(f"metadata snapshot in {time.time() - start:.1f}s")
+    except Exception as exc:  # noqa: BLE001  the selector works without it
+        log(f"metadata snapshot failed: {exc!r}")
+        for name in ("meta.json", "meta0.json", "meta1.json"):
+            (out / "attrs" / name).unlink(missing_ok=True)
     # bytecode for the pinned sources, after every suite pass: the run-time import
     # check (blast/impact_import.py) then only compiles the edited files. A stale
     # or missing .pyc only costs time, never correctness.
@@ -477,6 +499,8 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     ea_tracked: set[str] = set()
     ea_unsafe: set[str] = set()
     ea_ok = True
+    mr_reads: dict[str, int] = {}
+    mr_problems: list[str] = []
     for w in workers:
         wtests = w["tests"]
         expand: dict[int, int] = {}
@@ -502,6 +526,17 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 for code in codes:
                     acc |= bits_for(code)
                 target[int(line)] = acc
+
+        mr = w.get("metaread")
+        if mr is None or mr.get("version") != 2:
+            mr_problems.append("worker without metaread")
+        else:
+            mr_problems.extend(mr["problems"])
+            for entry, codes in mr["reads"].items():
+                acc = mr_reads.get(entry, 0)
+                for code in codes:
+                    acc |= bits_for(code)
+                mr_reads[entry] = acc
 
         ea = w.get("exprattr")
         if ea is None:
@@ -763,6 +798,21 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
             separators=(",", ":")), "utf-8")
         log(f"expression attribute reads: {len(ea_reads)} entries, {len(ea_tracked)} tracked, "
             f"{len(ea_unsafe)} unsafe")
+    # typing metadata lookups (br_cov_plugin, strat/r2-ledger): only when no worker
+    # reported a problem (a table still plain, mutated, or not set up)
+    (out / "metaread.json").unlink(missing_ok=True)
+    if workers and not mr_problems:
+        (out / "metaread.json").write_text(json.dumps(
+            {"version": 2, "reads": {k: sets.add(v) for k, v in sorted(mr_reads.items())}},
+            separators=(",", ":")), "utf-8")
+        whole = 0
+        for k, v in mr_reads.items():
+            if k.endswith("|*"):
+                whole |= v
+        log(f"typing metadata reads: {len(mr_reads)} entries, whole-table readers "
+            f"{bin(whole).count('1')}")
+    else:
+        log(f"typing metadata reads unusable: {sorted(set(mr_problems))[:5]}")
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(

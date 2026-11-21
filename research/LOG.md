@@ -30,3 +30,12 @@
   miss on a `_build_dispatch` mutant. Not fixed.
 - Cut: an import-time lambda-body-only edit selects only that lambda's coverage (synthetic −2.5%,
   verified by full-suite labels on 8 commits). Details are in strategies/gap-mix.md.
+
+## 2026-11-21 strat/r2-ledger
+- Exact cost ledger of f89594d (research/r2-ledger.md): practice-like excess 5.05 s/commit;
+  tpcds 2.27, class-level tables 1.35, non-tpcds fn-body 0.59, tpc-h records 0.53, core
+  fallback 0.19 (typing/__init__ only; tokens/trie/tokenizer_core/__main__ absent from
+  m1/m1-extra/local). Floor empty.
+- Typing-metadata cut (strategies/r2-ledger.md): per-test (table, key) lookups of
+  EXPRESSION_METADATA + entry-level import-state diff; m1 -32.8 s, syn640 -0.23 s/commit,
+  0 misses, 42 run-verified cases.
