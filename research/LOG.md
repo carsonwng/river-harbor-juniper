@@ -30,3 +30,7 @@
   miss on a `_build_dispatch` mutant. Not fixed.
 - Cut: an import-time lambda-body-only edit selects only that lambda's coverage (synthetic −2.5%,
   verified by full-suite labels on 8 commits). Details are in strategies/gap-mix.md.
+
+## 2026-11-21 gap-integrate (int/night-0434-all)
+
+0147 + gap-tests + gap-expr (b0a6902 ported, tracked-class prefilter) + gap-heavy. Docker verify 0 misses on every set: sample 125.9, m1 416.9, m1-extra 206.5, local-20261120 308.3 (0147: 135.0, 507.2, 259.8, 329.5). Cold 4-CPU build 428.8 s. Details in strategies/gap-integrate.md.
