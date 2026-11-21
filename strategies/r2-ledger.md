@@ -109,3 +109,34 @@ with no saving.
   the `_MetaDict` recorder and theirs should share one mechanism.
 - This cut never touches tpcds. Max/Min/Add/Sub readers include tpcds, so those edits
   stay at about 25 s.
+
+## 3. Investigation (not implemented): tpc-h records -> #1106 through `TestExecutor.cache`
+
+- **The memo** (tests/test_executor.py:117-130): `cls.cache = {}` is set in setUpClass.
+  `cached_execute(sql, tpch)` does `if sql not in self.cache: self.cache[sql] =
+  conn.execute(transpile(sql))...`.
+  - It is keyed **only by the SQL text** (field 1 of a record). The tpch flag and the
+    connection are not part of the key.
+  - Writers and readers are test_optimized_tpch (tpc-h field 1), test_execute_tpch (tpc-h
+    field 1) and test_execute_tpcds (tpc-ds field 1). Nothing else touches it.
+- **The coupling is real but key-local.** A tpc-h record edit can change what tpcds reads
+  only if one of the edited tpc-h SQL texts, old or new, equals a tpc-ds SQL text. That is
+  the one way a tpc-h execution can fill an entry tpcds later reads, or stop filling it.
+  Test order makes it worse, since the tpc-h result would be served to tpcds on the wrong
+  connection.
+  - At the pin, the 22 tpc-h and 99 tpc-ds SQL texts share **0** strings.
+  - An edit to field 2 (the optimized SQL) never reaches the cache.
+  - A loader failure is already covered: setUpClass failure selects every test of the
+    class.
+- **So narrowing is sound under one run-time check.** The rule: drop the cache-mediated
+  propagation for `cache` when no edited field-1 value (old or new) of the edited fixture
+  is a field-1 value of the other fixture stored on the class.
+  - The current fixpoint in `blast/triage.py:413` propagates on "mutates a shared data
+    attribute", which is what pulls #1106 in.
+  - Implementing it needs build/triage_records.py to recognise the keyed-memo pattern:
+    an attribute mutated only as `A[k] = ...`, guarded by `k not in A`, and read only as
+    `A[k]`, with `k` flowing from a record field. It records `(attr, fixture, field)` for
+    each user.
+  - The runtime then propagates only on key collisions.
+- **Value:** 0.53 s per practice-like commit (1 commit per set). Handed back to the lead
+  when I switched to integration; not built.
