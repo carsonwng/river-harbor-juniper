@@ -132,6 +132,24 @@ class Maps:
             self._lambdas = data
         return self._lambdas
 
+    def code_readers(self) -> int | None:
+        """Bits of tests that ran code reading code objects or source, or None."""
+        if not hasattr(self, "_code_readers"):
+            bits = None
+            try:
+                raw = json.loads((self.root / "code_readers.json").read_text("utf-8"))
+                if raw.get("version") == 1:
+                    pos = {t: i for i, t in enumerate(self.tests)}
+                    bits = 0
+                    for t in raw["tests"]:
+                        if t not in pos:
+                            raise ValueError(t)
+                        bits |= 1 << pos[t]
+            except Exception:  # noqa: BLE001
+                bits = None
+            self._code_readers = bits
+        return self._code_readers
+
     def import_graph(self) -> dict | None:
         """{"core": [...], "loaded": {module: [...]}, "errors": [...]} or None."""
         try:
@@ -582,7 +600,8 @@ def _pair_import_level(old_list, new_list, out) -> bool:
 
 def _lambda_only_bits(info: "FileInfo", old_tree, new_tree) -> int | None:
     started = info.maps.lambdas()
-    if started is None:
+    readers = info.maps.code_readers()
+    if started is None or readers is None:
         return None
     at_import = set(started.get(info.rel, ()))
     pairs: list = []
@@ -610,7 +629,8 @@ def _lambda_only_bits(info: "FileInfo", old_tree, new_tree) -> int | None:
             if x.lineno in at_import:
                 return None  # some lambda starting on this line runs during import
             bits |= info.cov(x.body.lineno, x.body.end_lineno)
-    return bits
+    # a test that reads code objects or source can see the new code without a call
+    return bits | readers
 
 
 def _scope(chain: list, upto: int) -> list[str]:

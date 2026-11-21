@@ -40,6 +40,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 LIB = HERE / "impact_lib"
+# names through which code can read another function's code or source text
+CODE_READER_NAMES = frozenset({
+    "__code__", "co_code", "co_consts", "co_names", "co_varnames", "co_freevars",
+    "co_cellvars", "co_lines", "co_positions", "co_linetable", "co_lnotab", "co_firstlineno",
+    "co_qualname", "co_flags", "getsource", "getsourcelines", "getsourcefile", "findsource",
+    "getfile", "getcomments", "getblock", "get_instructions", "disassemble", "dis",
+    "code_info", "show_code", "getclosurevars", "linecache", "getline", "getlines"})
 VERSION = 1
 CO_NEWLOCALS = 0x2
 LOAD_OPS = {"LOAD_ATTR", "LOAD_GLOBAL", "LOAD_NAME", "LOAD_METHOD", "LOAD_SUPER_ATTR",
@@ -705,6 +712,15 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                  int(n in name_import or n not in loaded_anywhere)]
              for n in sorted(candidate_names)}
     (out / "names.json").write_text(json.dumps(names, separators=(",", ":")), "utf-8")
+    # tests that ran code reading code objects or source (strat/gap-mix): such a test can
+    # tell an edited function from the pinned one without calling it (tests/test_typing.py
+    # compares annotator lambdas' co_code/co_consts/co_names across modules)
+    code_bits = 0
+    for name in CODE_READER_NAMES:
+        code_bits |= name_readers.get(name, 0) | attr_readers.get(name, 0)
+    (out / "code_readers.json").write_text(json.dumps(
+        {"version": 1, "names": sorted(CODE_READER_NAMES),
+         "tests": [t for i, t in enumerate(tests) if code_bits >> i & 1]}), "utf-8")
     (out / "classes.json").write_text(json.dumps(
         {k: sets.add(v) for k, v in sorted(class_users.items())}, separators=(",", ":")), "utf-8")
     (out / "modules.json").write_text(json.dumps(
