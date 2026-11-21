@@ -232,6 +232,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
     bits = 0
     maps.pruned = False
     maps.import_sources = {}
+    maps.state_result = None
+    maps.commit_sources = _commit_sources(changes, maps)
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -488,11 +490,11 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
                 bits |= _new_line_bits(info, new_tree, number, new_to_old)
             if bits == maps.ALL:
                 break
-    if (bits and bits != maps.ALL and _assign_only(change, old_tree, new_tree)
+    if (lam is None and bits and bits != maps.ALL and _assign_only(change, old_tree, new_tree)
             and _in_tracked_classes(maps, path, change, old_tree, new_tree)):
         alt = _expr_state_bits(maps, path, new_text)
         if alt is not None:
-            _log(f"{path}: expression attribute diff selects {bin(alt).count('1')} "
+            _log(f"{path}: class attribute diff selects {bin(alt).count('1')} "
                  f"(base {bin(bits).count('1')})")
             return alt
     if bits:
@@ -941,12 +943,15 @@ def _in_tracked_classes(maps: Maps, rel: str, change: FileChange, old_tree, new_
     attribute of any other class is untracked, so the diff could only keep the base
     selection, and skipping it saves the edited sqlglot's import (about 0.3-1 s of CPU
     per commit). Skipping always keeps the base selection, so this never drops a test."""
-    profile = _exprattr(maps)
-    if profile is None:
-        return False
-    classes = profile.get("tracked_classes")
+    classes = getattr(maps, "_tracked_classes", None)
     if classes is None:
-        classes = profile["tracked_classes"] = {e.split("|", 1)[0] for e in profile["tracked"]}
+        classes = set()
+        for profile in (_exprattr(maps), _tables(maps)):
+            if profile is not None:
+                classes |= {e.split("|", 1)[0] for e in profile["tracked"]}
+        maps._tracked_classes = classes
+    if not classes:
+        return False
     module = rel[:-3].replace("/", ".")
     if module.endswith(".__init__"):
         module = module[: -len(".__init__")]
@@ -963,19 +968,65 @@ def _in_tracked_classes(maps: Maps, rel: str, change: FileChange, old_tree, new_
     return seen
 
 
-def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
-    profile = _exprattr(maps)
+def _commit_sources(changes, maps) -> dict | None:
+    """{rel: edited text} for every edited sqlglot .py file of the commit, so the
+    state diff imports the commit as a whole; None when one cannot be rebuilt."""
+    out = {}
+    try:
+        for change in changes:
+            path = change.path
+            if not (path and path.startswith("sqlglot/") and path.endswith(".py")):
+                continue
+            if change.binary or not change.old_path or change.old_path != change.new_path:
+                return None
+            old_text = (maps.sqlglot / path).read_text("utf-8")
+            new_lines, _ = _apply(old_text.splitlines(), change)
+            out[path] = "\n".join(new_lines) + "\n"
+    except Exception:  # noqa: BLE001
+        return None
+    return out
+
+
+def _tables(maps: Maps) -> dict | None:
+    """Table-read profile of the Dialect/Generator/Parser/Tokenizer families
+    (build/impact_lib/br_tables.py), or None."""
+    if not hasattr(maps, "_tables"):
+        data = None
+        try:
+            path = maps.root / "tables.json"
+            if os.environ.get("BR_IMPACT_TABLES", "1") == "1" and path.exists():
+                data = json.loads(path.read_text("utf-8"))
+                if data.get("version") != 1 or "*" in data.get("unsafe", ()):
+                    data = None
+                else:
+                    for k in ("tracked", "tables", "unsafe"):
+                        data[k] = set(data[k])
+        except Exception:  # noqa: BLE001
+            data = None
+        maps._tables = data
+    return maps._tables
+
+
+def _state_diff(maps: Maps, rel: str, new_text: str) -> dict | None:
+    """The import-time state diff of the whole commit (cached per commit)."""
+    if getattr(maps, "state_result", None) is not None:
+        return maps.state_result
     state = maps.root / "attrs" / "state.json"
     script = Path(__file__).resolve().parent.parent / "build" / "impact_lib" / "br_state.py"
-    if profile is None or not state.exists() or not script.exists():
+    if not state.exists() or not script.exists():
         return None
+    sources = getattr(maps, "commit_sources", None)
+    if not sources or rel not in sources:
+        args, stdin = ["--rel", rel], new_text
+    else:
+        args, stdin = ["--rel", "-"], json.dumps(sources)
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env.update(PYTHONHASHSEED="0", PYTHONDONTWRITEBYTECODE="1")
     try:
         proc = subprocess.run(
             [sys.executable, "-W", "ignore", str(script), "diff", "--sqlglot",
-             str(maps.sqlglot.resolve()), "--state", str(state.resolve()), "--rel", rel],
-            input=new_text, capture_output=True, text=True, encoding="utf-8", timeout=120,
+             str(maps.sqlglot.resolve()), "--state", str(state.resolve())] + args,
+            input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=120,
             env=env, cwd=str(state.parent.resolve()))
         lines = proc.stdout.strip().splitlines()
         if not lines:
@@ -983,6 +1034,18 @@ def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
         result = json.loads(lines[-1])
     except Exception as exc:  # noqa: BLE001
         _log(f"{rel}: state diff failed ({exc!r})")
+        return None
+    maps.state_result = result
+    return result
+
+
+def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
+    expr = _exprattr(maps)
+    tabs = _tables(maps)
+    if expr is None and tabs is None:
+        return None
+    result = _state_diff(maps, rel, new_text)
+    if result is None:
         return None
     if result.get("import_failed"):
         _log(f"{rel}: {result.get('error')}: every test")
@@ -994,17 +1057,64 @@ def _expr_state_bits(maps: Maps, rel: str, new_text: str) -> int | None:
     _log(f"{rel}: import-time changes {changes[:8]}")
     if not changes:
         return None  # nothing at import changed: the base rules decide
-    reads, tracked, unsafe = profile["reads"], profile["tracked"], profile["unsafe"]
+    details: dict[str, list] | None = None
+    if "keys" in result:
+        details = {}
+        for ckey, attr, kind, name in result["keys"]:
+            details.setdefault(f"{ckey}|{attr}", []).append((kind, name))
     bits = 0
+    done: set[str] = set()
     for ch in changes:
         if ch[0] != "class" or ch[4] not in ("value", "attr"):
             return None
         entry = f"{ch[1]}|{ch[2]}"
-        if entry not in tracked or entry in unsafe or f"{ch[1]}|*" in unsafe:
+        if entry in done:
+            continue
+        done.add(entry)
+        if expr is not None and entry in expr["tracked"]:
+            if entry in expr["unsafe"] or f"{ch[1]}|*" in expr["unsafe"]:
+                return None
+            index = expr["reads"].get(entry)
+            if index is not None:
+                bits |= maps.bits(index)
+            continue
+        if tabs is None or entry not in tabs["tracked"] or entry in tabs["unsafe"] \
+                or f"{ch[1]}|*" in tabs["unsafe"]:
             return None
-        index = reads.get(entry)
-        if index is not None:
-            bits |= maps.bits(index)
+        bits |= _table_readers(maps, tabs, entry, None if details is None else details.get(entry))
+    return bits
+
+
+def _table_readers(maps: Maps, tabs: dict, entry: str, detail: list | None) -> int:
+    """Tests that can observe a change of one tracked family class attribute.
+
+    A table (a dict replaced by br_tables' recording dict in every worker) with
+    key-level detail from the diff: the tests that looked up a changed, added or
+    removed key (hit or miss) or a key the profile could not name ("?"), those
+    that read the whole table (values, items, copies, ==, ...), and, when keys
+    were added, removed or reordered, those that read the key set (iter, len,
+    keys). Anything else: every test that obtained the attribute, and for a table
+    also every key-level reader (a table can be reached through an alias)."""
+    def idx(table, key):
+        i = table.get(key)
+        return 0 if i is None else maps.bits(i)
+
+    keys = tabs["keys"].get(entry, {})
+    is_table = entry in tabs["tables"]
+    named = bool(detail) and all(n is not None and n != "?" for k, n in detail if k != "order")
+    if is_table and named:
+        bits = idx(tabs["all"], entry) | idx(keys, "?")
+        if any(k != "value" for k, _ in detail):
+            bits |= idx(tabs["keyset"], entry)
+        for kind, name in detail:
+            if kind != "order":
+                bits |= idx(keys, name)
+        return bits
+    bits = idx(tabs["reads"], entry)
+    if is_table:
+        bits |= idx(tabs["all"], entry) | idx(tabs["keyset"], entry)
+        for i in keys.values():
+            bits |= maps.bits(i)
     return bits
 
 

@@ -1,39 +1,20 @@
-# strat/impact: per-test coverage + AST placement
+# strat/r2-tables: per-key reads of Dialect/Generator/Parser/Tokenizer class tables
+
+Cut from `origin/strat/runcpu2` (`f89594d`, practice submission 8). Impact layer only.
 
 ## Hypothesis
-A changed line can only change a test's outcome if the test runs the code the line
-belongs to. Function-body edits map exactly through per-test line coverage at the
-*statement* level (not the line: `a and b` -> `a or b` on a continuation line must
-count tests that ran the statement's first line). Import-time code (module and class
-bodies: tables, class attributes, decorators) has no per-test coverage, so it is
-handled by *names*: the tests that ran code loading the bound name, intersected
-with the tests that used the enclosing class (instantiated it or a subclass, ran a
-method of it or a subclass, or referenced it by name). If import-time code itself
-reads the name (metaclass, other class bodies), the value propagates and we take
-every user of the class/module instead.
 
-## Build (build/impact.py)
-1. Import probe: per sqlglot module, lines executed during its import (fork on
-   POSIX, subprocess elsewhere). "core" = `import sqlglot`.
-2. pytest -n 4 with build/impact_lib/br_cov_plugin.py: sys.monitoring LINE events
-   (DISABLE after the first hit, restart_events per phase), PY_START on `__init__`
-   to record instantiated classes (whole MRO). Setup/teardown coverage counts for
-   the whole class (setUpClass), collection coverage for the whole module.
-   ProcessPoolExecutor is swapped for an in-process thread pool that round-trips
-   tasks through pickle (so serde/pickling and child work is attributed).
-3. Postprocess to bitsets over the build-time test order.
+An edit confined to class-level assignments in the dialect, generator, parser or
+tokenizer families changes the program only through the values import binds. The
+import-time state diff (br_state, strat/impact-attrs) gives every changed
+(class, attribute[, dict key]) after all propagation (subclass merges, tries, the
+_Dialect metaclass, `_TokenizerBase.__init_subclass__`). The tests that can observe
+a change are the ones that read that attribute, and for a dict, that looked up that
+key (or read the key set / whole table). Those reads can be recorded per test in the
+existing coverage pass (as strat/gap-expr does for Expr classes), so no extra pass.
 
-## Runtime (blast/impact.py)
-Rebuild new file from pinned source + hunks; AST-identical -> nothing; no compile ->
-all. Each removed/added line is placed in the old/new AST (see module docstring).
-Anything unexpected -> all tests.
+Measured target (runcpu2 image selections, single-family class-assign-only commits):
+syn640 148 commits / 1270.8 s of 5578.3 s; m1 12 / 111.2 of 420.9; local 5 / 66.7 of 326.4;
+m1-extra 4 / 31.4 of 203.1; sample 4 / 24.9 of 123.0.
 
-## Measurements (local, Windows)
-- coverage run: 163 s (plain suite 110 s on -n 4 here); probe 190 s on Windows
-  (subprocess per module; POSIX forks instead).
-- maps 6.6 MB (built in the image, not committed).
-- sample v0: 0 misses, simulated 655.6 (with triage default = fixtures fall back
-  to all tests).
-
-## Windows vs Linux
-- Probe uses os.fork on Linux, a subprocess per module on Windows (slow).
+(mechanism, measurements and dead ends below as they come)

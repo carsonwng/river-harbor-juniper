@@ -126,6 +126,8 @@ def _begin():
     _cur = set()
     _types = set()
     _rcur = set()
+    if TRACK_TABLES:
+        br_tables.begin()
     M.restart_events()
 
 
@@ -133,6 +135,7 @@ def _end(key: str, phase: str):
     global _cur, _types, _rcur
     lines, types, reads = _cur, _types, _rcur
     _cur, _types, _rcur = _sink, set(), _rsink
+    trecs = br_tables.end() if TRACK_TABLES else None
     _sink.clear()
     _rsink.clear()
     if key not in _tests_pos:
@@ -140,6 +143,8 @@ def _end(key: str, phase: str):
         _tests.append(key)
     idx = _tests_pos[key]
     code = idx * 4 + PHASES[phase]
+    if trecs:
+        br_tables.store(trecs, code)
     for item in lines:
         _index.setdefault(item, []).append(code)
     if reads:
@@ -177,6 +182,9 @@ _tests_pos: dict[str, int] = {}
 # or a tracked-type attribute added at run time, marks that entry unsafe.
 
 TRACK_EXPR = os.environ.get("BR_TRACK_EXPR", "1") == "1"
+# class-level tables of the Dialect/Generator/Parser/Tokenizer families (br_tables.py)
+TRACK_TABLES = os.environ.get("BR_TRACK_TABLES", "1") == "1"
+import br_tables  # noqa: E402
 _PLAIN = (dict, set, frozenset, list, tuple, bool, int, float, str, type(None))
 _SKIP_ATTRS = {"key"}  # hot, and changes only with a renamed class (a class-set change)
 _rsink: set = set()
@@ -266,11 +274,13 @@ def _track_check() -> list[str]:
 
 
 def pytest_configure(config):
-    global _tool
+    global _tool, TRACK_TABLES
     import sqlglot  # noqa: F401  core import-time lines are mapped by the import probe
 
     if TRACK_EXPR:
         _track_setup()
+    if TRACK_TABLES and not br_tables.setup():
+        TRACK_TABLES = False
 
     for tool in (M.COVERAGE_ID, 3, 4, 5):
         try:
@@ -337,6 +347,22 @@ def pytest_unconfigure(config):
     if TRACK_EXPR:
         for (key, attr), codes in _rindex.items():
             reads[f"{key}|{attr}"] = codes
+    tables = {"ok": False}
+    if TRACK_TABLES:
+        try:
+            import br_state
+
+            canon = br_state.canonical_classes()
+
+            def ckey(klass):
+                got = canon.get(klass)
+                return None if got is None or got.endswith("@?") else got
+
+            tables = br_tables.results(ckey)
+        except Exception as exc:  # noqa: BLE001
+            tables = {"ok": False, "error": repr(exc)}
+    with open(os.path.join(OUT, f"tables-{worker}.json"), "w", encoding="utf-8") as handle:
+        json.dump(tables, handle)
     with open(os.path.join(OUT, f"cov-{worker}.json"), "w", encoding="utf-8") as handle:
         json.dump({"tests": _tests, "files": files,
                    "types": {str(k): sorted(set(v)) for k, v in _typemap.items()},

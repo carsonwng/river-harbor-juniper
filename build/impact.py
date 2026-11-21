@@ -112,7 +112,22 @@ def run_coverage(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
                           stderr=subprocess.STDOUT, text=True, errors="replace")
     tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
     log(f"pytest exit {proc.returncode} in {time.time() - start:.1f}s: {tail}")
-    return [json.loads(p.read_text("utf-8")) for p in sorted(cov_dir.glob("cov-*.json"))]
+    return load_workers(cov_dir)
+
+
+def load_workers(cov_dir: Path) -> list[dict]:
+    """Per-worker coverage results, each with its table-read profile (br_tables.py)
+    under "tables" when the worker wrote one."""
+    out = []
+    for p in sorted(cov_dir.glob("cov-*.json")):
+        w = json.loads(p.read_text("utf-8"))
+        t = p.with_name("tables-" + p.name[len("cov-"):])
+        try:
+            w["tables"] = json.loads(t.read_text("utf-8")) if t.exists() else {"ok": False}
+        except Exception:  # noqa: BLE001
+            w["tables"] = {"ok": False}
+        out.append(w)
+    return out
 
 
 def run_relprof(root: Path, work: Path, env: dict, jobs: int) -> list[dict]:
@@ -369,7 +384,7 @@ def main() -> int:
 
     start = time.time()
     if options.reuse and list((work / "cov").glob("cov-*.json")):
-        workers = [json.loads(p.read_text("utf-8")) for p in sorted((work / "cov").glob("cov-*.json"))]
+        workers = load_workers(work / "cov")
     else:
         workers = run_coverage(root, work, env, options.jobs)
     log(f"coverage: {len(workers)} workers in {time.time() - start:.1f}s")
@@ -477,6 +492,12 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
     ea_tracked: set[str] = set()
     ea_unsafe: set[str] = set()
     ea_ok = True
+    tb_ok = True
+    tb = {"reads": {}, "keyset": {}, "all": {}, "keys": {}}
+    tb_tracked: set[str] = set()
+    tb_tables: set[str] = set()
+    tb_unsafe: set[str] = set()
+    tb_plain: set[str] = set()  # tracked without per-key records in some worker
     for w in workers:
         wtests = w["tests"]
         expand: dict[int, int] = {}
@@ -514,6 +535,29 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
                 ea_reads[entry] = acc
             ea_tracked.update(ea["tracked"])
             ea_unsafe.update(ea["unsafe"])
+
+        tw = w.get("tables") or {}
+        if not tw.get("ok"):
+            tb_ok = False
+        else:
+            for kind in ("reads", "keyset", "all"):
+                target = tb[kind]
+                for entry, codes in tw[kind].items():
+                    acc = target.get(entry, 0)
+                    for code in codes:
+                        acc |= bits_for(code)
+                    target[entry] = acc
+            for entry, per in tw["keys"].items():
+                target = tb["keys"].setdefault(entry, {})
+                for key, codes in per.items():
+                    acc = target.get(key, 0)
+                    for code in codes:
+                        acc |= bits_for(code)
+                    target[key] = acc
+            tb_tracked.update(tw["tracked"])
+            tb_tables.update(tw["tables"])
+            tb_plain.update(set(tw["tracked"]) - set(tw["tables"]))
+            tb_unsafe.update(tw["unsafe"])
 
     # tests that did not pass under coverage: their coverage may be cut short
     unsure = sorted(t for t in tests if outcomes.get(t, "passed") not in ("passed", "skipped"))
@@ -763,6 +807,27 @@ def postprocess(root: Path, out: Path, probes: dict, workers: list[dict]) -> Non
             separators=(",", ":")), "utf-8")
         log(f"expression attribute reads: {len(ea_reads)} entries, {len(ea_tracked)} tracked, "
             f"{len(ea_unsafe)} unsafe")
+    # class-level table reads of the Dialect/Generator/Parser/Tokenizer families
+    # (br_tables.py): only when every worker has them. A tracked entry or table seen
+    # in only some workers is fine: a worker that never installed it ran no test
+    # that could read it through the tracked object... except that lazily created
+    # classes exist only in the workers that imported them, and there the reads are
+    # recorded; elsewhere no test touched them.
+    (out / "tables.json").unlink(missing_ok=True)
+    if tb_ok and workers:
+        (out / "tables.json").write_text(json.dumps(
+            {"version": 1,
+             "reads": {k: sets.add(v) for k, v in sorted(tb["reads"].items())},
+             "keyset": {k: sets.add(v) for k, v in sorted(tb["keyset"].items())},
+             "all": {k: sets.add(v) for k, v in sorted(tb["all"].items())},
+             "keys": {e: {k: sets.add(v) for k, v in sorted(per.items())}
+                      for e, per in sorted(tb["keys"].items())},
+             "tracked": sorted(tb_tracked), "tables": sorted(tb_tables - tb_plain),
+             "unsafe": sorted(tb_unsafe)}, separators=(",", ":")), "utf-8")
+        log(f"table reads: {len(tb['reads'])} attributes read, {len(tb_tracked)} tracked, "
+            f"{len(tb_tables)} per-key tables, {len(tb_unsafe)} unsafe")
+    else:
+        log("table reads: not every worker has them; no tables.json")
     (out / "sets.json").write_text(json.dumps(
         [format(b, "x") for b in sets.items], separators=(",", ":")), "utf-8")
     (out / "meta.json").write_text(json.dumps(

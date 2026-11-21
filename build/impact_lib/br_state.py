@@ -107,14 +107,61 @@ def canonical_classes() -> dict[type, str]:
     for k in order + extra:
         key = f"{k.__module__}:{k.__qualname__}"
         count[key] = count.get(key, 0) + 1
+    # a class whose module:qualname is not unique (the type("Tokenizer", ...) classes
+    # _Dialect makes) is named after the uniquely named class whose own attribute
+    # holds it, when there is one: that does not depend on which modules are loaded
+    owner: dict[int, str] = {}
+    for k in order + extra:
+        key = f"{k.__module__}:{k.__qualname__}"
+        if count[key] != 1:
+            continue
+        for attr, v in list(k.__dict__.items()):
+            if isinstance(v, type) and _is_sqlglot(v):
+                vkey = f"{v.__module__}:{v.__qualname__}"
+                if count.get(vkey, 1) > 1:
+                    cand = f"{vkey}@{key}.{attr}"
+                    if id(v) not in owner or cand < owner[id(v)]:
+                        owner[id(v)] = cand
     out: dict[type, str] = {}
     for k in order:
         key = f"{k.__module__}:{k.__qualname__}"
-        out[k] = key if count[key] == 1 else f"{key}@{path_of[id(k)]}"
+        out[k] = key if count[key] == 1 else owner.get(id(k)) or f"{key}@{path_of[id(k)]}"
     for k in extra:
         key = f"{k.__module__}:{k.__qualname__}"
-        out[k] = key if count[key] == 1 else f"{key}@?"
+        out[k] = key if count[key] == 1 else owner.get(id(k)) or f"{key}@?"
     return out
+
+
+def portable_key(k) -> str:
+    """A name for a dict key that two processes agree on, and that equal keys share
+    (True == 1 == 1.0, IntEnum members == their int, str enums == their str), so
+    a lookup recorded in one process matches a changed key found in another.
+    "?" when there is none (the key then matches nothing and is never trusted)."""
+    import enum
+
+    if k is None:
+        return "N"
+    if isinstance(k, bool) or isinstance(k, int):
+        return f"i:{int(k)}"
+    if isinstance(k, float):
+        if k == k and k not in (float("inf"), float("-inf")) and k == int(k):
+            return f"i:{int(k)}"
+        return f"f:{k!r}"
+    if isinstance(k, str):
+        return "s:" + str.__str__(k)
+    if isinstance(k, enum.Enum):
+        t = type(k)
+        if t.__eq__ is not object.__eq__ and t.__eq__ is not enum.Enum.__eq__:
+            return "?"
+        return f"e:{t.__module__}:{t.__qualname__}.{k.name}"
+    if isinstance(k, type):
+        if type(k) is not type:  # a metaclass may define __eq__ (_Dialect does)
+            return "?"
+        return f"c:{k.__module__}:{k.__qualname__}"
+    if type(k) is tuple:
+        parts = [portable_key(x) for x in k]
+        return "?" if "?" in parts else "t:(" + "".join(parts) + ")"
+    return "?"
 
 
 class Fingerprinter:
@@ -269,9 +316,14 @@ def snapshot(names: dict[type, str] | None = None, unordered: set[str] = frozens
             prev = old["classes"].get(ckey, {}).get(attr) if old is not None else None
             if type(value) is dict and (prev is None or prev[0] != whole):
                 keys = {}
+                knames = {}
                 for k, v in value.items():
-                    keys[str(fo.fp(k))] = f.fp(v)
-            attrs[attr] = [whole, keys]
+                    kf = str(fo.fp(k))
+                    keys[kf] = f.fp(v)
+                    knames[kf] = portable_key(k)
+                attrs[attr] = [whole, keys, knames]
+            else:
+                attrs[attr] = [whole, keys]
         classes[ckey] = attrs
     modules: dict[str, dict] = {}
     for name, mod in sorted(sys.modules.items()):
@@ -325,6 +377,33 @@ def diff(old: dict, new: dict) -> list:
         for attr in sorted(set(a) | set(b)):
             if a.get(attr) != b.get(attr):
                 out.append(["module", name, attr])
+    return out
+
+
+def key_details(old: dict, new: dict) -> list:
+    """Key-level detail of changed dict-valued class attributes:
+    [ckey, attr, kind, key name] with kind "value" (a common key's value changed),
+    "add", "del", or "order" (same keys, other order; key name None)."""
+    out: list = []
+    oc, nc = old["classes"], new["classes"]
+    for ckey in sorted(set(oc) & set(nc)):
+        a, b = oc[ckey], nc[ckey]
+        for attr in sorted(set(a) & set(b)):
+            x, y = a[attr], b[attr]
+            if x[0] == y[0] or x[1] is None or y[1] is None or len(x) < 3 or len(y) < 3:
+                continue
+            xk, yk, xn, yn = x[1], y[1], x[2], y[2]
+            for k in xk:
+                if k not in yk:
+                    out.append([ckey, attr, "del", xn.get(k, "?")])
+                elif xk[k] != yk[k]:
+                    out.append([ckey, attr, "value", xn.get(k, "?")])
+            for k in yk:
+                if k not in xk:
+                    out.append([ckey, attr, "add", yn.get(k, "?")])
+            common = [k for k in xk if k in yk]
+            if common != [k for k in yk if k in xk]:
+                out.append([ckey, attr, "order", None])
     return out
 
 
@@ -435,11 +514,13 @@ def main() -> int:
     sys.path.insert(0, str(root))
     if opts.rel:
         text = sys.stdin.read()
-        rel = opts.rel
-        parts = list(Path(rel).with_suffix("").parts)
-        if parts[-1] == "__init__":
-            parts = parts[:-1]
-        sys.meta_path.insert(0, _Override(".".join(parts), str(root / rel), text))
+        # "--rel -": stdin is a JSON object {rel: edited text} (every edited file of a commit)
+        overrides = json.loads(text) if opts.rel == "-" else {opts.rel: text}
+        for rel, body in sorted(overrides.items()):
+            parts = list(Path(rel).with_suffix("").parts)
+            if parts[-1] == "__init__":
+                parts = parts[:-1]
+            sys.meta_path.insert(0, _Override(".".join(parts), str(root / rel), body))
     import warnings
 
     warnings.simplefilter("ignore")
@@ -463,7 +544,8 @@ def main() -> int:
     volatile = set(old.get("volatile", ()))
     changes = diff(old, state)
     print(json.dumps({"changes": changes,
-                      "volatile": [c for c in changes if change_id(c) in volatile]}))
+                      "volatile": [c for c in changes if change_id(c) in volatile],
+                      "keys": key_details(old, state)}))
     return 0
 
 
