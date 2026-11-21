@@ -8,6 +8,10 @@ track brief and `SCORING.md` has the exact rules. Read both before changing anyt
 **Track page** (hackathon info, practice board, and where we submit the repo + commit hash):
 https://www.joinbuilders.org/buildathon/tracks/blast-radius
 
+**Before working, read `research/`** (`LOG.md`, `experiments.md`, `submissions.md`,
+`open-questions.md`). It records everything tried so far. When you finish, append to it.
+Cloud session prompts live in `cloud/`.
+
 ## The score in one screen
 
 - Each commit costs the load of its busiest worker plus **2 s per worker**. `[]` costs 0.
