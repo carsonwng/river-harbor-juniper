@@ -374,7 +374,8 @@ def main() -> int:
     postprocess(root, out, probes, workers)
     log(f"postprocess in {time.time() - start:.1f}s")
 
-    # lambdas that run during import (strat/gap-mix; blast/impact.py _lambda_only_bits)
+    # lambdas that run during import, and pinned import failures (strat/gap-mix;
+    # blast/impact.py _lambda_only_bits, _imports_cleanly)
     start = time.time()
     try:
         subprocess.run([sys.executable, str(LIB / "br_lambda_probe.py"), str(root),
@@ -402,6 +403,17 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001  the selector works without it
         log(f"relprof failed, no relprof map: {exc!r}")
         (out / "relprof.json").unlink(missing_ok=True)
+    # bytecode for the pinned sources, after every suite pass: the run-time import
+    # check (blast/impact_import.py) then only compiles the edited files. A stale
+    # or missing .pyc only costs time, never correctness.
+    try:
+        if root.as_posix() != "/opt/sqlglot":  # only the image's own copy, never a shared clone
+            raise RuntimeError("not the image's sqlglot; skipped")
+        subprocess.run([sys.executable, "-m", "compileall", "-q", "-j", "0", str(root / "sqlglot")],
+                       cwd=str(root), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       timeout=180)
+    except Exception as exc:  # noqa: BLE001
+        log(f"compileall: {exc!r}")
     if not options.work:
         shutil.rmtree(work, ignore_errors=True)
     for dirpath, _dirs, files in os.walk(out):

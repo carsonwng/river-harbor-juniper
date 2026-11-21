@@ -132,6 +132,14 @@ class Maps:
             self._lambdas = data
         return self._lambdas
 
+    def import_errors(self) -> set[str] | None:
+        """Modules that fail to import at the pin (lambda probe), or None."""
+        try:
+            raw = json.loads((self.root / "lambdas.json").read_text("utf-8"))
+            return {e.split(":", 1)[0] for e in raw.get("errors", [])}
+        except Exception:  # noqa: BLE001
+            return None
+
     def names(self) -> dict:
         if self._names is None:
             self._names = self._json("names.json")
@@ -195,6 +203,7 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
         return ctx.all_tests
     bits = 0
     maps.pruned = False
+    maps.import_sources = {}
     for change in changes:
         try:
             bits |= _change_bits(change, maps)
@@ -206,6 +215,8 @@ def select(changes: list[FileChange], ctx: Context) -> set[int]:
             return ctx.all_tests
         if bits == maps.ALL:
             return ctx.all_tests
+    if maps.import_sources and not _imports_cleanly(maps):
+        return ctx.all_tests
     if not bits and maps.pruned and maps.always:
         return set(maps.always)  # tests the profile never ran
     return maps.to_tests(bits) if bits else set()
@@ -439,6 +450,8 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
         _log(f"{path}: AST unchanged")
         return 0
     info = FileInfo(maps, path, old_text)
+    if _runs_at_import(info, old_tree, new_tree, change):
+        maps.import_sources[path] = new_text
     lam = _lambda_only_bits(info, old_tree, new_tree)
     if lam is not None:
         _log(f"{path}: only import-time lambda bodies changed")
@@ -477,6 +490,52 @@ def _change_bits(change: FileChange, maps: Maps) -> int:
 # build/impact_lib/br_lambda_probe.py records (no record: no narrowing). The
 # add/remove line rules otherwise take the whole statement's names, which for an
 # import-time table read by a metaclass is every user of the class or module.
+
+
+def _blank_bodies(tree, keep_lambdas: set[int]):
+    """Copy of a module with every function body, and the body of every lambda
+    that does not run at import, replaced: what is left runs at import."""
+    import copy
+
+    tree = copy.deepcopy(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, FUNC):
+            node.body = [ast.Pass()]
+        elif isinstance(node, ast.Lambda) and node.lineno not in keep_lambdas:
+            node.body = ast.Constant(None)
+    return tree
+
+
+def _runs_at_import(info: "FileInfo", old_tree, new_tree, change: FileChange) -> bool:
+    """The edit changes code that runs while the module is imported: anything
+    outside function and lambda bodies, or a removed line that ran at import."""
+    for hunk in change.hunks:
+        for number, _text in hunk.removed:
+            if str(number) in info.import_lines:
+                return True
+    started = info.maps.lambdas()
+    at_import = set(started.get(info.rel, ())) if started is not None else None
+    if at_import is None:
+        return True
+    return ast.dump(_blank_bodies(old_tree, at_import)) != ast.dump(_blank_bodies(new_tree, at_import))
+
+
+def _imports_cleanly(maps: Maps) -> bool:
+    """Every sqlglot module that imports at the pin still imports with the new
+    sources (blast/impact_import.py). False, and so every test, on any doubt."""
+    from . import impact_import
+
+    try:
+        failed = impact_import.check(maps.sqlglot, maps.import_sources)
+    except Exception as exc:  # noqa: BLE001
+        _log(f"import check failed: {exc!r}")
+        return False
+    pinned = maps.import_errors()
+    new = sorted(m for m in failed if pinned is None or m not in pinned)
+    if new:
+        _log(f"import fails with the patch: {new[:5]}")
+        return False
+    return True
 
 
 def _pair_import_level(old_list, new_list, out) -> bool:
