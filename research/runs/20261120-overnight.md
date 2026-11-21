@@ -251,3 +251,12 @@ Followed from now on, on top of RUNBOOK.md.
   shows "Entered in the final (your best score)", so it is now the default final entry and is m1-safe. gap-tests (fixture narrowing) and gap-expr
   (Expr attribute reads in the coverage pass) both survive the scorer's build, unlike relprof. The held-out sets predicted it: m1 -15%,
   m1-extra -21%, practice -13%.
+- **`gap-integrate` finished (05:12):** best is `int/night-0434-all` `903d1d2` (code = verified `5102dc1`; PR #13): 0147 + gap-tests + gap-expr
+  (cherry-pick of `b0a6902` only; gap-recall's competing import check skipped as a semantic call) + its CPU filter + gap-heavy. 0 misses on every set.
+  Docker totals: sample 125.9, m1 416.9, m1-extra 206.5, local (32) 308.3, syn-import16 593.4. Cold build under scorer limits: 428.8 s (coverage 79,
+  relprof 206, expr snapshot 10, heavy profile 53). Notes: coverage maps vary between builds of the same image. The harness CPU queue was deadlocked by
+  stale queue files (gap-mix waits from 00:44, gap-recall-freq from 22:55); the agent bypassed the queue and touched no files.
+- **Decision: don't submit 0434-all for now.** Against submission 6 (`ae47472`, the same agent's run: sample 127.3, m1 433.0, m1-extra 206.7) it adds only
+  gap-heavy, whose gain shows on local (329.5 to 308.3) and m1 (-16 s). The sample gain is 1.1%, under the 2% bar. gap-heavy's profile pass runs after
+  relprof on a deadline and was most likely skipped on the scorer, as relprof was. So the expected practice gain is about 0, and the build-time risk goes up.
+  It is a candidate only if a future build-order change makes heavy run before relprof.
