@@ -275,3 +275,8 @@ Followed from now on, on top of RUNBOOK.md.
   receipt BB-97E04B82. It tests whether gap-heavy's map transfers when relprof is off. Expected: about 1-5% under 213.9 if relprof was being dropped.
   If the score is clearly worse, relprof was finishing on the scorer and submission 6 stays the pick.
 - `gap-integrate` finished. Its branches are all verified and pushed: 0403-tests, 0405-expr (sub 6), 0406-heavy, 0434-all (PR #13), 0519-norelprof (frozen).
+- **Submission 7 score: 215.8 s** (BB-97E04B82, wait 203 ms). Runs: 211.977 s simulated, 3.81 / 3.80 / 3.81 s CPU, 0 commits missed.
+  **+1.9 s worse than submission 6** (simulated +1.6, CPU +0.26). Reading: gap-heavy brings no measurable practice gain, and turning relprof off cost a
+  little. So relprof (or coverage-map variance between builds) was contributing about 1.6 s on the scorer. **Submission 6 (`ae47472`, 213.9) stays
+  the best and the final entry.** The trade-off for the final is still open for the human: submission 7 builds in 228.5 s (vs 371.3 s for sub 6) for
+  about 1.9 s worse, which gives more margin if the final's builder is slower. Both are m1-safe.
