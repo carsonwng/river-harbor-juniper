@@ -117,3 +117,54 @@ included a full state diff for every import-time edit, which is now import-only.
   narrowed anything in the image. Fixed: seed-0 bytecode, snapshots load it, and the edited
   module goes through a marshal round trip. An unedited diff of all 184 files reports no
   change.
+
+## Verify and held-out data
+
+`br.py verify strat/impact-combo` at 760d8bd (host builder, laptop saturated by labelling:
+core pass 248 s, so every optional pass was skipped and only the core map, the supplement
+and the import check were in the image):
+
+| set | simulated | CPU | total | misses |
+| --- | --- | --- | --- | --- |
+| sample | 184.807 | 7.834 | 192.641 | 0 |
+| local-20261120 (16) | 170.771 | 4.134 | 174.905 | 0 |
+| m1 (70) | 629.162 | 27.901 | 657.063 | **0** |
+
+On m1, int/night-2120 (main + base + relprof) misses `8owm`: `*exp.DataType.NUMERIC_TYPES`
+becomes `+exp.DataType.NUMERIC_TYPES` in a Hive class body, a TypeError at import, so 1161
+tests fail. The attrs import-failure check selects every test there. CPU on m1 is mostly that
+check (about 1 s per import-time edit under load).
+
+## Probes (mutants from the three branches' docs, rebuilt by hand; labels in br-label)
+
+| probe | edit | label | failing | v3 image (core+relprof, no supplement) | v5 image (core+supplement) |
+| --- | --- | --- | --- | --- | --- |
+| h1dispatch | generator.py:86 `not in` -> `in` | subset (athena, transpile, drill) | 41 | 47 sel, **37 missed** | 1347 sel, 0 missed |
+| agsets | query.py:647 `grouping_sets` False -> True | full | 1142 (import errors) | 151 sel (bug, fixed in 865d252) | all, 0 missed |
+| aaliaspost | dialect.py:445 False -> True | full | 5 | 1590, 0 missed | 1590, 0 missed |
+| rgen3104 | generator.py:3104 `is not None` -> `!= None` | the 51 base-selected tests | 0 | relprof prunes to 0 | 51 (no relprof) |
+
+Selections only (not labelled, compared with the branches' own probe tables): h1tryload 1235
+(isolate: 1235), typinghive 607 (599), f3snowflake / f3maxcopy all tests (the import check
+finds the import error; isolate selected 1087 / 150, which covered the failing ones), rparser
+2 with relprof (relprof's own run: all 1436 base-selected tests pass).
+
+## Risks
+
+- Builder load: on a loaded builder only the core map is built (plus the supplement and the
+  import check), which is about base precision. relprof needs about 1.9x the core pass.
+- Run CPU of the import check: about 1 s per import-time edit under load. It could be
+  narrowed to the modules whose import loads the edited one (probe data). That is not done,
+  because a module's import could depend on registry state without loading the edited module.
+- The in-process registry rule is layout dependent (base behaviour): ktz3 sometimes pulls in
+  `test_execute_tpcds`.
+
+## For other strategies
+
+- The hard/soft split in `_change_bits`: precision layers must never drop line-0 readers,
+  semantics or subprocess bits.
+- `run_pass` (process-group kill) plus `Budget` in `build/impact.py` for any optional build pass.
+- The fork supplement pattern: commit the small, stable delta of an expensive pass as a
+  pinned-commit map.
+- The marshal round trip in `br_state._Override`: any run-time import of edited text that is
+  compared with bytecode-loaded state needs it.
