@@ -1,0 +1,25 @@
+diff --git a/sqlglot/typing/databricks.py b/sqlglot/typing/databricks.py
+index 5ac9ff3..59abfdd 100644
+--- a/sqlglot/typing/databricks.py
++++ b/sqlglot/typing/databricks.py
+@@ -27,6 +27,7 @@ EXPRESSION_METADATA = {
+         }
+     },
+     **{
++        # Normalize early
+         exp_type: {"returns": exp.DType.VARCHAR}
+         for exp_type in {
+             exp.RegexpSubstr,
+diff --git a/tests/fixtures/optimizer/annotate_types.sql b/tests/fixtures/optimizer/annotate_types.sql
+index 5266c52..0f875ae 100644
+--- a/tests/fixtures/optimizer/annotate_types.sql
++++ b/tests/fixtures/optimizer/annotate_types.sql
+@@ -11,7 +11,7 @@ INT;
+ INT;
+ 
+ 5.3;
+-DOUBLE;
++DUBLE;
+ 
+ 'bla';
+ VARCHAR;

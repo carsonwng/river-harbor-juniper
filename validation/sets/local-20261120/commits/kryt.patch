@@ -1,0 +1,13 @@
+diff --git a/sqlglot/optimizer/canonicalize_internal_names.py b/sqlglot/optimizer/canonicalize_internal_names.py
+index 087390b..df9a9ba 100644
+--- a/sqlglot/optimizer/canonicalize_internal_names.py
++++ b/sqlglot/optimizer/canonicalize_internal_names.py
+@@ -126,7 +126,7 @@ def canonicalize_internal_names(expression: E) -> E:
+                     alias_holder = src_expr
+ 
+                 # A UDTF (unlike a CTE/subquery) can be a source in multiple scopes, so keep its alias_holder and share its column map across them
+-                is_udtf_source = alias_holder is src_expr
++                is_udtf_source = alias_holder is src_expr  # Keep in sync with the generator
+ 
+                 table_key = id(alias_holder) if alias_holder else id(source)
+                 canon_t = scope_table.get(table_key, "")

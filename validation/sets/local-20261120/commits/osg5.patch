@@ -1,0 +1,13 @@
+diff --git a/tests/fixtures/optimizer/optimizer.sql b/tests/fixtures/optimizer/optimizer.sql
+index 86e0f9c..17a9a73 100644
+--- a/tests/fixtures/optimizer/optimizer.sql
++++ b/tests/fixtures/optimizer/optimizer.sql
+@@ -180,7 +180,7 @@ LIMIT 1;
+   SELECT
+     "x"."b" AS "b"
+   FROM "x" AS "x"
+-  UNION
++  NULL UNION
+   SELECT
+     "y"."b" AS "b"
+   FROM "y" AS "y"

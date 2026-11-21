@@ -1,0 +1,102 @@
+{
+ "0n1s": [
+  "fixture tests/fixtures/optimizer/pushdown_projections.sql: line 245: insert 'NULL'"
+ ],
+ "23xe": [
+  "code sqlglot/generators/python.py: == -> !="
+ ],
+ "31n7": [
+  "fixture tests/fixtures/optimizer/qualify_tables.sql: line 324: insert '42'"
+ ],
+ "3ykp": [
+  "code sqlglot/dialects/duckdb.py: 3 -> 4"
+ ],
+ "5u2j": [
+  "code sqlglot/executor/context.py: != -> ==",
+  "code sqlglot/optimizer/journal.py: is -> is not"
+ ],
+ "5z9i": [
+  "comment sqlglot/dialects/prql.py: comment before line 24"
+ ],
+ "6bhm": [
+  "fixture tests/fixtures/optimizer/qualify_columns_ddl.sql: line 11: insert '('",
+  "fixture tests/fixtures/optimizer/tpc-h/tpc-h.sql: line 584: insert '42'",
+  "fixture tests/fixtures/optimizer/unnest_subqueries.sql: line 464: case JOIN"
+ ],
+ "6ku0": [
+  "code sqlglot/dialects/fabric.py: string \"UTINYINT\" -> \"utinyint\""
+ ],
+ "955b": [
+  "comment sqlglot/optimizer/simplify.py: docstring line 277: logical -> logica"
+ ],
+ "95r6": [
+  "code sqlglot/optimizer/qualify_columns.py: drop not"
+ ],
+ "9y3p": [
+  "code sqlglot/optimizer/eliminate_joins.py: and -> or"
+ ],
+ "b13e": [
+  "fixture tests/fixtures/optimizer/quote_identifiers.sql: line 1: insert 'a'"
+ ],
+ "bajg": [
+  "code sqlglot/executor/python.py: and -> or"
+ ],
+ "c6z4": [
+  "fixture tests/fixtures/optimizer/annotate_types.sql: line 14: delete 'O'",
+  "comment sqlglot/typing/databricks.py: comment before line 30"
+ ],
+ "d4s6": [
+  "fixture tests/fixtures/optimizer/eliminate_ctes.sql: line 1: delete 'i'"
+ ],
+ "d811": [
+  "code sqlglot/parsers/databricks.py: string \"REGR_AVGY\" -> \"REGR_AVY\""
+ ],
+ "f7kz": [
+  "code sqlglot/parsers/base.py: drop element line 13: TokenType.LOCALTIMESTAMP: exp.Localtimestamp,"
+ ],
+ "g9ct": [
+  "code sqlglot/optimizer/merge_subqueries.py: True -> False"
+ ],
+ "h12g": [
+  "code sqlglot/optimizer/helpers.py: is -> is not"
+ ],
+ "hl6e": [
+  "fixture tests/fixtures/optimizer/optimizer.sql: line 1106: delete 'x'"
+ ],
+ "i0ru": [
+  "code sqlglot/typing/__init__.py: is not -> is"
+ ],
+ "k1ra": [
+  "fixture tests/fixtures/optimizer/unnest_subqueries.sql: line 355: split word"
+ ],
+ "kghr": [
+  "code sqlglot/dialects/materialize.py: string \"v\" -> \"V\""
+ ],
+ "kryt": [
+  "comment sqlglot/optimizer/canonicalize_internal_names.py: trailing comment at line 129"
+ ],
+ "nu29": [
+  "code sqlglot/typing/hive.py: is not -> !="
+ ],
+ "o0d4": [
+  "code sqlglot/typing/hive.py: string \"this\" -> \"thisX\""
+ ],
+ "osg5": [
+  "fixture tests/fixtures/optimizer/optimizer.sql: line 183: insert 'NULL'"
+ ],
+ "p4xq": [
+  "code sqlglot/generators/python.py: drop not"
+ ],
+ "s31h": [
+  "code sqlglot/optimizer/resolver.py: is -> =="
+ ],
+ "triu": [
+  "fixture tests/fixtures/optimizer/canonicalize_internal_names.sql: line 43: delete '\"'"
+ ],
+ "u8sx": [
+  "comment sqlglot/typing/clickhouse.py: comment before line 20"
+ ],
+ "uwn6": [
+  "comment sqlglot/generators/postgres.py: docstring line 555: need -> needs"
+ ]
+}

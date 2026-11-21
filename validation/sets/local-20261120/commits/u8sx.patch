@@ -1,0 +1,12 @@
+diff --git a/sqlglot/typing/clickhouse.py b/sqlglot/typing/clickhouse.py
+index 5e048ff..adcd105 100644
+--- a/sqlglot/typing/clickhouse.py
++++ b/sqlglot/typing/clickhouse.py
+@@ -17,6 +17,7 @@ EXPRESSION_METADATA = {
+         )
+     },
+     exp.Corr: {
++        # Fast path
+         "annotator": lambda self, e: self._set_type(
+             e, exp.DataType.build("Float64", dialect="clickhouse")
+         )
